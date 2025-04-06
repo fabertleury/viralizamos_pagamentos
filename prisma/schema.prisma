@@ -16,6 +16,7 @@ datasource db {
 
 // Schema for the payment system
 
+/// Mapeado para a tabela payment_request
 model PaymentRequest {
   id                String    @id @default(uuid())
   token             String    @unique
@@ -34,6 +35,7 @@ model PaymentRequest {
   // Relations
   payments          Payment[]
   
+  @@map("payment_request")
   @@index([token])
   @@index([status])
   @@index([external_reference])
@@ -58,6 +60,7 @@ model Payment {
   // Relations
   notifications      Notification[]
 
+  @@map("payment")
   @@index([payment_request_id])
   @@index([provider, provider_payment_id])
   @@index([status])
@@ -72,6 +75,7 @@ model Notification {
   data        String  // JSON string com os dados da notificação
   created_at  DateTime @default(now())
 
+  @@map("notification")
   @@index([payment_id])
   @@index([type])
   @@index([created_at])
