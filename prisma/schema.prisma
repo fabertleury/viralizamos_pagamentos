@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Schema for the payment system
+
+model PaymentRequest {
+  id                String    @id @default(uuid())
+  token             String    @unique
+  amount            Float
+  description       String
+  status            String    @default("pending") // pending, processing, completed, expired, cancelled, failed
+  payer_name        String
+  payer_email       String
+  payer_phone       String?
+  external_reference String?
+  metadata          String?   // JSON string
+  expires_at        DateTime?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  payments          Payment[]
+  
+  @@index([token])
+  @@index([status])
+  @@index([external_reference])
+  @@index([created_at])
+}
+
+model Payment {
+  id                 String    @id @default(uuid())
+  payment_request_id String
+  payment_request    PaymentRequest @relation(fields: [payment_request_id], references: [id])
+  provider           String    // mercadopago, pagseguro, etc.
+  provider_payment_id String?
+  status             String    // pending, completed, failed, cancelled, refunded, disputed
+  method             String    // pix, credit_card, boleto, etc.
+  amount             Float
+  pix_code           String?
+  pix_qrcode         String?
+  extra_data         String?   // JSON string
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  // Relations
+  notifications      Notification[]
+
+  @@index([payment_request_id])
+  @@index([provider, provider_payment_id])
+  @@index([status])
+  @@index([created_at])
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  payment_id  String?
+  payment     Payment? @relation(fields: [payment_id], references: [id])
+  type        String  // mercadopago_webhook, system, etc.
+  data        String  // JSON string com os dados da notificação
+  created_at  DateTime @default(now())
+
+  @@index([payment_id])
+  @@index([type])
+  @@index([created_at])
+}
