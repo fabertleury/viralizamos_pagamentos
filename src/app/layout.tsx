@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 
+// Importar scripts de inicialização
+import "@/lib/startup";
+import "@/lib/db-check";
+
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
