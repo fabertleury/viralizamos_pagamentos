@@ -53,18 +53,22 @@ export async function GET(
       paymentRequest.status = 'expired';
     }
     
-    // Preparar resposta
+    // Preparar resposta com os campos corretos do modelo atual
     const response = {
       id: paymentRequest.id,
       token: paymentRequest.token,
       amount: paymentRequest.amount,
-      description: paymentRequest.description,
+      service_name: paymentRequest.service_name || 'Pagamento Viralizamos',
+      service_id: paymentRequest.service_id,
       status: paymentRequest.status,
-      payer_name: paymentRequest.payer_name,
-      payer_email: paymentRequest.payer_email,
-      payer_phone: paymentRequest.payer_phone,
+      customer_name: paymentRequest.customer_name,
+      customer_email: paymentRequest.customer_email,
+      customer_phone: paymentRequest.customer_phone,
+      profile_username: paymentRequest.profile_username,
+      return_url: paymentRequest.return_url,
       created_at: paymentRequest.created_at,
       expires_at: paymentRequest.expires_at,
+      processed_at: paymentRequest.processed_at,
       payment: paymentRequest.payments[0] ? {
         id: paymentRequest.payments[0].id,
         status: paymentRequest.payments[0].status,
