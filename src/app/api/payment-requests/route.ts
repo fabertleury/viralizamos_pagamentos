@@ -10,9 +10,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Validar campos obrigatórios
-    if (!body.amount || !body.description || !body.payer_name || !body.payer_email) {
+    if (!body.amount || !body.customer_name || !body.customer_email) {
       return NextResponse.json(
-        { error: 'Campos obrigatórios: amount, description, payer_name, payer_email' },
+        { error: 'Campos obrigatórios: amount, customer_name, customer_email' },
         { status: 400 }
       );
     }
@@ -34,25 +34,27 @@ export async function POST(request: NextRequest) {
       ? new Date(body.expires_at) 
       : new Date(Date.now() + 24 * 60 * 60 * 1000);
     
-    // Criar a solicitação de pagamento
+    // Criar a solicitação de pagamento com os campos corretos
     const paymentRequest = await db.paymentRequest.create({
       data: {
         amount,
-        description: body.description,
         token,
+        service_id: body.service_id,
+        profile_username: body.profile_username,
+        customer_name: body.customer_name || body.payer_name,
+        customer_email: body.customer_email || body.payer_email,
+        customer_phone: body.customer_phone || body.payer_phone,
+        service_name: body.service_name || body.description,
+        return_url: body.return_url,
         status: 'pending',
-        payer_name: body.payer_name,
-        payer_email: body.payer_email,
-        payer_phone: body.payer_phone,
-        expires_at: expiresAt,
-        metadata: body.metadata ? JSON.stringify(body.metadata) : null,
-        external_reference: body.external_reference
+        additional_data: body.additional_data || JSON.stringify(body),
+        expires_at: expiresAt
       }
     });
     
     // Construir URL de pagamento
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('host') || '';
-    const protocol = request.headers.get('x-forwarded-proto') || 'http';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || request.headers.get('host') || '';
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
     const paymentUrl = `${protocol}://${baseUrl}/pagamento/${token}`;
     
     // Retornar a solicitação criada com a URL de pagamento
@@ -60,11 +62,11 @@ export async function POST(request: NextRequest) {
       id: paymentRequest.id,
       token: paymentRequest.token,
       amount: paymentRequest.amount,
-      description: paymentRequest.description,
+      service_name: paymentRequest.service_name,
       status: paymentRequest.status,
-      payer_name: paymentRequest.payer_name,
-      payer_email: paymentRequest.payer_email,
-      payer_phone: paymentRequest.payer_phone,
+      customer_name: paymentRequest.customer_name,
+      customer_email: paymentRequest.customer_email,
+      customer_phone: paymentRequest.customer_phone,
       created_at: paymentRequest.created_at,
       expires_at: paymentRequest.expires_at,
       payment_url: paymentUrl
@@ -93,7 +95,7 @@ export async function GET(request: NextRequest) {
     
     // Filtros
     const status = searchParams.get('status');
-    const externalReference = searchParams.get('external_reference');
+    const serviceId = searchParams.get('service_id');
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
     
@@ -104,8 +106,8 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
     
-    if (externalReference) {
-      where.external_reference = externalReference;
+    if (serviceId) {
+      where.service_id = serviceId;
     }
     
     if (startDate || endDate) {
@@ -141,19 +143,23 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // Formatar resposta
+    // Formatar resposta com os campos corretos
     const formattedRequests = paymentRequests.map((pr: any) => ({
       id: pr.id,
       token: pr.token,
       amount: pr.amount,
-      description: pr.description,
+      service_name: pr.service_name,
+      service_id: pr.service_id,
       status: pr.status,
-      payer_name: pr.payer_name,
-      payer_email: pr.payer_email,
-      payer_phone: pr.payer_phone,
-      external_reference: pr.external_reference,
+      customer_name: pr.customer_name,
+      customer_email: pr.customer_email,
+      customer_phone: pr.customer_phone,
+      profile_username: pr.profile_username,
+      return_url: pr.return_url,
       created_at: pr.created_at,
       expires_at: pr.expires_at,
+      processed_at: pr.processed_at,
+      processed_payment_id: pr.processed_payment_id,
       last_payment: pr.payments[0] ? {
         id: pr.payments[0].id,
         status: pr.payments[0].status,
