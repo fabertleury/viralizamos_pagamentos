@@ -13,11 +13,20 @@ COPY next.config.js ./
 # Usar .env.production para o build
 RUN cp .env.production .env
 
+# Verificar variáveis de ambiente
+RUN echo "Variáveis de ambiente para build:" && cat .env | grep -v PASSWORD || echo "Arquivo .env não encontrado"
+
 # Instalar dependências sem executar scripts de pós-instalação
 RUN npm install --ignore-scripts
 
 # Copiar código-fonte
 COPY . .
+
+# Verificar variáveis de ambiente disponíveis
+RUN echo "DATABASE_URL durante build: ${DATABASE_URL:-não definido}"
+
+# Injetar forçadamente a URL do banco de dados para o Railway
+RUN echo "DATABASE_URL=postgresql://postgres:zacEqGceWerpWpBZZqttjamDOCcdhRbO@shinkansen.proxy.rlwy.net:29036/railway" >> .env
 
 # Gerar client Prisma com suporte explícito a openssl-3.0.x
 RUN npx prisma generate
@@ -64,9 +73,10 @@ COPY --from=builder /app/prisma ./prisma
 RUN ls -la node_modules/.prisma/client || echo "Cliente Prisma não encontrado"
 
 # Configurações para produção
-ENV NODE_ENV production
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+ENV DATABASE_URL="postgresql://postgres:zacEqGceWerpWpBZZqttjamDOCcdhRbO@shinkansen.proxy.rlwy.net:29036/railway"
 
 # Script de healthcheck
 RUN echo '#!/bin/sh\n\
@@ -108,6 +118,13 @@ set -e\n\
 echo "Iniciando aplicação..."\n\
 echo "Variáveis de ambiente:"\n\
 env | grep -E "NODE_ENV|PORT|HOSTNAME|DATABASE_URL" | grep -v "=" || true\n\
+\n\
+# Injetar a string de conexão correta se não estiver definida\n\
+if [ -z "$DATABASE_URL" ] || echo "$DATABASE_URL" | grep -q "localhost"; then\n\
+  echo "⚠️ DATABASE_URL não definida ou apontando para localhost, corrigindo..."\n\
+  export DATABASE_URL="postgresql://postgres:zacEqGceWerpWpBZZqttjamDOCcdhRbO@shinkansen.proxy.rlwy.net:29036/railway"\n\
+  echo "Nova DATABASE_URL: ${DATABASE_URL}"\n\
+fi\n\
 \n\
 # Verificar versão do OpenSSL\n\
 echo "Versão do OpenSSL:"\n\
