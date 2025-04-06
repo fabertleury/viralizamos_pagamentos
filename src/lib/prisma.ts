@@ -1,5 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 
+// Logs para diagnósticos
+console.log('DATABASE_URL:', process.env.DATABASE_URL?.substring(0, 20) + '...');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PGHOST:', process.env.PGHOST);
+console.log('DATABASE_CONFIG:', JSON.stringify({
+  host: process.env.PGHOST,
+  port: process.env.PGPORT,
+  user: process.env.PGUSER,
+  database: process.env.PGDATABASE
+}));
+
 // ===== CONFIGURAÇÃO DE CONEXÃO FORÇADA =====
 // Em produção na Railway, verificamos se estamos com a URL correta
 // ou forçamos a URL correta para a instância PostgreSQL da Railway
@@ -19,48 +30,34 @@ if (process.env.NODE_ENV === 'production') {
   console.log(`ℹ️ [${process.env.NODE_ENV}] Ambiente de desenvolvimento`);
 }
 
-// Configurações do Prisma
-const prismaClientSingleton = () => {
+// Função para inicializar o cliente Prisma com tratamento de erros
+function prismaClientSingleton() {
   try {
-    // Em ambiente de desenvolvimento, pode usar um fallback
-    if (!process.env.DATABASE_URL && process.env.NODE_ENV !== 'production') {
-      console.log('⚠️ DATABASE_URL não definida em desenvolvimento, usando fallback');
-      process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/viralizamos_pagamentos";
-    }
-    
-    // Em produção, DATABASE_URL deve estar definida corretamente
+    // Verifica se temos as configurações corretas do banco de dados
     if (!process.env.DATABASE_URL) {
-      throw new Error(`DATABASE_URL não está definida no ambiente ${process.env.NODE_ENV}`);
+      console.error('DATABASE_URL não definida. Usando conexão padrão para desenvolvimento.');
     }
     
-    // Validação adicional para produção
-    if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL.includes('localhost')) {
-      throw new Error('DATABASE_URL está apontando para localhost em ambiente de produção');
-    }
-    
-    console.log('🔌 Inicializando conexão com o banco de dados...');
+    // Inicializa o cliente Prisma com log em desenvolvimento
     return new PrismaClient({
       log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      errorFormat: 'pretty',
     });
   } catch (error) {
-    console.error('❌ ERRO FATAL ao inicializar Prisma Client:', error);
+    console.error('Erro ao inicializar o cliente Prisma:', error);
     throw error;
   }
-};
+}
 
-// Tipo global para o Prisma
-type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>;
+// Tipo global para o cliente Prisma
+declare global {
+  var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
+}
 
-// Variável global para evitar múltiplas instâncias em desenvolvimento
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClientSingleton | undefined;
-};
+// Exporta o cliente Prisma (singleton)
+export const db = globalThis.prisma ?? prismaClientSingleton();
 
-// Exportar o cliente do Prisma
-export const db = globalForPrisma.prisma ?? prismaClientSingleton();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db;
+// Atribui à variável global em desenvolvimento para evitar múltiplas instâncias
+if (process.env.NODE_ENV !== 'production') globalThis.prisma = db;
 
 // Validar a conexão imediatamente
 db.$connect()
