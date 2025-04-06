@@ -14,31 +14,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Schema for the payment system
+// Schema for the payment system - estrutura exata do banco existente
 
-/// Mapeado para a tabela payment_request
+/// Estrutura da tabela payment_request existente no banco de dados
 model PaymentRequest {
-  id                String    @id @default(uuid())
-  token             String    @unique
-  amount            Float
-  description       String
-  status            String    @default("pending") // pending, processing, completed, expired, cancelled, failed
-  payer_name        String
-  payer_email       String
-  payer_phone       String?
-  external_reference String?
-  metadata          String?   // JSON string
-  expires_at        DateTime?
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  token                String    @unique
+  amount               Float
+  service_id           String?
+  profile_username     String?
+  customer_email       String
+  customer_name        String
+  customer_phone       String?
+  service_name         String?
+  return_url           String?
+  status               String    @default("pending") // pending, processing, completed, expired, cancelled, failed
+  processed_payment_id String?
+  additional_data      String?   // JSON string
+  created_at           DateTime  @default(now())
+  expires_at           DateTime?
+  processed_at         DateTime?
 
   // Relations
-  payments          Payment[]
+  payments             Payment[]
   
   @@map("payment_request")
   @@index([token])
   @@index([status])
-  @@index([external_reference])
+  @@index([service_id])
   @@index([created_at])
 }
 

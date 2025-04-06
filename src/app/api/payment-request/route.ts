@@ -18,13 +18,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('Payload original recebido:', JSON.stringify(body, null, 2));
     
-    // O payload pode vir em diferentes formatos:
-    // 1. Diretamente no body: { amount, description, payer_name, payer_email, ... }
-    // 2. Dentro de um objeto data: { data: { amount, description, payer_name, payer_email, ... } }
-    // 3. Dentro de uma estrutura aninhada: { order: { amount, ... }, customer: { name, email, ... } }
-    // 4. Com nomes de campos diferentes: { valor, descricao, nome_pagador, email_pagador, ... }
-    
-    // Extrair dados da estrutura aninhada, se existirem
+    // O payload pode vir em diferentes formatos
     const paymentData = body.data || body;
     const orderData = paymentData.order || paymentData;
     const customerData = paymentData.customer || 
@@ -35,7 +29,7 @@ export async function POST(request: NextRequest) {
                          paymentData.pagador || 
                          paymentData;
     
-    // Extrair campos normalizando os nomes
+    // Extrair campos adaptando para a estrutura real da tabela
     const amount = Number(
       orderData.amount || 
       orderData.valor || 
@@ -47,113 +41,120 @@ export async function POST(request: NextRequest) {
       0
     );
     
-    const description = 
+    // Extrair campos do serviço
+    const serviceId = 
+      orderData.service_id || 
+      orderData.serviceId || 
+      orderData.id_servico || 
+      orderData.servico_id || 
+      body.service_id || 
+      null;
+    
+    const serviceName = 
+      orderData.service_name || 
+      orderData.serviceName || 
+      orderData.nome_servico || 
+      orderData.servico_nome || 
       orderData.description || 
       orderData.descricao || 
-      orderData.desc || 
-      orderData.produto || 
-      orderData.product || 
-      orderData.item || 
+      body.service_name || 
       body.description || 
-      body.descricao || 
       'Pagamento Viralizamos';
     
-    const payerName = 
+    // Extrair campos do cliente
+    const customerName = 
+      customerData.customer_name || 
+      customerData.customerName || 
       customerData.payer_name || 
       customerData.payerName || 
-      customerData.nome_pagador || 
       customerData.nome || 
       customerData.name || 
-      customerData.fullName || 
-      customerData.full_name || 
-      customerData.nome_completo || 
+      body.customer_name || 
       body.payer_name || 
       body.nome || 
-      'Cliente';  // Valor padrão para evitar erro de validação
+      'Cliente';
     
-    const payerEmail = 
+    const customerEmail = 
+      customerData.customer_email || 
+      customerData.customerEmail || 
       customerData.payer_email || 
       customerData.payerEmail || 
-      customerData.email_pagador || 
       customerData.email || 
-      customerData.mail || 
+      body.customer_email || 
       body.payer_email || 
       body.email || 
-      'cliente@viralizamos.com';  // Valor padrão para evitar erro de validação
+      'cliente@viralizamos.com';
     
-    const payerPhone = 
+    const customerPhone = 
+      customerData.customer_phone || 
+      customerData.customerPhone || 
       customerData.payer_phone || 
       customerData.payerPhone || 
-      customerData.telefone_pagador || 
       customerData.telefone || 
       customerData.phone || 
-      customerData.cellphone || 
-      customerData.celular || 
+      body.customer_phone || 
       body.payer_phone || 
       body.telefone || 
       null;
-    
-    const externalReference = 
-      orderData.external_reference || 
-      orderData.externalReference || 
-      orderData.referencia_externa || 
-      orderData.reference || 
-      orderData.ref || 
-      orderData.id || 
-      body.external_reference || 
-      body.reference || 
-      body.ref || 
-      body.id || 
+      
+    // Extrair username do perfil
+    const profileUsername = 
+      paymentData.profile_username || 
+      paymentData.profileUsername || 
+      paymentData.username || 
+      paymentData.profile || 
+      body.profile_username || 
+      body.username || 
+      null;
+      
+    // URL de retorno após o pagamento
+    const returnUrl = 
+      paymentData.return_url || 
+      paymentData.returnUrl || 
+      paymentData.redirectUrl || 
+      paymentData.redirect_url || 
+      paymentData.callback || 
+      body.return_url || 
+      body.callback || 
       null;
     
-    // Unir metadados de várias fontes possíveis
-    let metadata = {
-      ...(paymentData.metadata || {}),
-      ...(paymentData.meta || {}),
-      ...(paymentData.dados_adicionais || {}),
-      ...(body.metadata || {}),
-      source: headers['x-payment-source'] || 'api'
-    };
-    
-    // Se não houver dados úteis nos metadados, enviar o body original
-    if (Object.keys(metadata).length <= 1) {
-      metadata = { 
-        ...metadata,
-        original_payload: body 
-      };
-    }
+    // Dados adicionais (armazenados como JSON)
+    const additionalData = JSON.stringify({
+      original_payload: body,
+      source: headers['x-payment-source'] || 'api',
+      user_agent: headers['user-agent'] || null,
+      origin: headers['origin'] || null
+    });
     
     // Logs para diagnóstico
     console.log('Dados extraídos e normalizados:', {
       amount,
-      description,
-      payerName,
-      payerEmail,
-      payerPhone,
-      externalReference,
-      metadata
+      service_id: serviceId,
+      service_name: serviceName,
+      profile_username: profileUsername,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      return_url: returnUrl
     });
     
-    // No modo de desenvolvimento, desativar validação estrita para facilitar testes
+    // Validação no ambiente de produção
     const isDevMode = process.env.NODE_ENV === 'development';
     
-    // Validar campos obrigatórios (menos rigoroso em ambiente de desenvolvimento)
-    if (!isDevMode && (!amount || !description || !payerName || !payerEmail)) {
+    if (!isDevMode && (!amount || amount <= 0 || !customerName || !customerEmail)) {
       console.error('Validação falhou:', {
-        hasAmount: Boolean(amount),
-        hasDescription: Boolean(description),
-        hasPayerName: Boolean(payerName),
-        hasPayerEmail: Boolean(payerEmail)
+        hasAmount: Boolean(amount) && amount > 0,
+        hasCustomerName: Boolean(customerName),
+        hasCustomerEmail: Boolean(customerEmail)
       });
       
       return NextResponse.json(
         { 
-          error: 'Campos obrigatórios: amount, description, payer_name, payer_email',
+          error: 'Campos obrigatórios: amount, customer_name, customer_email',
           received: {
             amount: amount || null,
-            description: description || null,
-            payer_name: payerName || null,
-            payer_email: payerEmail || null
+            customer_name: customerName || null,
+            customer_email: customerEmail || null
           },
           originalPayload: body
         },
@@ -177,25 +178,30 @@ export async function POST(request: NextRequest) {
       ? new Date(paymentData.expires_at) 
       : new Date(Date.now() + 24 * 60 * 60 * 1000);
     
-    // Criar a solicitação de pagamento
+    // Criar a solicitação de pagamento com os campos corretos da tabela
     const paymentRequest = await db.paymentRequest.create({
       data: {
-        amount,
-        description,
         token,
+        amount,
+        service_id: serviceId,
+        service_name: serviceName,
+        profile_username: profileUsername,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        return_url: returnUrl,
         status: 'pending',
-        payer_name: payerName,
-        payer_email: payerEmail,
-        payer_phone: payerPhone,
-        expires_at: expiresAt,
-        metadata: JSON.stringify(metadata),
-        external_reference: externalReference
+        additional_data: additionalData,
+        expires_at: expiresAt
       }
     });
     
     // Construir URL de pagamento
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || request.headers.get('host') || '';
-    const protocol = request.headers.get('x-forwarded-proto') || 'http';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                   process.env.NEXT_PUBLIC_BASE_URL || 
+                   request.headers.get('host') || 
+                   'pagamentos.viralizamos.com';
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
     const paymentUrl = `${protocol}://${baseUrl}/pagamento/${token}`;
     
     console.log('Solicitação de pagamento criada com sucesso:', {
@@ -209,11 +215,10 @@ export async function POST(request: NextRequest) {
       id: paymentRequest.id,
       token: paymentRequest.token,
       amount: paymentRequest.amount,
-      description: paymentRequest.description,
+      service_name: paymentRequest.service_name,
       status: paymentRequest.status,
-      payer_name: paymentRequest.payer_name,
-      payer_email: paymentRequest.payer_email,
-      payer_phone: paymentRequest.payer_phone,
+      customer_name: paymentRequest.customer_name,
+      customer_email: paymentRequest.customer_email,
       created_at: paymentRequest.created_at,
       expires_at: paymentRequest.expires_at,
       payment_url: paymentUrl
