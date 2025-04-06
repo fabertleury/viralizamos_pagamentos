@@ -134,6 +134,10 @@ openssl version\n\
 echo "Verificando engines do Prisma:"\n\
 ls -la node_modules/.prisma/client || echo "Cliente Prisma não encontrado"\n\
 \n\
+# Executar migrações do Prisma para criar as tabelas no banco de dados\n\
+echo "🔄 Executando push do esquema Prisma para o banco de dados..."\n\
+npx prisma db push --accept-data-loss\n\
+\n\
 # Criar endpoints acessíveis durante inicialização\n\
 echo "{ \\"status\\": \\"ok\\", \\"timestamp\\": \\"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\\", \\"service\\": \\"viralizamos-pagamentos\\" }" > /app/public/status.json\n\
 \n\
