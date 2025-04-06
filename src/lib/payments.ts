@@ -57,9 +57,9 @@ export async function createPix({
     // Criar pagamento no Mercado Pago
     const mpPayment = await createPixPayment({
       transactionAmount: paymentRequest.amount,
-      description: paymentRequest.description,
-      payerEmail: paymentRequest.payer_email,
-      payerName: paymentRequest.payer_name,
+      description: paymentRequest.service_name || 'Pagamento Viralizamos',
+      payerEmail: paymentRequest.customer_email,
+      payerName: paymentRequest.customer_name,
       externalReference: paymentRequestId,
       notificationUrl: webhookUrl
     });
