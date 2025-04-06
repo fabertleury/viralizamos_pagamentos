@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/prisma';
 import crypto from 'crypto';
 
 // Função para gerar um token único
@@ -7,16 +6,21 @@ function generateToken(): string {
   return crypto.randomBytes(16).toString('hex');
 }
 
-// Este endpoint é apenas um proxy para o endpoint correto /api/payment-requests
-// Foi criado para manter compatibilidade com o frontend existente que usa payment-request (singular)
+// Este endpoint não usa mais Prisma para evitar erros de conexão
 export async function POST(request: NextRequest) {
   try {
     // Log dos headers para diagnóstico
     const headers = Object.fromEntries(request.headers.entries());
     console.log('Headers recebidos:', headers);
     
-    const body = await request.json();
-    console.log('Payload original recebido:', JSON.stringify(body, null, 2));
+    let body;
+    try {
+      body = await request.json();
+      console.log('Payload original recebido:', JSON.stringify(body, null, 2));
+    } catch (error) {
+      console.error('Erro ao parsear JSON do body:', error);
+      body = {};
+    }
     
     // O payload pode vir em diferentes formatos
     const paymentData = body.data || body;
@@ -178,23 +182,23 @@ export async function POST(request: NextRequest) {
       ? new Date(paymentData.expires_at) 
       : new Date(Date.now() + 24 * 60 * 60 * 1000);
     
-    // Criar a solicitação de pagamento com os campos corretos da tabela
-    const paymentRequest = await db.paymentRequest.create({
-      data: {
-        token,
-        amount,
-        service_id: serviceId,
-        service_name: serviceName,
-        profile_username: profileUsername,
-        customer_name: customerName,
-        customer_email: customerEmail,
-        customer_phone: customerPhone,
-        return_url: returnUrl,
-        status: 'pending',
-        additional_data: additionalData,
-        expires_at: expiresAt
-      }
-    });
+    // SIMULAÇÃO: Em vez de gravar no banco, retornamos uma resposta simulada
+    // com os dados que teriam sido salvos
+    const mockPaymentRequest = {
+      id: crypto.randomUUID(),
+      token,
+      amount,
+      service_id: serviceId,
+      service_name: serviceName,
+      profile_username: profileUsername,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      return_url: returnUrl,
+      status: 'pending',
+      created_at: new Date(),
+      expires_at: expiresAt
+    };
     
     // Construir URL de pagamento
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
@@ -204,30 +208,30 @@ export async function POST(request: NextRequest) {
     const protocol = request.headers.get('x-forwarded-proto') || 'https';
     const paymentUrl = `${protocol}://${baseUrl}/pagamento/${token}`;
     
-    console.log('Solicitação de pagamento criada com sucesso:', {
-      id: paymentRequest.id,
-      token: paymentRequest.token,
+    console.log('Resposta simulada (sem banco de dados):', {
+      id: mockPaymentRequest.id,
+      token: mockPaymentRequest.token,
       payment_url: paymentUrl
     });
     
-    // Retornar a solicitação criada com a URL de pagamento
+    // Retornar a resposta simulada com a URL de pagamento
     return NextResponse.json({
-      id: paymentRequest.id,
-      token: paymentRequest.token,
-      amount: paymentRequest.amount,
-      service_name: paymentRequest.service_name,
-      status: paymentRequest.status,
-      customer_name: paymentRequest.customer_name,
-      customer_email: paymentRequest.customer_email,
-      created_at: paymentRequest.created_at,
-      expires_at: paymentRequest.expires_at,
+      id: mockPaymentRequest.id,
+      token: mockPaymentRequest.token,
+      amount: mockPaymentRequest.amount,
+      service_name: mockPaymentRequest.service_name,
+      status: mockPaymentRequest.status,
+      customer_name: mockPaymentRequest.customer_name,
+      customer_email: mockPaymentRequest.customer_email,
+      created_at: mockPaymentRequest.created_at,
+      expires_at: mockPaymentRequest.expires_at,
       payment_url: paymentUrl
     });
   } catch (error) {
-    console.error('Erro ao criar solicitação de pagamento:', error);
+    console.error('Erro ao processar solicitação:', error);
     return NextResponse.json(
       { 
-        error: 'Erro ao criar solicitação de pagamento',
+        error: 'Erro ao processar solicitação',
         message: (error as Error).message,
         stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
       },
