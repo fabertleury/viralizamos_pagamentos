@@ -12,17 +12,100 @@ function generateToken(): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('Payload recebido:', JSON.stringify(body));
+    
+    // O payload pode vir em diferentes formatos:
+    // 1. Diretamente no body: { amount, description, payer_name, payer_email, ... }
+    // 2. Dentro de um objeto data: { data: { amount, description, payer_name, payer_email, ... } }
+    // 3. Com nomes de campos diferentes: { valor, descricao, nome_pagador, email_pagador, ... }
+    
+    const paymentData = body.data || body;
+    
+    // Extrair campos normalizando os nomes
+    const amount = Number(
+      paymentData.amount || 
+      paymentData.valor || 
+      paymentData.price || 
+      paymentData.total || 
+      0
+    );
+    
+    const description = 
+      paymentData.description || 
+      paymentData.descricao || 
+      paymentData.desc || 
+      'Pagamento Viralizamos';
+    
+    const payerName = 
+      paymentData.payer_name || 
+      paymentData.payerName || 
+      paymentData.nome_pagador || 
+      paymentData.nome || 
+      paymentData.name || 
+      '';
+    
+    const payerEmail = 
+      paymentData.payer_email || 
+      paymentData.payerEmail || 
+      paymentData.email_pagador || 
+      paymentData.email || 
+      '';
+    
+    const payerPhone = 
+      paymentData.payer_phone || 
+      paymentData.payerPhone || 
+      paymentData.telefone_pagador || 
+      paymentData.telefone || 
+      paymentData.phone || 
+      null;
+    
+    const externalReference = 
+      paymentData.external_reference || 
+      paymentData.externalReference || 
+      paymentData.referencia_externa || 
+      paymentData.reference || 
+      null;
+    
+    const metadata = 
+      paymentData.metadata || 
+      paymentData.meta || 
+      paymentData.dados_adicionais || 
+      null;
+    
+    // Logs para diagnóstico
+    console.log('Dados normalizados:', {
+      amount,
+      description,
+      payerName,
+      payerEmail,
+      payerPhone,
+      externalReference
+    });
     
     // Validar campos obrigatórios
-    if (!body.amount || !body.description || !body.payer_name || !body.payer_email) {
+    if (!amount || !description || !payerName || !payerEmail) {
+      console.error('Validação falhou:', {
+        hasAmount: Boolean(amount),
+        hasDescription: Boolean(description),
+        hasPayerName: Boolean(payerName),
+        hasPayerEmail: Boolean(payerEmail)
+      });
+      
       return NextResponse.json(
-        { error: 'Campos obrigatórios: amount, description, payer_name, payer_email' },
+        { 
+          error: 'Campos obrigatórios: amount, description, payer_name, payer_email',
+          received: {
+            amount: amount || null,
+            description: description || null,
+            payer_name: payerName || null,
+            payer_email: payerEmail || null
+          }
+        },
         { status: 400 }
       );
     }
     
     // Garantir que o valor é um número válido
-    const amount = Number(body.amount);
     if (isNaN(amount) || amount <= 0) {
       return NextResponse.json(
         { error: 'O valor (amount) deve ser um número positivo' },
@@ -34,23 +117,23 @@ export async function POST(request: NextRequest) {
     const token = generateToken();
     
     // Definir data de expiração (padrão: 24 horas)
-    const expiresAt = body.expires_at 
-      ? new Date(body.expires_at) 
+    const expiresAt = paymentData.expires_at 
+      ? new Date(paymentData.expires_at) 
       : new Date(Date.now() + 24 * 60 * 60 * 1000);
     
     // Criar a solicitação de pagamento
     const paymentRequest = await db.paymentRequest.create({
       data: {
         amount,
-        description: body.description,
+        description,
         token,
         status: 'pending',
-        payer_name: body.payer_name,
-        payer_email: body.payer_email,
-        payer_phone: body.payer_phone,
+        payer_name: payerName,
+        payer_email: payerEmail,
+        payer_phone: payerPhone,
         expires_at: expiresAt,
-        metadata: body.metadata ? JSON.stringify(body.metadata) : null,
-        external_reference: body.external_reference
+        metadata: metadata ? JSON.stringify(metadata) : null,
+        external_reference: externalReference
       }
     });
     
@@ -76,7 +159,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Erro ao criar solicitação de pagamento:', error);
     return NextResponse.json(
-      { error: 'Erro ao criar solicitação de pagamento' },
+      { 
+        error: 'Erro ao criar solicitação de pagamento',
+        message: (error as Error).message
+      },
       { status: 500 }
     );
   }
