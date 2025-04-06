@@ -19,8 +19,11 @@ RUN npm install --ignore-scripts
 # Copiar código-fonte
 COPY . .
 
-# Gerar client Prisma
+# Gerar client Prisma com suporte explícito a openssl-3.0.x
 RUN npx prisma generate
+
+# Verificar engines gerados
+RUN ls -la node_modules/.prisma/client
 
 # Buildar aplicação
 RUN npm run build
@@ -28,7 +31,7 @@ RUN npm run build
 # Estágio de produção
 FROM node:18.17-slim
 
-# Instalar pacotes necessários
+# Instalar pacotes necessários incluindo suporte a OpenSSL 3.0
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -36,7 +39,11 @@ RUN apt-get update && \
     procps \
     net-tools \
     ca-certificates \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
+
+# Verificar versão do OpenSSL
+RUN openssl version
 
 # Configurar diretório de trabalho
 WORKDIR /app
@@ -52,6 +59,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.env.production ./.env
 COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/prisma ./prisma
+
+# Verificar engines copiados
+RUN ls -la node_modules/.prisma/client || echo "Cliente Prisma não encontrado"
 
 # Configurações para produção
 ENV NODE_ENV production
@@ -98,6 +108,14 @@ set -e\n\
 echo "Iniciando aplicação..."\n\
 echo "Variáveis de ambiente:"\n\
 env | grep -E "NODE_ENV|PORT|HOSTNAME|DATABASE_URL" | grep -v "=" || true\n\
+\n\
+# Verificar versão do OpenSSL\n\
+echo "Versão do OpenSSL:"\n\
+openssl version\n\
+\n\
+# Verificar engines do Prisma\n\
+echo "Verificando engines do Prisma:"\n\
+ls -la node_modules/.prisma/client || echo "Cliente Prisma não encontrado"\n\
 \n\
 # Criar endpoints acessíveis durante inicialização\n\
 echo "{ \\"status\\": \\"ok\\", \\"timestamp\\": \\"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\\", \\"service\\": \\"viralizamos-pagamentos\\" }" > /app/public/status.json\n\
