@@ -97,10 +97,37 @@ export async function POST(request: NextRequest) {
       ? JSON.parse(body.additional_data) 
       : body.additional_data;
     
-    const posts = additionalData?.posts || [];
-    console.log('[SOLUÇÃO INTEGRADA] Posts encontrados:', posts.length);
+    // Determinar o tipo de serviço
+    const serviceType = additionalData?.service_type || body.service_type || '';
+    const isFollowersService = serviceType.toLowerCase().includes('seguidores') || 
+                              serviceType.toLowerCase().includes('followers');
     
-    // Se não houver posts ou apenas um post, continua com o fluxo normal
+    // Se for serviço de posts/reels, verificar posts selecionados
+    let posts = [];
+    if (!isFollowersService) {
+      posts = additionalData?.posts || [];
+      console.log('[SOLUÇÃO INTEGRADA] Posts encontrados:', posts.length);
+      
+      // Validar que há pelo menos 1 post e no máximo 5
+      if (posts.length === 0) {
+        console.error('[SOLUÇÃO INTEGRADA] Nenhum post selecionado para serviço que requer posts');
+        return NextResponse.json(
+          { error: 'É necessário selecionar pelo menos 1 post para este serviço' },
+          { status: 400 }
+        );
+      }
+      
+      if (posts.length > 5) {
+        console.error('[SOLUÇÃO INTEGRADA] Mais de 5 posts selecionados:', posts.length);
+        return NextResponse.json(
+          { error: 'É permitido selecionar no máximo 5 posts/reels no total' },
+          { status: 400 }
+        );
+      }
+    } else {
+      console.log('[SOLUÇÃO INTEGRADA] Serviço de seguidores detectado para:', body.profile_username);
+    }
+    
     // ETAPA 2: Criar o pagamento PIX diretamente
     console.log('[SOLUÇÃO INTEGRADA] Criando pagamento PIX para:', paymentRequest.id);
     
@@ -142,8 +169,36 @@ export async function POST(request: NextRequest) {
       
       console.log('[SOLUÇÃO INTEGRADA] Resposta do Mercado Pago:', JSON.stringify(mpResponse).substring(0, 200) + '...');
       
+      // Tratar diferentemente com base no tipo de serviço
+      if (isFollowersService) {
+        // Para serviço de seguidores, criar apenas uma transação
+        const txn = await db.transaction.create({
+          data: {
+            payment_request_id: paymentRequest.id,
+            external_id: mpResponse.id.toString(),
+            status: 'pending',
+            method: 'pix',
+            amount: paymentRequest.amount,
+            provider: 'mercadopago',
+            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
+            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
+            metadata: JSON.stringify({
+              mercadopago_response: mpResponse,
+              idempotency_key: idempotencyKey,
+              service_id: body.service_id,
+              service_name: body.service_name,
+              service_type: serviceType,
+              profile_username: body.profile_username,
+              is_followers_service: true,
+              followers_quantity: additionalData?.quantity || body.quantity || 0
+            })
+          }
+        });
+        
+        console.log('[SOLUÇÃO INTEGRADA] Transação de seguidores criada com ID:', txn.id);
+      }
       // Criar transações no banco - uma para cada post, se houver múltiplos posts
-      if (posts.length > 1) {
+      else if (posts.length > 1) {
         console.log('[SOLUÇÃO INTEGRADA] Processando múltiplos posts:', posts.length);
         
         // Criar transações separadas para cada post
@@ -181,7 +236,7 @@ export async function POST(request: NextRequest) {
                 is_multi_post: true,
                 service_id: body.service_id,
                 service_name: body.service_name,
-                service_type: additionalData?.service_type || body.service_type,
+                service_type: serviceType,
                 profile_username: body.profile_username,
                 complete_post_data: post
               })
@@ -208,7 +263,7 @@ export async function POST(request: NextRequest) {
               is_multi_post: false,
               service_id: body.service_id,
               service_name: body.service_name,
-              service_type: additionalData?.service_type || body.service_type,
+              service_type: serviceType,
               profile_username: body.profile_username,
               post_data: posts.length === 1 ? posts[0] : null
             })
