@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
+import { ClipboardIcon, CheckIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 // Tipo para dados do pagamento
 interface PaymentRequest {
@@ -18,6 +19,7 @@ interface PaymentRequest {
   payer_phone?: string;
   expires_at?: string;
   created_at: string;
+  return_url?: string;
   payment?: {
     id: string;
     status: string;
@@ -30,6 +32,7 @@ interface PaymentRequest {
 
 export default function PaymentPage() {
   const params = useParams();
+  const router = useRouter();
   const token = params.token as string;
   
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
@@ -37,6 +40,10 @@ export default function PaymentPage() {
   const [error, setError] = useState<string | null>(null);
   const [paymentCreating, setPaymentCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+  // Estados para o timer
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [expiryDate, setExpiryDate] = useState<Date | null>(null);
   
   // Buscar dados da solicitação de pagamento
   const fetchPaymentRequest = async () => {
@@ -49,6 +56,24 @@ export default function PaymentPage() {
       
       const data = await response.json();
       setPaymentRequest(data);
+      
+      // Configurar data de expiração e timer
+      if (data.expires_at) {
+        const expires = new Date(data.expires_at);
+        setExpiryDate(expires);
+        
+        // Calcular tempo restante em segundos
+        const now = new Date();
+        const diff = Math.floor((expires.getTime() - now.getTime()) / 1000);
+        setTimeLeft(diff > 0 ? diff : 0);
+      } else {
+        // Se não houver data de expiração, definir um prazo de 30 minutos a partir de agora
+        const thirtyMinutesFromNow = new Date();
+        thirtyMinutesFromNow.setMinutes(thirtyMinutesFromNow.getMinutes() + 30);
+        setExpiryDate(thirtyMinutesFromNow);
+        setTimeLeft(30 * 60); // 30 minutos em segundos
+      }
+      
       setLoading(false);
     } catch (err) {
       console.error('Erro ao buscar pagamento:', err);
@@ -57,84 +82,100 @@ export default function PaymentPage() {
     }
   };
   
-  // Criar um pagamento PIX
-  const createPixPayment = async () => {
-    if (!paymentRequest) return;
-    
-    setPaymentCreating(true);
-    
-    try {
-      const response = await fetch('/api/payments/pix', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          payment_request_id: paymentRequest.id
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Falha ao criar o pagamento PIX');
-      }
-      
-      const data = await response.json();
-      
-      // Atualizar os dados com o novo pagamento
-      setPaymentRequest(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          payment: data
-        };
-      });
-      
-    } catch (err) {
-      console.error('Erro ao criar pagamento PIX:', err);
-      setError('Não foi possível criar o pagamento PIX. Tente novamente.');
-    } finally {
-      setPaymentCreating(false);
-    }
-  };
-  
-  // Copiar código PIX para a área de transferência
-  const copyPixCode = () => {
+  // Manipulador para copiar o código PIX
+  const handleCopyPix = useCallback(() => {
     if (paymentRequest?.payment?.pix_code) {
-      navigator.clipboard.writeText(paymentRequest.payment.pix_code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
+      navigator.clipboard.writeText(paymentRequest.payment.pix_code)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 3000);
+        })
+        .catch(err => {
+          console.error('Erro ao copiar código PIX:', err);
+        });
     }
+  }, [paymentRequest?.payment?.pix_code]);
+  
+  // Verificar o status do pagamento periodicamente
+  useEffect(() => {
+    const checkPaymentStatus = async () => {
+      if (!paymentRequest || paymentRequest.status === 'completed') return;
+      
+      try {
+        const response = await fetch(`/api/payment-requests/${token}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Atualizar o estado somente se o status mudar
+          if (data.status !== paymentRequest.status) {
+            setPaymentRequest(data);
+            
+            // Se o pagamento for aprovado, redirecionar após alguns segundos
+            if (data.status === 'completed') {
+              setTimeout(() => {
+                if (paymentRequest.return_url) {
+                  window.location.href = paymentRequest.return_url;
+                }
+              }, 5000);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao verificar status do pagamento:', err);
+      }
+    };
+    
+    // Verificar a cada 5 segundos
+    const intervalId = setInterval(checkPaymentStatus, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, [paymentRequest, token, router]);
+  
+  // Timer de contagem regressiva
+  useEffect(() => {
+    if (timeLeft === null) return;
+    
+    const intervalId = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev === null || prev <= 0) {
+          clearInterval(intervalId);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [timeLeft]);
+  
+  // Formatar tempo restante
+  const formatTimeLeft = () => {
+    if (timeLeft === null) return '--:--';
+    
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
   
-  // Buscar dados iniciais
+  // Calcular a porcentagem de tempo restante (para a barra de progresso)
+  const calculateTimePercentage = () => {
+    if (timeLeft === null) return 0;
+    const totalTime = 30 * 60; // 30 minutos em segundos
+    return (timeLeft / totalTime) * 100;
+  };
+  
+  // Buscar dados do pagamento ao carregar
   useEffect(() => {
     fetchPaymentRequest();
   }, [token]);
   
-  // Verificar status periodicamente
-  useEffect(() => {
-    if (!paymentRequest) return;
-    
-    // Se o pagamento já foi aprovado, não precisa verificar
-    if (paymentRequest.status === 'completed') return;
-    
-    const interval = setInterval(fetchPaymentRequest, 5000);
-    
-    return () => clearInterval(interval);
-  }, [paymentRequest]);
-  
-  // Criar o pagamento PIX se necessário (quando carregou e não tem pagamento)
-  useEffect(() => {
-    if (paymentRequest && !paymentRequest.payment && !paymentCreating && paymentRequest.status === 'pending') {
-      createPixPayment();
-    }
-  }, [paymentRequest]);
-  
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-600 to-indigo-600">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-800 to-indigo-900">
         <div className="p-8 max-w-md w-full bg-white rounded-xl shadow-lg flex flex-col items-center">
-          <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-indigo-500"></div>
+          <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-indigo-600"></div>
           <p className="mt-6 text-gray-700 font-medium">Carregando dados do pagamento...</p>
         </div>
       </div>
@@ -143,7 +184,7 @@ export default function PaymentPage() {
   
   if (error || !paymentRequest) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-purple-600 to-indigo-600">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-800 to-indigo-900">
         <div className="p-8 max-w-md w-full bg-white rounded-xl shadow-lg">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Erro</h1>
           <p className="text-gray-700 mb-6">{error || 'Pagamento não encontrado'}</p>
@@ -156,13 +197,13 @@ export default function PaymentPage() {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-r from-purple-600 to-indigo-600 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-r from-blue-800 to-indigo-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
         {/* Cabeçalho */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8 text-white">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-8 text-white">
           <div className="flex justify-center mb-4">
             <div className="bg-white p-2 rounded-md">
-              {/* Logo da empresa (será substituído por uma imagem real) */}
+              {/* Logo da empresa */}
               <div className="text-indigo-600 font-bold text-xl">Viralizamos</div>
             </div>
           </div>
@@ -172,10 +213,30 @@ export default function PaymentPage() {
               ? 'Pagamento aprovado com sucesso!' 
               : 'Complete seu pagamento para confirmar seu pedido'}
           </p>
+          
+          {/* Timer de expiração */}
+          {(paymentRequest.status === 'pending' || paymentRequest.status === 'processing') && (
+            <div className="mt-4 max-w-sm mx-auto">
+              <div className="flex items-center justify-center gap-2 text-white mb-2">
+                <ClockIcon className="h-5 w-5" />
+                <span className="font-medium">Tempo restante: {formatTimeLeft()}</span>
+              </div>
+              
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div 
+                  className="bg-green-500 h-2.5 rounded-full transition-all duration-1000 ease-linear" 
+                  style={{ width: `${calculateTimePercentage()}%` }}
+                ></div>
+              </div>
+              
+              <p className="text-center text-sm text-white/80 mt-2">
+                Este QR Code expira em 30 minutos
+              </p>
+            </div>
+          )}
         </div>
         
-        {/* Conteúdo principal */}
-        <div className="p-6 md:p-8">
+        <div className="p-6">
           {/* Pagamento Aprovado */}
           {paymentRequest.status === 'completed' && (
             <div className="text-center py-10">
@@ -185,18 +246,37 @@ export default function PaymentPage() {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold text-green-600 mb-3">Pagamento aprovado!</h2>
-              <p className="text-gray-600 mb-6 text-lg">Obrigado pela sua compra.</p>
+              <p className="text-gray-700 mb-6 text-lg">Obrigado pela sua compra.</p>
               {paymentRequest.payment?.method === 'pix' && (
                 <p className="text-gray-600 mb-6">Recebemos seu pagamento via PIX.</p>
               )}
-              <Link href="/" className="inline-block px-6 py-3 text-white font-medium bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
-                Voltar à página inicial
+              <Link href={paymentRequest.return_url || "/"} className="inline-block px-6 py-3 text-white font-medium bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+                Continuar
               </Link>
             </div>
           )}
           
-          {/* Pagamento Expirado, Cancelado ou Falhou */}
-          {(paymentRequest.status === 'expired' || paymentRequest.status === 'cancelled' || paymentRequest.status === 'failed') && (
+          {/* Pagamento Expirado */}
+          {paymentRequest.status === 'expired' && (
+            <div className="text-center py-10">
+              <div className="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-yellow-600 mb-3">Pagamento expirado</h2>
+              <p className="text-gray-600 mb-6">O tempo para realizar o pagamento expirou.</p>
+              <button 
+                onClick={fetchPaymentRequest}
+                className="inline-block px-6 py-3 text-white font-medium bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )}
+          
+          {/* Pagamento Cancelado ou Falhou */}
+          {(paymentRequest.status === 'cancelled' || paymentRequest.status === 'failed') && (
             <div className="text-center py-10">
               <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -204,22 +284,19 @@ export default function PaymentPage() {
                 </svg>
               </div>
               <h2 className="text-2xl font-bold text-red-600 mb-3">
-                {paymentRequest.status === 'expired' ? 'Pagamento expirado!' : 
-                 paymentRequest.status === 'cancelled' ? 'Pagamento cancelado!' : 
-                 'Pagamento falhou!'}
+                {paymentRequest.status === 'cancelled' ? 'Pagamento cancelado' : 'Pagamento falhou'}
               </h2>
-              <p className="text-gray-600 mb-6">
-                {paymentRequest.status === 'expired' ? 'O tempo para realizar este pagamento expirou.' : 
-                 paymentRequest.status === 'cancelled' ? 'Este pagamento foi cancelado.' : 
-                 'Houve um problema ao processar este pagamento.'}
-              </p>
-              <Link href="/" className="inline-block px-6 py-3 text-white font-medium bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
-                Voltar à página inicial
-              </Link>
+              <p className="text-gray-600 mb-6">Não foi possível processar o pagamento.</p>
+              <button 
+                onClick={fetchPaymentRequest}
+                className="inline-block px-6 py-3 text-white font-medium bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Tentar novamente
+              </button>
             </div>
           )}
           
-          {/* Pagamento Pendente ou Processando com PIX */}
+          {/* Aguardando pagamento PIX */}
           {(paymentRequest.status === 'pending' || paymentRequest.status === 'processing') && paymentRequest.payment && paymentRequest.payment.method === 'pix' && (
             <div className="grid md:grid-cols-12 gap-8">
               {/* Coluna esquerda: Detalhes do pedido */}
@@ -230,23 +307,23 @@ export default function PaymentPage() {
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-gray-500">Descrição</p>
-                      <p className="font-medium">{paymentRequest.description}</p>
+                      <p className="font-medium text-gray-800">{paymentRequest.description}</p>
                     </div>
                     
                     <div>
                       <p className="text-sm text-gray-500">Cliente</p>
-                      <p className="font-medium">{paymentRequest.payer_name}</p>
-                      <p className="text-sm">{paymentRequest.payer_email}</p>
-                      {paymentRequest.payer_phone && <p className="text-sm">{paymentRequest.payer_phone}</p>}
+                      <p className="font-medium text-gray-800">{paymentRequest.payer_name}</p>
+                      <p className="text-sm text-gray-700">{paymentRequest.payer_email}</p>
+                      {paymentRequest.payer_phone && <p className="text-sm text-gray-700">{paymentRequest.payer_phone}</p>}
                     </div>
                     
                     <div className="border-t pt-4 mt-4">
-                      <div className="flex justify-between text-gray-500">
+                      <div className="flex justify-between text-gray-600">
                         <span>Subtotal</span>
                         <span>R$ {paymentRequest.amount.toFixed(2).replace('.', ',')}</span>
                       </div>
                       
-                      <div className="flex justify-between font-bold mt-2 text-lg">
+                      <div className="flex justify-between font-bold mt-2 text-lg text-gray-800">
                         <span>Total</span>
                         <span>R$ {paymentRequest.amount.toFixed(2).replace('.', ',')}</span>
                       </div>
@@ -257,8 +334,8 @@ export default function PaymentPage() {
               
               {/* Coluna direita: QR Code PIX */}
               <div className="md:col-span-7 order-1 md:order-2">
-                <div className="bg-white border border-gray-200 rounded-xl p-6 text-center">
-                  <h3 className="text-lg font-semibold mb-4">Pague com PIX</h3>
+                <div className="bg-white border border-gray-200 rounded-xl p-6 text-center shadow-md">
+                  <h3 className="text-lg font-semibold mb-4 text-indigo-700">Pague com PIX</h3>
                   
                   {/* Verificar se está criando pagamento */}
                   {paymentCreating ? (
@@ -269,52 +346,76 @@ export default function PaymentPage() {
                   ) : (
                     <>
                       {/* QR Code PIX */}
-                      <div className="mb-6">
+                      <div className="mb-6 flex flex-col items-center">
                         {paymentRequest.payment.pix_qrcode ? (
-                          <div className="flex justify-center">
-                            <img
-                              src={paymentRequest.payment.pix_qrcode}
-                              alt="QR Code PIX"
-                              className="w-48 h-48 object-contain"
-                            />
-                          </div>
+                          <img 
+                            src={`data:image/png;base64,${paymentRequest.payment.pix_qrcode}`} 
+                            alt="QR Code PIX" 
+                            className="w-48 h-48 border p-2 rounded-lg mb-2"
+                          />
                         ) : paymentRequest.payment.pix_code ? (
-                          <div className="flex justify-center">
-                            <QRCodeSVG
-                              value={paymentRequest.payment.pix_code}
-                              size={192}
-                              bgColor={"#ffffff"}
-                              fgColor={"#000000"}
-                              level={"L"}
-                              includeMargin={false}
+                          <div className="p-3 bg-white border border-gray-300 rounded-lg">
+                            <QRCodeSVG 
+                              value={paymentRequest.payment.pix_code} 
+                              size={200}
+                              includeMargin
+                              bgColor="#FFFFFF"
+                              fgColor="#000000"
+                              level="M"
                             />
                           </div>
                         ) : (
-                          <div className="bg-gray-100 w-48 h-48 mx-auto flex items-center justify-center rounded">
-                            <p className="text-gray-500">QR Code não disponível</p>
-                          </div>
+                          <p className="text-gray-600">QR Code não disponível</p>
                         )}
+                        
+                        <p className="text-sm text-gray-500 mt-2">Escaneie o QR Code com o app do seu banco</p>
                       </div>
                       
                       {/* Código PIX */}
-                      <div className="mb-4">
-                        <p className="text-sm text-gray-600 mb-2">Ou use o código PIX copia e cola:</p>
-                        <div className="relative">
-                          <div className="bg-gray-50 border border-gray-200 rounded py-3 px-4 text-gray-700 text-sm overflow-hidden break-all mb-2">
-                            {paymentRequest.payment.pix_code || 'Código PIX não disponível'}
+                      {paymentRequest.payment.pix_code && (
+                        <div className="mb-6">
+                          <p className="text-sm text-gray-600 mb-2">Ou use o código PIX copia e cola:</p>
+                          <div className="bg-gray-50 p-3 rounded-lg border border-gray-300 mb-2 text-left break-all relative">
+                            <p className="pr-8 text-sm text-gray-800 font-mono">{paymentRequest.payment.pix_code}</p>
                           </div>
+                          
                           <button
-                            onClick={copyPixCode}
-                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2 px-4 rounded-md hover:from-indigo-700 hover:to-purple-700 transition duration-300"
-                            disabled={!paymentRequest.payment.pix_code}
+                            onClick={handleCopyPix}
+                            className={`w-full flex items-center justify-center py-3 px-4 rounded-lg font-medium ${
+                              copied 
+                                ? 'bg-green-100 text-green-700 border border-green-300' 
+                                : 'bg-indigo-50 text-indigo-700 border border-indigo-300 hover:bg-indigo-100'
+                            } transition-colors`}
                           >
-                            {copied ? 'Copiado!' : 'Copiar código PIX'}
+                            {copied ? (
+                              <>
+                                <CheckIcon className="h-5 w-5 mr-2" />
+                                Código copiado!
+                              </>
+                            ) : (
+                              <>
+                                <ClipboardIcon className="h-5 w-5 mr-2" />
+                                Copiar código PIX
+                              </>
+                            )}
                           </button>
                         </div>
-                      </div>
+                      )}
                       
-                      <div className="mt-6 bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
-                        <p>Após o pagamento, esta tela será atualizada automaticamente.</p>
+                      <div className="space-y-3 text-left bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h4 className="font-medium text-blue-700 flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+                          </svg>
+                          Instruções para pagamento
+                        </h4>
+                        <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700 pl-1">
+                          <li>Abra o aplicativo do seu banco</li>
+                          <li>Escolha pagar com PIX</li>
+                          <li>Escaneie o QR code ou cole o código</li>
+                          <li>Confirme as informações e finalize o pagamento</li>
+                        </ol>
+                        <p className="text-sm text-blue-700">Após o pagamento, esta página será atualizada automaticamente.</p>
                       </div>
                     </>
                   )}
@@ -323,7 +424,7 @@ export default function PaymentPage() {
             </div>
           )}
           
-          {/* Pagamento Pendente sem PIX ainda */}
+          {/* Aguardando geração do pagamento */}
           {(paymentRequest.status === 'pending' || paymentRequest.status === 'processing') && !paymentRequest.payment && (
             <div className="text-center py-10">
               <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-indigo-500 mx-auto mb-6"></div>
