@@ -20,6 +20,10 @@ interface PaymentRequest {
   expires_at?: string;
   created_at: string;
   return_url?: string;
+  service_name?: string;
+  service_id?: string;
+  profile_username?: string;
+  additional_data?: string;
   payment?: {
     id: string;
     status: string;
@@ -28,6 +32,19 @@ interface PaymentRequest {
     pix_qrcode?: string;
     amount: number;
   }
+}
+
+// Tipo para posts
+interface Post {
+  id: string;
+  code?: string;
+  shortcode?: string;
+  image_url?: string;
+  thumbnail_url?: string;
+  display_url?: string;
+  is_reel?: boolean;
+  caption?: string;
+  quantity?: number;
 }
 
 export default function PaymentPage() {
@@ -40,6 +57,7 @@ export default function PaymentPage() {
   const [error, setError] = useState<string | null>(null);
   const [paymentCreating, setPaymentCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [posts, setPosts] = useState<Post[]>([]);
   
   // Estados para o timer
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -56,6 +74,23 @@ export default function PaymentPage() {
       
       const data = await response.json();
       setPaymentRequest(data);
+      
+      // Extrair posts do additional_data se existir
+      if (data.additional_data) {
+        try {
+          const additionalData = typeof data.additional_data === 'string' 
+            ? JSON.parse(data.additional_data) 
+            : data.additional_data;
+          
+          if (additionalData.posts && Array.isArray(additionalData.posts)) {
+            setPosts(additionalData.posts);
+          } else if (additionalData.additional_data && additionalData.additional_data.posts) {
+            setPosts(additionalData.additional_data.posts);
+          }
+        } catch (err) {
+          console.error('Erro ao processar additional_data:', err);
+        }
+      }
       
       // Configurar data de expiração e timer
       if (data.expires_at) {
@@ -306,9 +341,65 @@ export default function PaymentPage() {
                   
                   <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-gray-500">Descrição</p>
-                      <p className="font-medium text-gray-800">{paymentRequest.description}</p>
+                      <p className="text-sm text-gray-500">Serviço</p>
+                      <p className="font-medium text-gray-800">{paymentRequest.service_name || 'Serviço Viralizamos'}</p>
                     </div>
+                    
+                    {/* Posts selecionados */}
+                    {posts && posts.length > 0 && (
+                      <div>
+                        <p className="text-sm text-gray-500 mb-2">Posts selecionados</p>
+                        <div className="space-y-3">
+                          {posts.map((post, index) => (
+                            <div key={post.id || index} className="flex items-center bg-white p-2 rounded-lg border border-gray-200">
+                              {/* Thumbnail */}
+                              <div className="w-16 h-16 flex-shrink-0 mr-3 bg-gray-100 rounded overflow-hidden">
+                                {(post.image_url || post.thumbnail_url || post.display_url) ? (
+                                  <img 
+                                    src={post.image_url || post.thumbnail_url || post.display_url} 
+                                    alt="Post thumbnail" 
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = "https://placehold.co/64x64/e5e7eb/a3a3a3?text=Post";
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
+                                    {post.is_reel ? 'Reel' : 'Post'}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Detalhes do post */}
+                              <div className="flex-grow min-w-0">
+                                <p className="text-xs font-medium text-gray-900 truncate">
+                                  {post.caption ? post.caption.substring(0, 50) + (post.caption.length > 50 ? '...' : '') : 
+                                    post.is_reel ? 'Instagram Reel' : 'Instagram Post'}
+                                </p>
+                                <div className="flex items-center justify-between mt-1">
+                                  <a 
+                                    href={post.code ? `https://instagram.com/p/${post.code}` : 
+                                          post.shortcode ? `https://instagram.com/p/${post.shortcode}` : 
+                                          '#'} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-indigo-600 hover:underline truncate"
+                                  >
+                                    @{paymentRequest.profile_username || 'instagram'}
+                                  </a>
+                                  {post.quantity && post.quantity > 0 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                                      {post.quantity} {post.quantity === 1 ? 'unidade' : 'unidades'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     
                     <div>
                       <p className="text-sm text-gray-500">Cliente</p>
