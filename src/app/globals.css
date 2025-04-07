@@ -1,26 +1,69 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Importar Bootstrap */
+@import 'bootstrap/dist/css/bootstrap.min.css';
 
 :root {
   --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+  --background-rgb: 255, 255, 255;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
+  background-color: rgb(var(--background-rgb));
   font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
 }
 
 code, pre {
   font-family: var(--font-mono);
+}
+
+/* Cores básicas para garantir visibilidade */
+.text-dark {
+  color: #000 !important;
+}
+
+.text-white {
+  color: #fff !important;
+}
+
+.bg-dark {
+  background-color: #000 !important;
+}
+
+.bg-white {
+  background-color: #fff !important;
+}
+
+/* Cores para elementos específicos */
+.text-primary {
+  color: #0d6efd !important;
+}
+
+.bg-primary {
+  background-color: #0d6efd !important;
+}
+
+.text-success {
+  color: #198754 !important;
+}
+
+.bg-success {
+  background-color: #198754 !important;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.bg-danger {
+  background-color: #dc3545 !important;
+}
+
+.text-warning {
+  color: #ffc107 !important;
+}
+
+.bg-warning {
+  background-color: #ffc107 !important;
 } 
