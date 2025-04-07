@@ -24,7 +24,7 @@ export default function TermosPage() {
           
           <h2 className="text-xl font-semibold text-gray-700 mb-4">3. Privacidade</h2>
           <p className="text-gray-600 mb-6">
-            Ao utilizar nossos serviços, você concorda com nossa <Link href="/privacidade" className="text-primary-600 hover:text-primary-700">Política de Privacidade</Link>,
+            Ao utilizar nossos serviços, você concorda com nossa <Link href="/privacidade" className="text-pink-600 hover:text-pink-700">Política de Privacidade</Link>,
             que descreve como coletamos, usamos e compartilhamos suas informações.
           </p>
           
@@ -43,7 +43,7 @@ export default function TermosPage() {
         </div>
         
         <div className="text-center mt-6">
-          <Link href="/" className="text-primary-600 hover:text-primary-700">
+          <Link href="/" className="text-pink-600 hover:text-pink-700">
             Voltar para a página inicial
           </Link>
         </div>

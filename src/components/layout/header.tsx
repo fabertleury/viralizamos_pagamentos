@@ -52,7 +52,7 @@ export default function Header() {
               height={40} 
               className="h-10 w-auto"
             />
-            <div className="font-bold text-xl text-primary-600">
+            <div className="font-bold text-xl text-pink-600">
               Viralizamos
               <span className="inline-block text-xs font-medium bg-gray-100 text-gray-500 px-2 py-1 rounded ml-2">
                 Pagamentos
@@ -73,32 +73,32 @@ export default function Header() {
             <nav className="flex gap-6">
               <Link 
                 href="/faq" 
-                className={`text-gray-600 font-medium hover:text-primary-600 transition-colors ${
-                  pathname === '/faq' ? 'text-primary-600 font-semibold' : ''
+                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
+                  pathname === '/faq' ? 'text-pink-600 font-semibold' : ''
                 }`}
               >
                 FAQ
               </Link>
               <Link 
                 href="/acompanhar" 
-                className={`text-gray-600 font-medium hover:text-primary-600 transition-colors ${
-                  pathname === '/acompanhar' ? 'text-primary-600 font-semibold' : ''
+                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
+                  pathname === '/acompanhar' ? 'text-pink-600 font-semibold' : ''
                 }`}
               >
                 Acompanhar pedido
               </Link>
               <Link 
                 href="/termos" 
-                className={`text-gray-600 font-medium hover:text-primary-600 transition-colors ${
-                  pathname === '/termos' ? 'text-primary-600 font-semibold' : ''
+                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
+                  pathname === '/termos' ? 'text-pink-600 font-semibold' : ''
                 }`}
               >
                 Termos de uso
               </Link>
               <Link 
                 href="/privacidade" 
-                className={`text-gray-600 font-medium hover:text-primary-600 transition-colors ${
-                  pathname === '/privacidade' ? 'text-primary-600 font-semibold' : ''
+                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
+                  pathname === '/privacidade' ? 'text-pink-600 font-semibold' : ''
                 }`}
               >
                 Privacidade
@@ -108,7 +108,7 @@ export default function Header() {
               href="https://viralizamos.com" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="bg-primary-600 text-white px-4 py-2 rounded font-medium hover:bg-primary-700 transition-colors"
+              className="bg-pink-600 text-white px-4 py-2 rounded font-medium hover:bg-pink-700 transition-colors"
             >
               Voltar ao site
             </a>
@@ -127,7 +127,7 @@ export default function Header() {
                       height={40}
                       className="h-10 w-auto" 
                     />
-                    <div className="font-bold text-xl text-primary-600">
+                    <div className="font-bold text-xl text-pink-600">
                       Viralizamos
                       <span className="inline-block text-xs font-medium bg-gray-100 text-gray-500 px-2 py-1 rounded ml-2">
                         Pagamentos
@@ -144,28 +144,28 @@ export default function Header() {
                 <nav className="flex flex-col gap-4">
                   <Link 
                     href="/faq" 
-                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-primary-600"
+                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-pink-600"
                     onClick={() => setIsOpen(false)}
                   >
                     FAQ
                   </Link>
                   <Link 
                     href="/acompanhar" 
-                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-primary-600"
+                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-pink-600"
                     onClick={() => setIsOpen(false)}
                   >
                     Acompanhar pedido
                   </Link>
                   <Link 
                     href="/termos" 
-                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-primary-600"
+                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-pink-600"
                     onClick={() => setIsOpen(false)}
                   >
                     Termos de uso
                   </Link>
                   <Link 
                     href="/privacidade" 
-                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-primary-600"
+                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-pink-600"
                     onClick={() => setIsOpen(false)}
                   >
                     Privacidade
@@ -176,7 +176,7 @@ export default function Header() {
                     href="https://viralizamos.com" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="block w-full bg-primary-600 text-white text-center px-4 py-3 rounded font-medium hover:bg-primary-700 transition-colors"
+                    className="block w-full bg-pink-600 text-white text-center px-4 py-3 rounded font-medium hover:bg-pink-700 transition-colors"
                   >
                     Voltar ao site
                   </a>

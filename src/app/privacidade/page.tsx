@@ -60,7 +60,7 @@ export default function PrivacidadePage() {
         </div>
         
         <div className="text-center mt-6">
-          <Link href="/" className="text-primary-600 hover:text-primary-700">
+          <Link href="/" className="text-pink-600 hover:text-pink-700">
             Voltar para a página inicial
           </Link>
         </div>

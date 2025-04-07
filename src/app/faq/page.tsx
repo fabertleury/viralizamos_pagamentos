@@ -23,13 +23,13 @@ export default function FAQPage() {
           
           <h2 className="text-xl font-semibold text-gray-700 mb-4">Como faço para acompanhar meu pedido?</h2>
           <p className="text-gray-600 mb-6">
-            Você pode acompanhar seu pedido através da página <Link href="/acompanhar" className="text-primary-600 hover:text-primary-700">Acompanhar Pedido</Link>, 
+            Você pode acompanhar seu pedido através da página <Link href="/acompanhar" className="text-pink-600 hover:text-pink-700">Acompanhar Pedido</Link>, 
             utilizando o código que enviamos para seu e-mail após a confirmação do pagamento.
           </p>
         </div>
         
         <div className="text-center mt-6">
-          <Link href="/" className="text-primary-600 hover:text-primary-700">
+          <Link href="/" className="text-pink-600 hover:text-pink-700">
             Voltar para a página inicial
           </Link>
         </div>

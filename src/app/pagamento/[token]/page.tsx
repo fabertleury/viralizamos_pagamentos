@@ -144,7 +144,7 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
             <p className="text-xl font-bold text-center mb-2">{formattedTime}</p>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className="bg-primary-600 h-2 rounded-full transition-all duration-1000" 
+                className="bg-pink-600 h-2 rounded-full transition-all duration-1000" 
                 style={{ width: `${timePercentage}%` }}
               ></div>
             </div>
@@ -200,7 +200,7 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
                 </h3>
                 
                 <div className="flex justify-between items-center text-xs text-gray-500">
-                  <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:underline">
                     Ver post original
                   </a>
                   
@@ -256,7 +256,7 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
               
               <button
                 onClick={copyPixCode}
-                className="w-full bg-primary-600 text-white px-4 py-2 rounded font-medium hover:bg-primary-700 transition-colors"
+                className="w-full bg-pink-600 text-white px-4 py-2 rounded font-medium hover:bg-pink-700 transition-colors"
               >
                 {showCopyFeedback ? "Código copiado!" : "Copiar código PIX"}
               </button>

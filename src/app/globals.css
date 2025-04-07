@@ -74,7 +74,7 @@ button {
   }
   
   a {
-    @apply text-primary-600 hover:text-primary-700 transition-colors;
+    @apply text-pink-600 hover:text-pink-700 transition-colors;
   }
 }
 
