@@ -6,8 +6,8 @@ import "./globals.css";
 import "@/lib/startup";
 import "@/lib/db-check";
 
-// Importar componente para carregar Bootstrap no cliente
-import BootstrapClient from "./bootstrap-client";
+// Não importar o Bootstrap no lado do servidor
+// import BootstrapClient from "./bootstrap-client";
 
 // Se necessário, podemos importar scripts do Bootstrap aqui
 // import 'bootstrap/dist/js/bootstrap.bundle.min.js'; - não necessário para SSR
@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${inter.variable} ${robotoMono.variable}`}>
-        <BootstrapClient />
+        {/* <BootstrapClient /> */}
         {children}
       </body>
     </html>
