@@ -36,50 +36,123 @@ model PaymentRequest {
   processed_at         DateTime?
 
   // Relations
-  payments             Payment[]
+  transactions         Transaction[]
+  processingQueue     ProcessingQueue[]
   
-  @@map("payment_request")
+  @@map("payment_requests")
   @@index([token])
   @@index([status])
   @@index([service_id])
   @@index([created_at])
 }
 
-model Payment {
-  id                 String    @id @default(uuid())
+model Transaction {
+  id                String    @id @default(uuid())
   payment_request_id String
   payment_request    PaymentRequest @relation(fields: [payment_request_id], references: [id])
-  provider           String    // mercadopago, pagseguro, etc.
-  provider_payment_id String?
-  status             String    // pending, completed, failed, cancelled, refunded, disputed
-  method             String    // pix, credit_card, boleto, etc.
-  amount             Float
-  pix_code           String?
-  pix_qrcode         String?
-  extra_data         String?   // JSON string
-  created_at         DateTime  @default(now())
-  updated_at         DateTime  @updatedAt
+  external_id        String?   // ID no Mercado Pago
+  status            String    // pending, approved, rejected, cancelled
+  method            String    // pix, credit_card, boleto
+  amount            Float
+  provider          String    @default("mercadopago")
+  pix_code          String?
+  pix_qrcode        String?
+  metadata          String?   // JSON string
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  processed_at      DateTime?
 
   // Relations
-  notifications      Notification[]
+  webhookLogs       WebhookLog[]
+  processingFailures PaymentProcessingFailure[]
 
-  @@map("payment")
+  @@map("transactions")
   @@index([payment_request_id])
-  @@index([provider, provider_payment_id])
+  @@index([external_id])
   @@index([status])
   @@index([created_at])
 }
 
-model Notification {
+model PaymentIdempotencyLog {
   id          String   @id @default(uuid())
-  payment_id  String?
-  payment     Payment? @relation(fields: [payment_id], references: [id])
-  type        String  // mercadopago_webhook, system, etc.
-  data        String  // JSON string com os dados da notificação
+  key         String   @unique
+  response    String   // JSON string
   created_at  DateTime @default(now())
 
-  @@map("notification")
-  @@index([payment_id])
+  @@map("payment_idempotency_log")
+  @@index([key])
+  @@index([created_at])
+}
+
+model PaymentProcessingFailure {
+  id             String    @id @default(uuid())
+  transaction_id String
+  transaction    Transaction @relation(fields: [transaction_id], references: [id])
+  error_code     String
+  error_message  String
+  stack_trace    String?
+  metadata       String?   // JSON string
+  created_at     DateTime  @default(now())
+
+  @@map("payment_processing_failures")
+  @@index([transaction_id])
+  @@index([error_code])
+  @@index([created_at])
+}
+
+model ProcessingQueue {
+  id                String    @id @default(uuid())
+  payment_request_id String
+  payment_request    PaymentRequest @relation(fields: [payment_request_id], references: [id])
+  status            String    // pending, processing, completed, failed
+  type              String    // payment_creation, payment_confirmation, etc.
+  priority          Int       @default(0)
+  attempts          Int       @default(0)
+  max_attempts      Int       @default(3)
+  last_error        String?
+  metadata          String?   // JSON string
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  processed_at      DateTime?
+  next_attempt_at   DateTime?
+
+  @@map("processing_queue")
+  @@index([payment_request_id])
+  @@index([status])
   @@index([type])
+  @@index([priority])
+  @@index([next_attempt_at])
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  name       String
+  role       String   @default("user")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("users")
+  @@index([email])
+  @@index([role])
+}
+
+model WebhookLog {
+  id             String    @id @default(uuid())
+  transaction_id String?
+  transaction    Transaction? @relation(fields: [transaction_id], references: [id])
+  type           String    // mercadopago, system, etc.
+  event          String    // payment.created, payment.updated, etc.
+  data           String    // JSON string
+  processed      Boolean   @default(false)
+  error          String?
+  created_at     DateTime  @default(now())
+  processed_at   DateTime?
+
+  @@map("webhook_logs")
+  @@index([transaction_id])
+  @@index([type])
+  @@index([event])
+  @@index([processed])
   @@index([created_at])
 }
