@@ -152,6 +152,10 @@ export async function POST(request: NextRequest) {
           const postQuantity = post.quantity || 0;
           const postId = post.id || post.postId;
           const postCode = post.code || post.postCode || '';
+          const postUrl = post.url || post.postLink || `https://instagram.com/p/${postCode}`;
+          const imageUrl = post.image_url || post.thumbnail_url || post.display_url || '';
+          const isReel = post.is_reel || post.type === 'reel' || post.type === 'video' || false;
+          const postType = post.type || (isReel ? 'reel' : 'post');
           
           // Criar uma transação para este post específico
           await db.transaction.create({
@@ -169,8 +173,17 @@ export async function POST(request: NextRequest) {
                 idempotency_key: idempotencyKey,
                 post_id: postId,
                 post_code: postCode,
+                post_url: postUrl,
+                image_url: imageUrl,
+                is_reel: isReel,
+                post_type: postType,
                 quantity: postQuantity,
-                is_multi_post: true
+                is_multi_post: true,
+                service_id: body.service_id,
+                service_name: body.service_name,
+                service_type: additionalData?.service_type || body.service_type,
+                profile_username: body.profile_username,
+                complete_post_data: post
               })
             }
           });
@@ -179,7 +192,7 @@ export async function POST(request: NextRequest) {
         console.log('[SOLUÇÃO INTEGRADA] Criadas transações para todos os posts');
       } else {
         // Caso tradicional - uma única transação
-        const transaction = await db.transaction.create({
+        const txn = await db.transaction.create({
           data: {
             payment_request_id: paymentRequest.id,
             external_id: mpResponse.id.toString(),
@@ -192,12 +205,17 @@ export async function POST(request: NextRequest) {
             metadata: JSON.stringify({
               mercadopago_response: mpResponse,
               idempotency_key: idempotencyKey,
-              is_multi_post: false
+              is_multi_post: false,
+              service_id: body.service_id,
+              service_name: body.service_name,
+              service_type: additionalData?.service_type || body.service_type,
+              profile_username: body.profile_username,
+              post_data: posts.length === 1 ? posts[0] : null
             })
           }
         });
         
-        console.log('[SOLUÇÃO INTEGRADA] Transação única criada com ID:', transaction.id);
+        console.log('[SOLUÇÃO INTEGRADA] Transação única criada com ID:', txn.id);
       }
       
       // Atualizar a solicitação de pagamento para 'processing'
@@ -216,7 +234,7 @@ export async function POST(request: NextRequest) {
           type: 'payment_confirmation',
           priority: 1,
           metadata: JSON.stringify({
-            transaction_id: transaction.id,
+            transaction_id: txn.id,
             external_id: mpResponse.id.toString()
           })
         }
@@ -226,13 +244,13 @@ export async function POST(request: NextRequest) {
       
       // Salvar resposta para idempotência
       const responseData = {
-        id: transaction.id,
-        status: transaction.status,
-        method: transaction.method,
-        amount: transaction.amount,
-        pix_code: transaction.pix_code,
-        pix_qrcode: transaction.pix_qrcode,
-        created_at: transaction.created_at
+        id: txn.id,
+        status: txn.status,
+        method: txn.method,
+        amount: txn.amount,
+        pix_code: txn.pix_code,
+        pix_qrcode: txn.pix_qrcode,
+        created_at: txn.created_at
       };
       
       await db.paymentIdempotencyLog.create({
@@ -258,12 +276,12 @@ export async function POST(request: NextRequest) {
         expires_at: paymentRequest.expires_at,
         payment_url: paymentUrl,
         payment: {
-          id: transaction.id,
-          status: transaction.status,
-          method: transaction.method,
-          pix_code: transaction.pix_code,
-          pix_qrcode: transaction.pix_qrcode,
-          amount: transaction.amount
+          id: txn.id,
+          status: txn.status,
+          method: txn.method,
+          pix_code: txn.pix_code,
+          pix_qrcode: txn.pix_qrcode,
+          amount: txn.amount
         }
       });
       
