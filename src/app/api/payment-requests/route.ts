@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
         created_at: 'desc'
       },
       include: {
-        payments: {
+        transactions: {
           orderBy: {
             created_at: 'desc'
           },
@@ -160,12 +160,12 @@ export async function GET(request: NextRequest) {
       expires_at: pr.expires_at,
       processed_at: pr.processed_at,
       processed_payment_id: pr.processed_payment_id,
-      last_payment: pr.payments[0] ? {
-        id: pr.payments[0].id,
-        status: pr.payments[0].status,
-        method: pr.payments[0].method,
-        amount: pr.payments[0].amount,
-        created_at: pr.payments[0].created_at
+      last_transaction: pr.transactions[0] ? {
+        id: pr.transactions[0].id,
+        status: pr.transactions[0].status,
+        method: pr.transactions[0].method,
+        amount: pr.transactions[0].amount,
+        created_at: pr.transactions[0].created_at
       } : null
     }));
     
