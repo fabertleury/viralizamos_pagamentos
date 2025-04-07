@@ -174,8 +174,8 @@ export async function POST(request: NextRequest) {
       let transactionStatus = 'pending';
       let transactionMethod = 'pix';
       let transactionAmount = paymentRequest.amount;
-      let transactionPixCode = mpResponse.point_of_interaction?.transaction_data?.qr_code;
-      let transactionPixQrcode = mpResponse.point_of_interaction?.transaction_data?.qr_code_base64;
+      let transactionPixCode = mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined;
+      let transactionPixQrcode = mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined;
       let transactionCreatedAt = new Date();
       
       if (isFollowersService) {
@@ -188,8 +188,8 @@ export async function POST(request: NextRequest) {
             method: 'pix',
             amount: paymentRequest.amount,
             provider: 'mercadopago',
-            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
-            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
+            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
+            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
             metadata: JSON.stringify({
               mercadopago_response: mpResponse,
               idempotency_key: idempotencyKey,
@@ -210,8 +210,8 @@ export async function POST(request: NextRequest) {
         transactionStatus = followersTxn.status;
         transactionMethod = followersTxn.method;
         transactionAmount = followersTxn.amount;
-        transactionPixCode = followersTxn.pix_code;
-        transactionPixQrcode = followersTxn.pix_qrcode;
+        transactionPixCode = followersTxn.pix_code || undefined;
+        transactionPixQrcode = followersTxn.pix_qrcode || undefined;
         transactionCreatedAt = followersTxn.created_at;
       }
       // Criar transações no banco - uma para cada post, se houver múltiplos posts
@@ -241,8 +241,8 @@ export async function POST(request: NextRequest) {
               method: 'pix',
               amount: paymentRequest.amount / posts.length, // Dividir o valor proporcionalmente
               provider: 'mercadopago',
-              pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
-              pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
+              pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
+              pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
               metadata: JSON.stringify({
                 mercadopago_response: mpResponse,
                 idempotency_key: idempotencyKey,
@@ -271,8 +271,8 @@ export async function POST(request: NextRequest) {
             transactionStatus = postTxn.status;
             transactionMethod = postTxn.method;
             transactionAmount = postTxn.amount;
-            transactionPixCode = postTxn.pix_code;
-            transactionPixQrcode = postTxn.pix_qrcode;
+            transactionPixCode = postTxn.pix_code || undefined;
+            transactionPixQrcode = postTxn.pix_qrcode || undefined;
             transactionCreatedAt = postTxn.created_at;
           }
         }
@@ -289,8 +289,8 @@ export async function POST(request: NextRequest) {
             method: 'pix',
             amount: paymentRequest.amount,
             provider: 'mercadopago',
-            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
-            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
+            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
+            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
             metadata: JSON.stringify({
               mercadopago_response: mpResponse,
               idempotency_key: idempotencyKey,
@@ -311,8 +311,8 @@ export async function POST(request: NextRequest) {
         transactionStatus = singlePostTxn.status;
         transactionMethod = singlePostTxn.method;
         transactionAmount = singlePostTxn.amount;
-        transactionPixCode = singlePostTxn.pix_code;
-        transactionPixQrcode = singlePostTxn.pix_qrcode;
+        transactionPixCode = singlePostTxn.pix_code || undefined;
+        transactionPixQrcode = singlePostTxn.pix_qrcode || undefined;
         transactionCreatedAt = singlePostTxn.created_at;
       }
       
