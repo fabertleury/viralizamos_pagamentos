@@ -3,8 +3,9 @@ import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import StyledComponentsRegistry from "@/lib/registry";
 
-// Importar scripts de inicialização
+// Importar scripts de inicializacao
 import "@/lib/startup";
 import "@/lib/db-check";
 
@@ -14,6 +15,7 @@ import "@/lib/db-check";
 // Se necessário, podemos importar scripts do Bootstrap aqui
 // import 'bootstrap/dist/js/bootstrap.bundle.min.js'; - não necessário para SSR
 
+// Setup das fontes
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
@@ -36,13 +38,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${inter.variable} ${robotoMono.variable} min-h-screen flex flex-col`}>
-        <Header />
-        <main className="flex-grow">
-          {/* <BootstrapClient /> */}
-          {children}
-        </main>
-        <Footer />
+      <body className={`${inter.variable} ${robotoMono.variable}`} style={{ 
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        margin: 0
+      }}>
+        <StyledComponentsRegistry>
+          <Header />
+          <main style={{ flexGrow: 1 }}>
+            {/* <BootstrapClient /> */}
+            {children}
+          </main>
+          <Footer />
+        </StyledComponentsRegistry>
       </body>
     </html>
   );
