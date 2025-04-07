@@ -4,39 +4,41 @@ import { PrismaClient } from '@prisma/client';
 console.log('DATABASE_URL:', process.env.DATABASE_URL);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 
-// Função para criar uma instância do cliente Prisma com retry
-function createPrismaClient() {
-  const client = new PrismaClient({
-    log: ['query', 'error', 'warn'],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL
-      }
-    }
-  });
+// Verificar se a DATABASE_URL está definida
+if (!process.env.DATABASE_URL) {
+  console.error('ERRO CRÍTICO: DATABASE_URL não está definida no ambiente!');
+  // Não lançamos erro para evitar falha na inicialização, mas logamos o problema
+}
 
-  // Adicionar middleware para logging e retry
-  client.$use(async (params, next) => {
-    const before = Date.now();
-    let retries = 3;
+// Configuração do cliente Prisma
+const prismaClientSingleton = () => {
+  try {
+    return new PrismaClient({
+      log: process.env.NODE_ENV === 'development' 
+        ? ['query', 'error', 'warn'] 
+        : ['error'],
+      datasourceUrl: process.env.DATABASE_URL, // Explicitamente utilizando a DATABASE_URL
+    });
+  } catch (error) {
+    console.error('Erro ao criar cliente Prisma:', error);
+    throw error;
+  }
+};
 
-    while (retries > 0) {
-      try {
-        const result = await next(params);
-        const after = Date.now();
-        console.log(`Query ${params.model}.${params.action} took ${after - before}ms`);
-        return result;
-      } catch (error: any) {
-        retries--;
-        if (retries === 0) throw error;
-        
-        console.error(`Error in Prisma query (${retries} retries left):`, error);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1s antes de tentar novamente
-      }
-    }
-  });
+// Tipo do cliente Prisma
+type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>;
 
-  return client;
+// Gestão do cliente no contexto global
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClientSingleton | undefined;
+};
+
+// Cliente Prisma (reutilizando se já existir no contexto global)
+export const db = globalForPrisma.prisma ?? prismaClientSingleton();
+
+// Em ambiente de desenvolvimento, criamos um novo cliente a cada requisição
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = db;
 }
 
 // Verificar conexão com o banco
@@ -54,15 +56,6 @@ async function testConnection(client: PrismaClient) {
     console.error('Failed to connect to the database:', error);
     return false;
   }
-}
-
-// Criar e exportar o cliente
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
-
-export const db = globalForPrisma.prisma || createPrismaClient();
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = db;
 }
 
 // Testar conexão ao inicializar

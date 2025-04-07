@@ -8,6 +8,11 @@ const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN!,
 });
 
+// Validar a configuração do banco de dados
+if (!process.env.DATABASE_URL) {
+  console.error('ERRO CRÍTICO: DATABASE_URL não definida para o endpoint /api/payment-request');
+}
+
 const payment = new Payment(client);
 
 // Função para gerar um token único para o pagamento
@@ -63,6 +68,7 @@ export async function POST(request: NextRequest) {
       : new Date(Date.now() + 24 * 60 * 60 * 1000);
     
     console.log('[SOLUÇÃO INTEGRADA] Criando registro no banco de dados');
+    console.log('[SOLUÇÃO INTEGRADA] DATABASE_URL configurada:', !!process.env.DATABASE_URL);
     
     // Criar a solicitação de pagamento diretamente
     const paymentRequest = await db.paymentRequest.create({
@@ -257,8 +263,13 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('[SOLUÇÃO INTEGRADA] Erro geral:', error);
+    
+    // Informações para diagnóstico
+    console.error('[SOLUÇÃO INTEGRADA] DATABASE_URL configurada:', !!process.env.DATABASE_URL);
+    console.error('[SOLUÇÃO INTEGRADA] NODE_ENV:', process.env.NODE_ENV);
+    
     return NextResponse.json(
-      { 
+      {
         error: 'Erro ao processar solicitação de pagamento',
         message: (error as Error).message,
         stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
