@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { Inter, Roboto_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/layout/header";
+import Header from "@/components/layout/Header";
 import { Footer } from "@/components/layout/footer";
-import StyledComponentsRegistry from "@/lib/registry";
 
 // Importar scripts de inicializacao
 import "@/lib/startup";
@@ -21,14 +20,9 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const robotoMono = Roboto_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "Viralizamos Pagamentos",
-  description: "Sistema de pagamentos da Viralizamos",
+  description: "Plataforma de pagamentos da Viralizamos para serviços do Instagram",
 };
 
 export default function RootLayout({
@@ -38,20 +32,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${inter.variable} ${robotoMono.variable}`} style={{ 
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
-        margin: 0
-      }}>
-        <StyledComponentsRegistry>
-          <Header />
-          <main style={{ flexGrow: 1 }}>
-            {/* <BootstrapClient /> */}
-            {children}
-          </main>
-          <Footer />
-        </StyledComponentsRegistry>
+      <body className={`${inter.variable} min-h-screen flex flex-col`}>
+        <Header />
+        <main className="flex-grow">
+          {/* <BootstrapClient /> */}
+          {children}
+        </main>
+        <Footer />
       </body>
     </html>
   );

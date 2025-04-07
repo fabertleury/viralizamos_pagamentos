@@ -1,14 +1,16 @@
-/* Resets básicos */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 15, 23, 42;
+  --background-rgb: 255, 255, 255;
 }
 
 body {
   font-family: var(--font-sans);
-  color: #1e293b;
-  background-color: #f8fafc;
+  color: rgb(var(--foreground-rgb));
+  background-color: rgb(var(--background-rgb));
   line-height: 1.5;
 }
 
@@ -56,4 +58,26 @@ button {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+@layer base {
+  h1 {
+    @apply text-3xl font-bold my-4;
+  }
+  
+  h2 {
+    @apply text-2xl font-semibold my-3;
+  }
+  
+  h3 {
+    @apply text-xl font-semibold my-2;
+  }
+  
+  a {
+    @apply text-primary-600 hover:text-primary-700 transition-colors;
+  }
+}
+
+.container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 } 
