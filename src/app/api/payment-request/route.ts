@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
         console.log('[SOLUÇÃO INTEGRADA] Criadas transações para todos os posts');
       } else {
         // Caso tradicional - uma única transação
-        const txn = await db.transaction.create({
+        const singlePostTxn = await db.transaction.create({
           data: {
             payment_request_id: paymentRequest.id,
             external_id: mpResponse.id.toString(),
@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        console.log('[SOLUÇÃO INTEGRADA] Transação única criada com ID:', txn.id);
+        console.log('[SOLUÇÃO INTEGRADA] Transação única criada com ID:', singlePostTxn.id);
       }
       
       // Atualizar a solicitação de pagamento para 'processing'
@@ -350,7 +350,7 @@ export async function POST(request: NextRequest) {
           type: 'payment_confirmation',
           priority: 1,
           metadata: JSON.stringify({
-            transaction_id: txn.id,
+            transaction_id: singlePostTxn.id,
             external_id: mpResponse.id.toString()
           })
         }
@@ -360,13 +360,13 @@ export async function POST(request: NextRequest) {
       
       // Salvar resposta para idempotência
       const responseData = {
-        id: txn.id,
-        status: txn.status,
-        method: txn.method,
-        amount: txn.amount,
-        pix_code: txn.pix_code,
-        pix_qrcode: txn.pix_qrcode,
-        created_at: txn.created_at
+        id: singlePostTxn.id,
+        status: singlePostTxn.status,
+        method: singlePostTxn.method,
+        amount: singlePostTxn.amount,
+        pix_code: singlePostTxn.pix_code,
+        pix_qrcode: singlePostTxn.pix_qrcode,
+        created_at: singlePostTxn.created_at
       };
       
       await db.paymentIdempotencyLog.create({
@@ -392,12 +392,12 @@ export async function POST(request: NextRequest) {
         expires_at: paymentRequest.expires_at,
         payment_url: paymentUrl,
         payment: {
-          id: txn.id,
-          status: txn.status,
-          method: txn.method,
-          pix_code: txn.pix_code,
-          pix_qrcode: txn.pix_qrcode,
-          amount: txn.amount
+          id: singlePostTxn.id,
+          status: singlePostTxn.status,
+          method: singlePostTxn.method,
+          pix_code: singlePostTxn.pix_code,
+          pix_qrcode: singlePostTxn.pix_qrcode,
+          amount: singlePostTxn.amount
         }
       });
       
