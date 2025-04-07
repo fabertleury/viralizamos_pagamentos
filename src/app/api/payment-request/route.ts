@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     // Construir URL de pagamento
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || request.headers.get('host') || '';
     const protocol = request.headers.get('x-forwarded-proto') || 'https';
-    const paymentUrl = `${protocol}://${baseUrl}/pagamento/${token}`;
+    const paymentUrl = `${protocol}://${baseUrl.replace(/^https?:\/\//i, '')}/pagamento/${token}`;
     
     // Gerar chave de idempotência para o Mercado Pago
     const idempotencyKey = generateIdempotencyKey(paymentRequest.id);
