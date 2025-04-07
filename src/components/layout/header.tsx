@@ -1,20 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 
 export default function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [isSticky, setIsSticky] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPosition = window.scrollY;
-      setIsSticky(scrollPosition > 100); // Fica sticky após 100px de rolagem
+      setIsSticky(window.scrollY > 10);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -23,16 +22,16 @@ export default function Header() {
 
   useEffect(() => {
     // Disable body scroll when mobile menu is open
-    if (isMenuOpen) {
+    if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-  }, [isMenuOpen]);
+  }, [isOpen]);
 
   // Close mobile menu when route changes
   useEffect(() => {
-    setIsMenuOpen(false);
+    setIsOpen(false);
   }, [pathname]);
 
   return (
@@ -62,94 +61,102 @@ export default function Header() {
           {/* Mobile Menu Button */}
           <button
             className="block md:hidden p-2 z-50"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            onClick={() => setIsOpen(!isOpen)}
           >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
-            <Link href="/" className={`text-gray-700 hover:text-[#C43582] ${pathname === '/' ? 'text-[#C43582] font-semibold' : ''}`}>
-              Início
-            </Link>
-            
-            <Link 
-              href="/faq" 
-              className={`text-gray-700 hover:text-[#C43582] ${pathname === '/faq' ? 'text-[#C43582] font-semibold' : ''}`}
-            >
-              FAQ
-            </Link>
-            
-            {/* Action Buttons */}
-            <button className="font-medium bg-[#C43582] text-white hover:bg-[#a62c6c] px-4 py-2 rounded">
-              <Link href="/acompanhar">
-                Acompanhar Pedido
+          <div className="hidden md:flex items-center gap-6">
+            <nav className="flex gap-6">
+              <Link 
+                href="/faq" 
+                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
+                  pathname === '/faq' ? 'text-pink-600 font-semibold' : ''
+                }`}
+              >
+                FAQ
               </Link>
-            </button>
-            
-            <button className="font-medium bg-[#C43582] text-white hover:bg-[#a62c6c] px-4 py-2 rounded">
-              <a href="https://viralizamos.com" target="_blank" rel="noopener noreferrer">
-                Voltar ao site
-              </a>
-            </button>
-          </nav>
+              <Link 
+                href="/acompanhar" 
+                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
+                  pathname === '/acompanhar' ? 'text-pink-600 font-semibold' : ''
+                }`}
+              >
+                Acompanhar pedido
+              </Link>
+              <Link 
+                href="/termos" 
+                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
+                  pathname === '/termos' ? 'text-pink-600 font-semibold' : ''
+                }`}
+              >
+                Termos de uso
+              </Link>
+              <Link 
+                href="/privacidade" 
+                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
+                  pathname === '/privacidade' ? 'text-pink-600 font-semibold' : ''
+                }`}
+              >
+                Privacidade
+              </Link>
+            </nav>
+            <a 
+              href="https://viralizamos.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="bg-pink-600 text-white px-4 py-2 rounded font-medium hover:bg-pink-700 transition-colors"
+            >
+              Voltar ao site
+            </a>
+          </div>
 
-          {/* Mobile Navigation */}
-          {isMenuOpen && (
+          {/* Mobile Menu */}
+          {isOpen && (
             <div className="fixed inset-0 bg-white z-40 pt-20">
               <div className="container mx-auto px-4 py-8">
                 <div className="flex flex-col space-y-4">
                   <Link 
-                    href="/" 
-                    className="text-gray-700 hover:text-[#C43582] py-2 border-b"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Início
-                  </Link>
-                  
-                  <Link 
                     href="/faq" 
-                    className="text-gray-700 hover:text-[#C43582] py-2 border-b"
-                    onClick={() => setIsMenuOpen(false)}
+                    className="text-gray-700 hover:text-pink-600 py-2 border-b"
+                    onClick={() => setIsOpen(false)}
                   >
                     FAQ
                   </Link>
                   
                   <Link 
-                    href="/termos" 
-                    className="text-gray-700 hover:text-[#C43582] py-2 border-b"
-                    onClick={() => setIsMenuOpen(false)}
+                    href="/acompanhar" 
+                    className="text-gray-700 hover:text-pink-600 py-2 border-b"
+                    onClick={() => setIsOpen(false)}
                   >
-                    Termos de Uso
+                    Acompanhar pedido
+                  </Link>
+                  
+                  <Link 
+                    href="/termos" 
+                    className="text-gray-700 hover:text-pink-600 py-2 border-b"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Termos de uso
                   </Link>
                   
                   <Link 
                     href="/privacidade" 
-                    className="text-gray-700 hover:text-[#C43582] py-2 border-b"
-                    onClick={() => setIsMenuOpen(false)}
+                    className="text-gray-700 hover:text-pink-600 py-2 border-b"
+                    onClick={() => setIsOpen(false)}
                   >
-                    Política de Privacidade
+                    Privacidade
                   </Link>
                   
-                  <div className="pt-4">
-                    <button 
-                      className="w-full font-medium bg-[#C43582] text-white hover:bg-[#a62c6c] px-4 py-2 rounded mb-3"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <Link href="/acompanhar">
-                        Acompanhar Pedido
-                      </Link>
-                    </button>
-                    
-                    <button 
-                      className="w-full font-medium bg-[#C43582] text-white hover:bg-[#a62c6c] px-4 py-2 rounded"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <a href="https://viralizamos.com" target="_blank" rel="noopener noreferrer">
-                        Voltar ao site
-                      </a>
-                    </button>
-                  </div>
+                  <a 
+                    href="https://viralizamos.com" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="mt-4 block w-full bg-pink-600 text-white text-center px-4 py-3 rounded font-medium hover:bg-pink-700 transition-colors"
+                  >
+                    Voltar ao site
+                  </a>
                 </div>
               </div>
             </div>
