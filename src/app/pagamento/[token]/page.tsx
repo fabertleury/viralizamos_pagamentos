@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
+import { Clock, Check, Copy, Info } from 'lucide-react';
 
 interface Post {
   id: string;
@@ -160,12 +161,19 @@ export default function PaymentPage() {
   
   // Formatar tempo restante
   const formatTimeLeft = () => {
-    if (timeLeft === null) return '--:--';
+    if (timeLeft === null) return '30:00';
     
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
     
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+  
+  // Calcular a porcentagem de tempo restante (para a barra de progresso)
+  const calculateTimePercentage = () => {
+    if (timeLeft === null) return 100;
+    const totalTime = 30 * 60; // 30 minutos em segundos
+    return (timeLeft / totalTime) * 100;
   };
   
   // Buscar dados iniciais
@@ -175,12 +183,10 @@ export default function PaymentPage() {
   
   if (loading) {
     return (
-      <div className="container d-flex align-items-center justify-content-center vh-100">
-        <div className="card p-4 text-center shadow-custom">
-          <div className="spinner-border text-primary mx-auto mb-3" role="status">
-            <span className="visually-hidden">Carregando...</span>
-          </div>
-          <p className="text-dark">Carregando dados do pagamento...</p>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="bg-white rounded-lg shadow p-8 max-w-md w-full text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-600 mx-auto mb-4"></div>
+          <p className="text-gray-700 font-medium">Carregando dados do pagamento...</p>
         </div>
       </div>
     );
@@ -188,269 +194,231 @@ export default function PaymentPage() {
   
   if (error || !paymentRequest) {
     return (
-      <div className="container d-flex align-items-center justify-content-center vh-100">
-        <div className="card p-4 text-center shadow-custom">
-          <h2 className="text-danger mb-3">Erro</h2>
-          <p className="text-dark mb-4">{error || 'Pagamento não encontrado'}</p>
-          <a href="/" className="btn btn-primary">Voltar à página inicial</a>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="bg-white rounded-lg shadow p-8 max-w-md w-full text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Erro</h2>
+          <p className="text-gray-700 mb-6">{error || 'Pagamento não encontrado'}</p>
+          <a href="/" className="inline-block px-6 py-3 text-white font-medium bg-pink-600 rounded-lg hover:bg-pink-700 transition-colors">
+            Voltar à página inicial
+          </a>
         </div>
       </div>
     );
   }
   
   return (
-    <div className="min-vh-100 bg-light py-4">
-      {/* Cabeçalho com logo */}
-      <header className="container mb-4">
-        <div className="text-center mb-4">
-          <div className="d-inline-block bg-white p-3 rounded-custom shadow-custom">
-            <h1 className="h4 m-0 text-pink">Viralizamos</h1>
-          </div>
-        </div>
-      </header>
-      
-      <div className="container">
-        <div className="row justify-content-center">
-          <div className="col-lg-10">
-            <div className="card shadow-custom overflow-hidden">
-              {/* Cabeçalho */}
-              <div className="card-header bg-gradient-pink p-4 text-white">
-                <h2 className="h3 mb-2 text-center">Pagamento</h2>
-                <p className="mb-0 text-center">
-                  {paymentRequest.status === 'completed' 
-                    ? 'Pagamento aprovado com sucesso!' 
-                    : 'Complete seu pagamento para confirmar seu pedido'}
+    <div className="bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Cabeçalho */}
+          <div className="bg-gradient-to-r from-pink-600 to-purple-600 px-6 py-8 text-white">
+            <h1 className="text-2xl md:text-3xl font-bold text-center">Pagamento</h1>
+            <p className="text-center mt-2 text-white/90">
+              {paymentRequest.status === 'completed' 
+                ? 'Pagamento aprovado com sucesso!' 
+                : 'Complete seu pagamento para confirmar seu pedido'}
+            </p>
+            
+            {/* Timer de expiração */}
+            {(paymentRequest.status === 'pending' || paymentRequest.status === 'processing') && (
+              <div className="mt-4 max-w-sm mx-auto">
+                <div className="flex items-center justify-center gap-2 text-white mb-2">
+                  <Clock className="h-5 w-5" />
+                  <span className="font-medium">Tempo restante: {formatTimeLeft()}</span>
+                </div>
+                
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-green-500 h-2.5 rounded-full transition-all duration-1000 ease-linear" 
+                    style={{ width: `${calculateTimePercentage()}%` }}
+                  ></div>
+                </div>
+                
+                <p className="text-center text-sm text-white/80 mt-2">
+                  Este QR Code expira em 30 minutos
                 </p>
-                
-                {/* Timer de expiração */}
-                {(paymentRequest.status === 'pending' || paymentRequest.status === 'processing') && (
-                  <div className="mt-3">
-                    <div className="d-flex align-items-center justify-content-center gap-2 mb-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-clock" viewBox="0 0 16 16">
-                        <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
-                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
-                      </svg>
-                      <span className="fw-medium">Tempo restante: {formatTimeLeft()}</span>
-                    </div>
-                    
-                    <div className="progress" style={{ height: '4px' }}>
-                      <div className="timer-bar w-100"></div>
-                    </div>
-                    
-                    <p className="text-center small mt-2 text-white-50">
-                      Este QR Code expira em 30 minutos
-                    </p>
-                  </div>
-                )}
               </div>
-              
-              <div className="card-body p-0">
-                {/* Pagamento Aprovado */}
-                {paymentRequest.status === 'completed' && (
-                  <div className="text-center p-5">
-                    <div className="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 p-4 rounded-circle mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" className="bi bi-check-lg text-success" viewBox="0 0 16 16">
-                        <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/>
-                      </svg>
-                    </div>
-                    <h2 className="h4 text-success mb-3">Pagamento aprovado!</h2>
-                    <p className="text-dark mb-4">Obrigado pela sua compra.</p>
-                    <a href="/" className="btn btn-primary px-4 py-2">Continuar</a>
-                  </div>
+            )}
+          </div>
+          
+          <div className="p-6">
+            {/* Pagamento Aprovado */}
+            {paymentRequest.status === 'completed' && (
+              <div className="text-center py-10">
+                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Check className="h-14 w-14 text-green-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-green-600 mb-3">Pagamento aprovado!</h2>
+                <p className="text-gray-700 mb-6 text-lg">Obrigado pela sua compra.</p>
+                {paymentRequest.payment?.method === 'pix' && (
+                  <p className="text-gray-600 mb-6">Recebemos seu pagamento via PIX.</p>
                 )}
-                
-                {/* Pagamento Pendente ou Processando com PIX */}
-                {(paymentRequest.status === 'pending' || paymentRequest.status === 'processing') && paymentRequest.payment && paymentRequest.payment.method === 'pix' && (
-                  <div className="row g-0">
-                    {/* Coluna esquerda: Detalhes do pedido */}
-                    <div className="col-md-5 order-2 order-md-1">
-                      <div className="p-4 h-100 d-flex flex-column">
-                        <h3 className="h5 mb-4 pb-2 border-bottom">Detalhes do Pedido</h3>
-                        
-                        {/* Serviço */}
-                        <div className="mb-4">
-                          <p className="small text-muted mb-1">Serviço</p>
-                          <p className="fw-medium text-dark">{paymentRequest.service_name || 'Serviço Viralizamos'}</p>
-                        </div>
-                        
-                        {/* Posts selecionados */}
-                        {posts && posts.length > 0 && (
-                          <div className="mb-4">
-                            <p className="small text-muted mb-2">Posts selecionados</p>
-                            <div className="d-flex flex-column gap-2">
-                              {posts.map((post, index) => (
-                                <div key={post.id || index} className="d-flex bg-white p-2 rounded border">
-                                  {/* Thumbnail */}
-                                  <div className="flex-shrink-0 me-3" style={{ width: '64px', height: '64px' }}>
-                                    {(post.image_url || post.thumbnail_url || post.display_url) ? (
-                                      <img 
-                                        src={post.image_url || post.thumbnail_url || post.display_url} 
-                                        alt="Post thumbnail" 
-                                        className="img-fluid rounded"
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                        onError={(e) => {
-                                          const target = e.target as HTMLImageElement;
-                                          target.src = "https://placehold.co/64x64/e5e7eb/a3a3a3?text=Post";
-                                        }}
-                                      />
-                                    ) : (
-                                      <div className="d-flex align-items-center justify-content-center bg-light text-muted rounded" style={{ width: '100%', height: '100%' }}>
-                                        {post.is_reel ? 'Reel' : 'Post'}
-                                      </div>
+                <a href="/" className="inline-block px-6 py-3 text-white font-medium bg-pink-600 rounded-lg hover:bg-pink-700 transition-colors">
+                  Continuar
+                </a>
+              </div>
+            )}
+            
+            {/* Pagamento Pendente ou Processando com PIX */}
+            {(paymentRequest.status === 'pending' || paymentRequest.status === 'processing') && paymentRequest.payment && paymentRequest.payment.method === 'pix' && (
+              <div className="grid md:grid-cols-12 gap-8">
+                {/* Coluna esquerda: Detalhes do pedido */}
+                <div className="md:col-span-5 order-2 md:order-1">
+                  <div className="bg-gray-50 rounded-xl p-5 h-full">
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Detalhes do Pedido</h2>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Serviço</p>
+                        <p className="font-medium text-gray-800">{paymentRequest.service_name || 'Serviço Viralizamos'}</p>
+                      </div>
+                      
+                      {/* Posts selecionados */}
+                      {posts && posts.length > 0 && (
+                        <div>
+                          <p className="text-sm text-gray-500 mb-2">Posts selecionados</p>
+                          <div className="space-y-3">
+                            {posts.map((post, index) => (
+                              <div key={post.id || index} className="flex items-center bg-white p-2 rounded-lg border border-gray-200">
+                                {/* Thumbnail */}
+                                <div className="w-16 h-16 flex-shrink-0 mr-3 bg-gray-100 rounded overflow-hidden">
+                                  {(post.image_url || post.thumbnail_url || post.display_url) ? (
+                                    <img 
+                                      src={post.image_url || post.thumbnail_url || post.display_url} 
+                                      alt="Post thumbnail" 
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.src = "https://placehold.co/64x64/e5e7eb/a3a3a3?text=Post";
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
+                                      {post.is_reel ? 'Reel' : 'Post'}
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* Detalhes do post */}
+                                <div className="flex-grow min-w-0">
+                                  <p className="text-xs font-medium text-gray-900 truncate">
+                                    {post.caption ? post.caption.substring(0, 50) + (post.caption.length > 50 ? '...' : '') : 
+                                      post.is_reel ? 'Instagram Reel' : 'Instagram Post'}
+                                  </p>
+                                  <div className="flex items-center justify-between mt-1">
+                                    <a 
+                                      href={post.code ? `https://instagram.com/p/${post.code}` : 
+                                            post.shortcode ? `https://instagram.com/p/${post.shortcode}` : 
+                                            '#'} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-pink-600 hover:underline truncate"
+                                    >
+                                      @{paymentRequest.profile_username || 'instagram'}
+                                    </a>
+                                    {post.quantity && post.quantity > 0 && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-100 text-pink-800">
+                                        {post.quantity} {post.quantity === 1 ? 'unidade' : 'unidades'}
+                                      </span>
                                     )}
                                   </div>
-                                  
-                                  {/* Detalhes do post */}
-                                  <div className="overflow-hidden">
-                                    <p className="small fw-medium text-truncate mb-1">
-                                      {post.caption ? post.caption.substring(0, 50) + (post.caption.length > 50 ? '...' : '') : 
-                                        post.is_reel ? 'Instagram Reel' : 'Instagram Post'}
-                                    </p>
-                                    <div className="d-flex justify-content-between align-items-center">
-                                      <a 
-                                        href={post.code ? `https://instagram.com/p/${post.code}` : 
-                                              post.shortcode ? `https://instagram.com/p/${post.shortcode}` : 
-                                              '#'} 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        className="small text-primary text-decoration-none text-truncate"
-                                      >
-                                        @{paymentRequest.profile_username || 'instagram'}
-                                      </a>
-                                      {post.quantity && post.quantity > 0 && (
-                                        <span className="badge bg-primary bg-opacity-10 text-primary small">
-                                          {post.quantity} {post.quantity === 1 ? 'unidade' : 'unidades'}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Cliente */}
-                        <div className="mb-4">
-                          <p className="small text-muted mb-1">Cliente</p>
-                          <p className="fw-medium text-dark mb-1">{paymentRequest.payer_name}</p>
-                          <p className="small text-dark mb-1">{paymentRequest.payer_email}</p>
-                          {paymentRequest.payer_phone && <p className="small text-dark mb-0">{paymentRequest.payer_phone}</p>}
-                        </div>
-                        
-                        {/* Valores */}
-                        <div className="mt-auto pt-3 border-top">
-                          <div className="d-flex justify-content-between mb-2">
-                            <span className="text-dark">Subtotal</span>
-                            <span className="text-dark">R$ {paymentRequest.amount.toFixed(2).replace('.', ',')}</span>
-                          </div>
-                          <div className="d-flex justify-content-between fw-bold">
-                            <span>Total</span>
-                            <span>R$ {paymentRequest.amount.toFixed(2).replace('.', ',')}</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
+                      )}
+                      
+                      <div>
+                        <p className="text-sm text-gray-500">Cliente</p>
+                        <p className="font-medium text-gray-800">{paymentRequest.payer_name}</p>
+                        <p className="text-sm text-gray-700">{paymentRequest.payer_email}</p>
+                        {paymentRequest.payer_phone && <p className="text-sm text-gray-700">{paymentRequest.payer_phone}</p>}
                       </div>
-                    </div>
-                    
-                    {/* Coluna direita: QR Code PIX */}
-                    <div className="col-md-7 order-1 order-md-2 border-start border-md-start-0 border-bottom border-md-bottom-0">
-                      <div className="p-4 text-center">
-                        <h3 className="h5 text-primary mb-4">Pague com PIX</h3>
-                        
-                        {/* QR Code PIX */}
-                        <div className="mb-4">
-                          {paymentRequest.payment.pix_qrcode ? (
-                            <div className="d-inline-block p-2 border rounded bg-white mb-2">
-                              <img 
-                                src={`data:image/png;base64,${paymentRequest.payment.pix_qrcode}`} 
-                                alt="QR Code PIX" 
-                                className="img-fluid"
-                                style={{ maxWidth: '200px' }}
-                              />
-                            </div>
-                          ) : (
-                            <div className="d-inline-flex align-items-center justify-content-center border rounded bg-light mx-auto mb-2" style={{ width: '200px', height: '200px' }}>
-                              <p className="text-muted mb-0">QR Code não disponível</p>
-                            </div>
-                          )}
-                          <p className="small text-muted mt-2">Escaneie o QR Code com o app do seu banco</p>
+                      
+                      <div className="border-t pt-4 mt-4">
+                        <div className="flex justify-between text-gray-600">
+                          <span>Subtotal</span>
+                          <span>R$ {paymentRequest.amount.toFixed(2).replace('.', ',')}</span>
                         </div>
                         
-                        {/* Código PIX */}
-                        {paymentRequest.payment.pix_code && (
-                          <div className="mb-4">
-                            <p className="small text-muted mb-2">Ou use o código PIX copia e cola:</p>
-                            <div className="bg-light border rounded p-3 mb-2 text-start">
-                              <p className="small mb-0 overflow-auto font-monospace" style={{ maxHeight: '80px' }}>
-                                {paymentRequest.payment.pix_code}
-                              </p>
-                            </div>
-                            <button 
-                              onClick={copyPix}
-                              className={`btn ${copied ? 'btn-success' : 'btn-outline-primary'} w-100 d-flex align-items-center justify-content-center gap-2`}
-                            >
-                              {copied ? (
-                                <>
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-check-lg" viewBox="0 0 16 16">
-                                    <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/>
-                                  </svg>
-                                  Código copiado!
-                                </>
-                              ) : (
-                                <>
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-clipboard" viewBox="0 0 16 16">
-                                    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
-                                    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
-                                  </svg>
-                                  Copiar código PIX
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        )}
-                        
-                        {/* Instruções */}
-                        <div className="bg-primary bg-opacity-10 p-3 rounded text-start border border-primary border-opacity-25">
-                          <h4 className="h6 text-primary d-flex align-items-center gap-2 mb-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-info-circle-fill" viewBox="0 0 16 16">
-                              <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
-                            </svg>
-                            Instruções para pagamento
-                          </h4>
-                          <ol className="list-unstyled ps-1 small text-dark">
-                            <li className="mb-1 d-flex align-items-start gap-2">
-                              <span className="badge bg-primary rounded-pill">1</span>
-                              Abra o aplicativo do seu banco
-                            </li>
-                            <li className="mb-1 d-flex align-items-start gap-2">
-                              <span className="badge bg-primary rounded-pill">2</span>
-                              Escolha pagar com PIX
-                            </li>
-                            <li className="mb-1 d-flex align-items-start gap-2">
-                              <span className="badge bg-primary rounded-pill">3</span>
-                              Escaneie o QR code ou cole o código
-                            </li>
-                            <li className="d-flex align-items-start gap-2">
-                              <span className="badge bg-primary rounded-pill">4</span>
-                              Confirme as informações e finalize o pagamento
-                            </li>
-                          </ol>
-                          <p className="small text-primary mt-3 mb-0">Após o pagamento, esta página será atualizada automaticamente.</p>
+                        <div className="flex justify-between font-bold mt-2 text-lg text-gray-800">
+                          <span>Total</span>
+                          <span>R$ {paymentRequest.amount.toFixed(2).replace('.', ',')}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
+                
+                {/* Coluna direita: QR Code PIX */}
+                <div className="md:col-span-7 order-1 md:order-2">
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 text-center shadow-md">
+                    <h3 className="text-lg font-semibold mb-4 text-pink-700">Pague com PIX</h3>
+                    
+                    {/* QR Code PIX */}
+                    <div className="mb-6 flex flex-col items-center">
+                      {paymentRequest.payment.pix_qrcode ? (
+                        <img 
+                          src={`data:image/png;base64,${paymentRequest.payment.pix_qrcode}`} 
+                          alt="QR Code PIX" 
+                          className="w-48 h-48 border p-2 rounded-lg mb-2"
+                        />
+                      ) : (
+                        <p className="text-gray-600">QR Code não disponível</p>
+                      )}
+                      
+                      <p className="text-sm text-gray-500 mt-2">Escaneie o QR Code com o app do seu banco</p>
+                    </div>
+                    
+                    {/* Código PIX */}
+                    {paymentRequest.payment.pix_code && (
+                      <div className="mb-6">
+                        <p className="text-sm text-gray-600 mb-2">Ou use o código PIX copia e cola:</p>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-300 mb-2 text-left break-all relative">
+                          <p className="pr-8 text-sm text-gray-800 font-mono">{paymentRequest.payment.pix_code}</p>
+                        </div>
+                        
+                        <button
+                          onClick={copyPix}
+                          className={`w-full flex items-center justify-center py-3 px-4 rounded-lg font-medium ${
+                            copied 
+                              ? 'bg-green-100 text-green-700 border border-green-300' 
+                              : 'bg-pink-50 text-pink-700 border border-pink-300 hover:bg-pink-100'
+                          } transition-colors`}
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="h-5 w-5 mr-2" />
+                              Código copiado!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-5 w-5 mr-2" />
+                              Copiar código PIX
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                    
+                    <div className="space-y-3 text-left bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <h4 className="font-medium text-blue-700 flex items-center gap-1">
+                        <Info className="h-5 w-5" />
+                        Instruções para pagamento
+                      </h4>
+                      <ol className="list-decimal list-inside space-y-1 text-sm text-gray-700 pl-1">
+                        <li>Abra o aplicativo do seu banco</li>
+                        <li>Escolha pagar com PIX</li>
+                        <li>Escaneie o QR code ou cole o código</li>
+                        <li>Confirme as informações e finalize o pagamento</li>
+                      </ol>
+                      <p className="text-sm text-blue-700">Após o pagamento, esta página será atualizada automaticamente.</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              
-              {/* Rodapé */}
-              <div className="card-footer text-center p-3">
-                <small className="text-muted">
-                  Processado por Viralizamos Pagamentos<br/>
-                  © {new Date().getFullYear()} Viralizamos
-                </small>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

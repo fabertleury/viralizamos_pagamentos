@@ -1,149 +1,146 @@
-/* Importar Bootstrap */
-@import 'bootstrap/dist/css/bootstrap.min.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --color-pink-primary: #FF3399;
-  --color-pink-light: #FF66B2;
-  --color-pink-dark: #CC0066;
-  --color-gray-dark: #333333;
-  --color-gray-medium: #666666;
-  --color-gray-light: #F5F5F5;
-  --color-white: #FFFFFF;
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-error: #EF4444;
-  --font-sans: 'Inter', sans-serif;
-  --font-mono: 'Roboto Mono', monospace;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --border-radius: 0.5rem;
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 331 95% 48%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240, 75%, 64%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 331 81% 54%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+  }
 }
 
-html,
-body {
-  font-family: var(--font-sans);
-  background-color: #f9fafb;
-  color: var(--color-gray-dark);
-  padding: 0;
-  margin: 0;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
 }
 
-/* Redefine as cores do Bootstrap para usar a paleta personalizada */
-.btn-primary {
-  background-color: var(--color-pink-primary) !important;
-  border-color: var(--color-pink-primary) !important;
+/* Animações */
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
-.btn-primary:hover {
-  background-color: var(--color-pink-dark) !important;
-  border-color: var(--color-pink-dark) !important;
-}
-
-.btn-outline-primary {
-  color: var(--color-pink-primary) !important;
-  border-color: var(--color-pink-primary) !important;
-}
-
-.btn-outline-primary:hover {
-  background-color: var(--color-pink-primary) !important;
-  color: white !important;
-}
-
-.bg-primary {
-  background: linear-gradient(to right, var(--color-pink-primary), var(--color-pink-dark)) !important;
-}
-
-.text-primary {
-  color: var(--color-pink-primary) !important;
-}
-
-.card {
-  border-radius: var(--border-radius);
-  border: none;
-  box-shadow: var(--shadow-sm);
-}
-
-.card-header {
-  border-top-left-radius: var(--border-radius) !important;
-  border-top-right-radius: var(--border-radius) !important;
-}
-
-.spinner-border.text-primary {
-  color: var(--color-pink-primary) !important;
-}
-
-/* Classes auxiliares personalizadas */
-.shadow-custom {
-  box-shadow: var(--shadow-md);
-}
-
-.rounded-custom {
-  border-radius: var(--border-radius);
-}
-
-.text-pink {
-  color: var(--color-pink-primary);
-}
-
-.bg-pink {
-  background-color: var(--color-pink-primary);
-}
-
-.bg-gradient-pink {
-  background: linear-gradient(to right, var(--color-pink-primary), var(--color-pink-dark));
-}
-
-/* Timer animation */
 @keyframes countdown {
   from { width: 100%; }
   to { width: 0; }
 }
 
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out forwards;
+}
+
 .timer-bar {
-  height: 4px;
-  background-color: var(--color-success);
+  @apply bg-green-500;
   animation: countdown 1800s linear forwards; /* 30 minutos = 1800 segundos */
 }
 
-/* Cores básicas para garantir visibilidade */
-.text-dark {
-  color: #000 !important;
+/* Customizações para elementos específicos */
+.bg-gradient-to-r {
+  @apply from-pink-600 to-purple-600;
 }
 
-.text-white {
-  color: #fff !important;
+/* Classes para garantir compatibilidade */
+.container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }
 
-.bg-dark {
-  background-color: #000 !important;
+.btn {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+  disabled:opacity-50 disabled:pointer-events-none ring-offset-background;
 }
 
-.bg-white {
-  background-color: #fff !important;
+.btn-primary {
+  @apply bg-primary text-white hover:bg-primary/90;
 }
 
-/* Cores para elementos específicos */
-.text-success {
-  color: #198754 !important;
+.btn-outline {
+  @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground;
 }
 
-.bg-success {
-  background-color: #198754 !important;
+.btn-ghost {
+  @apply hover:bg-accent hover:text-accent-foreground;
 }
 
-.text-danger {
-  color: #dc3545 !important;
+.badge {
+  @apply inline-flex items-center border px-2.5 py-0.5 text-xs font-semibold transition-colors
+  focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
 }
 
-.bg-danger {
-  background-color: #dc3545 !important;
+.badge-primary {
+  @apply bg-primary text-primary-foreground hover:bg-primary/80;
 }
 
-.text-warning {
-  color: #ffc107 !important;
+.card {
+  @apply rounded-lg border bg-card text-card-foreground shadow;
 }
 
-.bg-warning {
-  background-color: #ffc107 !important;
+.card-header {
+  @apply flex flex-col space-y-1.5 p-6;
+}
+
+.card-title {
+  @apply text-lg font-semibold leading-none tracking-tight;
+}
+
+.card-description {
+  @apply text-sm text-muted-foreground;
+}
+
+.card-content {
+  @apply p-6 pt-0;
+}
+
+.card-footer {
+  @apply flex items-center p-6 pt-0;
 } 

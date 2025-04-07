@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
+import { Header } from "@/components/layout/header";
+import { Footer } from "@/components/layout/footer";
 
 // Importar scripts de inicialização
 import "@/lib/startup";
@@ -34,9 +36,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${inter.variable} ${robotoMono.variable}`}>
-        {/* <BootstrapClient /> */}
-        {children}
+      <body className={`${inter.variable} ${robotoMono.variable} min-h-screen flex flex-col`}>
+        <Header />
+        <main className="flex-grow">
+          {/* <BootstrapClient /> */}
+          {children}
+        </main>
+        <Footer />
       </body>
     </html>
   );
