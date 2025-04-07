@@ -92,6 +92,15 @@ export async function POST(request: NextRequest) {
     
     console.log('[SOLUÇÃO INTEGRADA] Registro criado com ID:', paymentRequest.id);
     
+    // Verificar se há múltiplos posts e suas quantidades
+    const additionalData = typeof body.additional_data === 'string' 
+      ? JSON.parse(body.additional_data) 
+      : body.additional_data;
+    
+    const posts = additionalData?.posts || [];
+    console.log('[SOLUÇÃO INTEGRADA] Posts encontrados:', posts.length);
+    
+    // Se não houver posts ou apenas um post, continua com o fluxo normal
     // ETAPA 2: Criar o pagamento PIX diretamente
     console.log('[SOLUÇÃO INTEGRADA] Criando pagamento PIX para:', paymentRequest.id);
     
@@ -133,25 +142,63 @@ export async function POST(request: NextRequest) {
       
       console.log('[SOLUÇÃO INTEGRADA] Resposta do Mercado Pago:', JSON.stringify(mpResponse).substring(0, 200) + '...');
       
-      // Criar transação no banco
-      const transaction = await db.transaction.create({
-        data: {
-          payment_request_id: paymentRequest.id,
-          external_id: mpResponse.id.toString(),
-          status: 'pending',
-          method: 'pix',
-          amount: paymentRequest.amount,
-          provider: 'mercadopago',
-          pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
-          pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
-          metadata: JSON.stringify({
-            mercadopago_response: mpResponse,
-            idempotency_key: idempotencyKey
-          })
+      // Criar transações no banco - uma para cada post, se houver múltiplos posts
+      if (posts.length > 1) {
+        console.log('[SOLUÇÃO INTEGRADA] Processando múltiplos posts:', posts.length);
+        
+        // Criar transações separadas para cada post
+        for (const post of posts) {
+          // Extrair a quantidade específica para este post
+          const postQuantity = post.quantity || 0;
+          const postId = post.id || post.postId;
+          const postCode = post.code || post.postCode || '';
+          
+          // Criar uma transação para este post específico
+          await db.transaction.create({
+            data: {
+              payment_request_id: paymentRequest.id,
+              external_id: `${mpResponse.id.toString()}_${postId}`,
+              status: 'pending',
+              method: 'pix',
+              amount: paymentRequest.amount / posts.length, // Dividir o valor proporcionalmente
+              provider: 'mercadopago',
+              pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
+              pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
+              metadata: JSON.stringify({
+                mercadopago_response: mpResponse,
+                idempotency_key: idempotencyKey,
+                post_id: postId,
+                post_code: postCode,
+                quantity: postQuantity,
+                is_multi_post: true
+              })
+            }
+          });
         }
-      });
-      
-      console.log('[SOLUÇÃO INTEGRADA] Transação criada com ID:', transaction.id);
+        
+        console.log('[SOLUÇÃO INTEGRADA] Criadas transações para todos os posts');
+      } else {
+        // Caso tradicional - uma única transação
+        const transaction = await db.transaction.create({
+          data: {
+            payment_request_id: paymentRequest.id,
+            external_id: mpResponse.id.toString(),
+            status: 'pending',
+            method: 'pix',
+            amount: paymentRequest.amount,
+            provider: 'mercadopago',
+            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code,
+            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64,
+            metadata: JSON.stringify({
+              mercadopago_response: mpResponse,
+              idempotency_key: idempotencyKey,
+              is_multi_post: false
+            })
+          }
+        });
+        
+        console.log('[SOLUÇÃO INTEGRADA] Transação única criada com ID:', transaction.id);
+      }
       
       // Atualizar a solicitação de pagamento para 'processing'
       await db.paymentRequest.update({

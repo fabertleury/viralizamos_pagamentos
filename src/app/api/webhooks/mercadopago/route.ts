@@ -23,19 +23,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment ID not found' }, { status: 400 });
     }
     
-    // Buscar a transação no banco de dados
-    const transaction = await db.transaction.findFirst({
+    // Buscar todas as transações relacionadas a este ID do Mercado Pago 
+    // (incluindo aquelas com prefixo para múltiplos posts)
+    const transactions = await db.transaction.findMany({
       where: {
         provider: 'mercadopago',
-        external_id: mercadoPagoId.toString()
+        external_id: {
+          startsWith: mercadoPagoId.toString()
+        }
       },
       include: {
         payment_request: true
       }
     });
     
-    if (!transaction) {
-      console.error(`Transação com Mercado Pago ID ${mercadoPagoId} não encontrada no banco`);
+    if (!transactions || transactions.length === 0) {
+      console.error(`Transações com Mercado Pago ID ${mercadoPagoId} não encontradas no banco`);
       
       // Registrar o webhook para referência futura
       await db.webhookLog.create({
@@ -44,12 +47,14 @@ export async function POST(request: NextRequest) {
           event: 'payment.update',
           data: JSON.stringify(body),
           processed: false,
-          error: 'Transaction not found'
+          error: 'Transactions not found'
         }
       });
       
-      return NextResponse.json({ status: 'success', message: 'Webhook recorded but transaction not found' });
+      return NextResponse.json({ status: 'success', message: 'Webhook recorded but transactions not found' });
     }
+    
+    console.log(`Encontradas ${transactions.length} transações para o pagamento ${mercadoPagoId}`);
     
     try {
       // Buscar dados atualizados do pagamento no Mercado Pago
@@ -68,61 +73,73 @@ export async function POST(request: NextRequest) {
       // Mapear status do Mercado Pago para nosso sistema
       const status = mapMercadoPagoStatus(mpData.status);
       
-      // Atualizar a transação
-      await db.transaction.update({
-        where: { id: transaction.id },
-        data: {
-          status,
-          metadata: JSON.stringify({
-            ...JSON.parse(transaction.metadata || '{}'),
-            mercadopago_data: mpData
-          })
-        }
-      });
-      
-      // Se o pagamento foi aprovado, atualizar o payment_request
-      if (status === 'approved') {
-        await db.paymentRequest.update({
-          where: { id: transaction.payment_request_id },
+      // Processar cada transação encontrada
+      for (const transaction of transactions) {
+        // Atualizar a transação
+        await db.transaction.update({
+          where: { id: transaction.id },
           data: {
-            status: 'completed',
-            processed_payment_id: transaction.id
+            status,
+            metadata: JSON.stringify({
+              ...JSON.parse(transaction.metadata || '{}'),
+              mercadopago_data: mpData
+            })
+          }
+        });
+        
+        // Registrar o webhook para esta transação
+        await db.webhookLog.create({
+          data: {
+            transaction_id: transaction.id,
+            type: 'mercadopago',
+            event: 'payment.update',
+            data: JSON.stringify(body),
+            processed: true
           }
         });
       }
       
-      // Registrar o webhook
-      await db.webhookLog.create({
-        data: {
-          transaction_id: transaction.id,
-          type: 'mercadopago',
-          event: 'payment.update',
-          data: JSON.stringify(body),
-          processed: true
-        }
-      });
+      // Se o pagamento foi aprovado, atualizar o payment_request
+      // Como várias transações podem compartilhar o mesmo payment_request,
+      // precisamos garantir que atualizamos apenas uma vez
+      if (status === 'approved' && transactions.length > 0) {
+        // Extrair o payment_request_id da primeira transação
+        const paymentRequestId = transactions[0].payment_request_id;
+        
+        await db.paymentRequest.update({
+          where: { id: paymentRequestId },
+          data: {
+            status: 'completed',
+            processed_payment_id: transactions[0].id
+          }
+        });
+        
+        console.log(`Payment request ${paymentRequestId} atualizado para completed com ${transactions.length} transações`);
+      }
       
     } catch (error) {
       console.error('Erro ao processar pagamento:', error);
       
-      // Registrar falha de processamento
-      await db.paymentProcessingFailure.create({
-        data: {
-          transaction_id: transaction.id,
-          error_code: 'PROCESSING_ERROR',
-          error_message: (error as Error).message,
-          stack_trace: (error as Error).stack,
-          metadata: JSON.stringify({
-            webhook_data: body,
-            error: error
-          })
-        }
-      });
+      // Registrar falha de processamento para cada transação
+      for (const transaction of transactions) {
+        await db.paymentProcessingFailure.create({
+          data: {
+            transaction_id: transaction.id,
+            error_code: 'PROCESSING_ERROR',
+            error_message: (error as Error).message,
+            stack_trace: (error as Error).stack,
+            metadata: JSON.stringify({
+              webhook_data: body,
+              error: error
+            })
+          }
+        });
+      }
       
       // Registrar o webhook com erro
       await db.webhookLog.create({
         data: {
-          transaction_id: transaction.id,
+          transaction_id: transactions[0]?.id,
           type: 'mercadopago',
           event: 'payment.update',
           data: JSON.stringify(body),
