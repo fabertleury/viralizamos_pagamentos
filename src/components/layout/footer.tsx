@@ -1,10 +1,33 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import packageJson from '../../../package.json';
 import Link from 'next/link';
 import { Instagram } from 'lucide-react';
 
 export function Footer() {
-  const currentYear = new Date().getFullYear();
+  const [productionVersion, setProductionVersion] = useState<string | null>(null);
+  const localVersion = packageJson.version;
+
+  useEffect(() => {
+    // Buscar a versão em produção
+    const fetchProductionVersion = async () => {
+      try {
+        const response = await fetch('/api/version');
+        if (response.ok) {
+          const data = await response.json();
+          setProductionVersion(data.version);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar versão em produção:', error);
+      }
+    };
+
+    // Só buscar a versão em produção se não estivermos em desenvolvimento
+    if (process.env.NODE_ENV === 'production') {
+      fetchProductionVersion();
+    }
+  }, []);
 
   return (
     <footer className="bg-gray-900 text-white py-8">
@@ -101,7 +124,13 @@ export function Footer() {
             </Link>
           </div>
           <div className="text-gray-500 text-sm">
-            &copy; {currentYear} Viralizamos.com. Todos os direitos reservados.
+            &copy; {new Date().getFullYear()} Viralizamos.com. Todos os direitos reservados.
+            {productionVersion && (
+              <span className="ml-2">v{productionVersion}</span>
+            )}
+            {!productionVersion && process.env.NODE_ENV !== 'production' && (
+              <span className="ml-2">v{localVersion} (dev)</span>
+            )}
           </div>
         </div>
       </div>
