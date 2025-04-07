@@ -1,28 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
+import { db } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+import { PaymentResponse } from '@/types/payment';
 
-// Armazenamento de pagamentos simulados em memória (em produção seria um banco)
-// Isso é apenas para teste e vai resetar quando a aplicação reiniciar
-const mockPayments = new Map();
-
-// Função para gerar dados simulados de um pagamento
-function generateMockPayment(token: string) {
-  const paymentId = crypto.randomUUID();
-  
-  return {
-    id: crypto.randomUUID(),
-    token: token,
-    amount: 99.90,
-    description: 'Serviço de Viralizamos',
-    status: 'pending',
-    payer_name: 'Cliente Teste',
-    payer_email: 'cliente@teste.com',
-    payer_phone: '+5511999999999',
-    created_at: new Date().toISOString(),
-    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-  };
-}
-
+// Buscar solicitação de pagamento por token
 export async function GET(
   request: NextRequest,
   { params }: { params: { token: string } }
@@ -30,35 +11,81 @@ export async function GET(
   try {
     const { token } = params;
     
+    if (!token) {
+      return NextResponse.json(
+        { error: 'Token não fornecido' },
+        { status: 400 }
+      );
+    }
+    
     console.log(`Buscando pagamento com token: ${token}`);
     
-    // Verificar se temos o pagamento em cache
-    let paymentRequest = mockPayments.get(token);
+    // Buscar a solicitação de pagamento com a última transação
+    const paymentRequest = await db.paymentRequest.findUnique({
+      where: {
+        token
+      },
+      include: {
+        transactions: {
+          orderBy: [
+            { status: 'asc' }, // 'pending' vem antes de 'completed'
+            { created_at: 'desc' }
+          ],
+          take: 1
+        }
+      }
+    } satisfies Prisma.PaymentRequestFindUniqueArgs);
     
-    // Se não existe, criar um simulado
     if (!paymentRequest) {
-      paymentRequest = generateMockPayment(token);
-      mockPayments.set(token, paymentRequest);
-      console.log(`Gerado pagamento simulado para token: ${token}`);
+      return NextResponse.json(
+        { error: 'Solicitação de pagamento não encontrada' },
+        { status: 404 }
+      );
     }
     
-    // Adicionar dados do pagamento se não existir
-    if (request.url.includes('?withPayment=true') && !paymentRequest.payment) {
-      paymentRequest.payment = {
-        id: crypto.randomUUID(),
-        status: 'pending',
-        method: 'pix',
-        pix_code: 'mockpixcode123456789qwertyuiopasd',
-        pix_qrcode: 'mockpixqrcode123456789qwertyuiopasd',
-        amount: paymentRequest.amount
-      };
+    // Verificar se a solicitação expirou
+    if (paymentRequest.expires_at && new Date(paymentRequest.expires_at) < new Date()) {
+      // Atualizar status para expirado se ainda não estiver
+      if (paymentRequest.status === 'pending') {
+        await db.paymentRequest.update({
+          where: { id: paymentRequest.id },
+          data: { status: 'expired' }
+        });
+        paymentRequest.status = 'expired';
+      }
     }
     
-    return NextResponse.json(paymentRequest);
+    // Formatar resposta
+    const response: PaymentResponse = {
+      id: paymentRequest.id,
+      token: paymentRequest.token,
+      amount: paymentRequest.amount,
+      description: paymentRequest.service_name,
+      status: paymentRequest.status,
+      payer_name: paymentRequest.customer_name,
+      payer_email: paymentRequest.customer_email,
+      payer_phone: paymentRequest.customer_phone,
+      expires_at: paymentRequest.expires_at,
+      created_at: paymentRequest.created_at,
+      payment: paymentRequest.transactions[0] ? {
+        id: paymentRequest.transactions[0].id,
+        status: paymentRequest.transactions[0].status,
+        method: paymentRequest.transactions[0].method,
+        pix_code: paymentRequest.transactions[0].pix_code,
+        pix_qrcode: paymentRequest.transactions[0].pix_qrcode,
+        amount: paymentRequest.transactions[0].amount
+      } : undefined
+    };
+    
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Erro ao buscar pagamento por token:', error);
+    console.error('Erro ao buscar solicitação de pagamento:', error);
     return NextResponse.json(
-      { error: 'Erro ao buscar pagamento', message: (error as Error).message },
+      { 
+        error: 'Erro ao buscar solicitação de pagamento',
+        message: (error as Error).message,
+        stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
+      },
       { status: 500 }
     );
   }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
-import { updatePaymentStatus } from '@/lib/payments';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,39 +23,116 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment ID not found' }, { status: 400 });
     }
     
-    // Buscar o pagamento no banco de dados
-    const payment = await db.payment.findFirst({
+    // Buscar a transação no banco de dados
+    const transaction = await db.transaction.findFirst({
       where: {
         provider: 'mercadopago',
-        provider_payment_id: mercadoPagoId.toString()
+        external_id: mercadoPagoId.toString()
+      },
+      include: {
+        payment_request: true
       }
     });
     
-    if (!payment) {
-      console.error(`Pagamento com Mercado Pago ID ${mercadoPagoId} não encontrado no banco`);
+    if (!transaction) {
+      console.error(`Transação com Mercado Pago ID ${mercadoPagoId} não encontrada no banco`);
       
-      // Registrar a notificação mesmo assim para referência futura
-      await db.notification.create({
+      // Registrar o webhook para referência futura
+      await db.webhookLog.create({
         data: {
-          type: 'mercadopago_webhook',
-          data: JSON.stringify(body)
+          type: 'mercadopago',
+          event: 'payment.update',
+          data: JSON.stringify(body),
+          processed: false,
+          error: 'Transaction not found'
         }
       });
       
-      return NextResponse.json({ status: 'success', message: 'Notification recorded but payment not found' });
+      return NextResponse.json({ status: 'success', message: 'Webhook recorded but transaction not found' });
     }
     
-    // Atualizar o status do pagamento
-    await updatePaymentStatus(payment.id);
-    
-    // Registrar a notificação
-    await db.notification.create({
-      data: {
-        payment_id: payment.id,
-        type: 'mercadopago_webhook',
-        data: JSON.stringify(body)
+    try {
+      // Buscar dados atualizados do pagamento no Mercado Pago
+      const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${mercadoPagoId}`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.MERCADO_PAGO_ACCESS_TOKEN}`
+        }
+      });
+      
+      if (!mpResponse.ok) {
+        throw new Error(`Failed to fetch payment data: ${mpResponse.status}`);
       }
-    });
+      
+      const mpData = await mpResponse.json();
+      
+      // Mapear status do Mercado Pago para nosso sistema
+      const status = mapMercadoPagoStatus(mpData.status);
+      
+      // Atualizar a transação
+      await db.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status,
+          metadata: JSON.stringify({
+            ...JSON.parse(transaction.metadata || '{}'),
+            mercadopago_data: mpData
+          })
+        }
+      });
+      
+      // Se o pagamento foi aprovado, atualizar o payment_request
+      if (status === 'approved') {
+        await db.paymentRequest.update({
+          where: { id: transaction.payment_request_id },
+          data: {
+            status: 'completed',
+            processed_payment_id: transaction.id
+          }
+        });
+      }
+      
+      // Registrar o webhook
+      await db.webhookLog.create({
+        data: {
+          transaction_id: transaction.id,
+          type: 'mercadopago',
+          event: 'payment.update',
+          data: JSON.stringify(body),
+          processed: true
+        }
+      });
+      
+    } catch (error) {
+      console.error('Erro ao processar pagamento:', error);
+      
+      // Registrar falha de processamento
+      await db.paymentProcessingFailure.create({
+        data: {
+          transaction_id: transaction.id,
+          error_code: 'PROCESSING_ERROR',
+          error_message: (error as Error).message,
+          stack_trace: (error as Error).stack,
+          metadata: JSON.stringify({
+            webhook_data: body,
+            error: error
+          })
+        }
+      });
+      
+      // Registrar o webhook com erro
+      await db.webhookLog.create({
+        data: {
+          transaction_id: transaction.id,
+          type: 'mercadopago',
+          event: 'payment.update',
+          data: JSON.stringify(body),
+          processed: false,
+          error: (error as Error).message
+        }
+      });
+      
+      throw error;
+    }
     
     return NextResponse.json({ status: 'success' });
   } catch (error) {
@@ -68,5 +144,23 @@ export async function POST(request: NextRequest) {
       status: 'error', 
       message: (error as Error).message 
     });
+  }
+}
+
+// Função para mapear status do Mercado Pago para nosso sistema
+function mapMercadoPagoStatus(mpStatus: string): string {
+  switch (mpStatus) {
+    case 'approved':
+      return 'approved';
+    case 'pending':
+      return 'pending';
+    case 'in_process':
+      return 'processing';
+    case 'rejected':
+      return 'rejected';
+    case 'cancelled':
+      return 'cancelled';
+    default:
+      return 'pending';
   }
 } 

@@ -1,5 +1,0 @@
-[33mcommit 1bea913dd8cb1ed30f1f0743e6a007e40fa995b2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m
-Author: fabertleury <fabert_@hotmail.com>
-Date:   Sun Apr 6 17:35:28 2025 -0300
-
-    Corrigindo erro de tipo no endpoint de detalhes de payment request
