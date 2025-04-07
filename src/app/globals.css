@@ -2,20 +2,108 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 255, 255, 255;
+  --color-pink-primary: #FF3399;
+  --color-pink-light: #FF66B2;
+  --color-pink-dark: #CC0066;
+  --color-gray-dark: #333333;
+  --color-gray-medium: #666666;
+  --color-gray-light: #F5F5F5;
+  --color-white: #FFFFFF;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'Roboto Mono', monospace;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --border-radius: 0.5rem;
 }
 
+html,
 body {
-  color: rgb(var(--foreground-rgb));
-  background-color: rgb(var(--background-rgb));
   font-family: var(--font-sans);
-  margin: 0;
+  background-color: #f9fafb;
+  color: var(--color-gray-dark);
   padding: 0;
+  margin: 0;
 }
 
-code, pre {
-  font-family: var(--font-mono);
+/* Redefine as cores do Bootstrap para usar a paleta personalizada */
+.btn-primary {
+  background-color: var(--color-pink-primary) !important;
+  border-color: var(--color-pink-primary) !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-pink-dark) !important;
+  border-color: var(--color-pink-dark) !important;
+}
+
+.btn-outline-primary {
+  color: var(--color-pink-primary) !important;
+  border-color: var(--color-pink-primary) !important;
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--color-pink-primary) !important;
+  color: white !important;
+}
+
+.bg-primary {
+  background: linear-gradient(to right, var(--color-pink-primary), var(--color-pink-dark)) !important;
+}
+
+.text-primary {
+  color: var(--color-pink-primary) !important;
+}
+
+.card {
+  border-radius: var(--border-radius);
+  border: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-header {
+  border-top-left-radius: var(--border-radius) !important;
+  border-top-right-radius: var(--border-radius) !important;
+}
+
+.spinner-border.text-primary {
+  color: var(--color-pink-primary) !important;
+}
+
+/* Classes auxiliares personalizadas */
+.shadow-custom {
+  box-shadow: var(--shadow-md);
+}
+
+.rounded-custom {
+  border-radius: var(--border-radius);
+}
+
+.text-pink {
+  color: var(--color-pink-primary);
+}
+
+.bg-pink {
+  background-color: var(--color-pink-primary);
+}
+
+.bg-gradient-pink {
+  background: linear-gradient(to right, var(--color-pink-primary), var(--color-pink-dark));
+}
+
+/* Timer animation */
+@keyframes countdown {
+  from { width: 100%; }
+  to { width: 0; }
+}
+
+.timer-bar {
+  height: 4px;
+  background-color: var(--color-success);
+  animation: countdown 1800s linear forwards; /* 30 minutos = 1800 segundos */
 }
 
 /* Cores básicas para garantir visibilidade */
@@ -36,14 +124,6 @@ code, pre {
 }
 
 /* Cores para elementos específicos */
-.text-primary {
-  color: #0d6efd !important;
-}
-
-.bg-primary {
-  background-color: #0d6efd !important;
-}
-
 .text-success {
   color: #198754 !important;
 }
