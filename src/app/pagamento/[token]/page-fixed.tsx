@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
+// Corrigindo o import para Heroicons v2
+import { ClipboardIcon, CheckIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 // Tipo para dados do pagamento
 interface PaymentRequest {
@@ -252,9 +254,7 @@ export default function PaymentPage() {
           {(paymentRequest.status === 'pending' || paymentRequest.status === 'processing') && (
             <div className="mt-4 max-w-sm mx-auto">
               <div className="flex items-center justify-center gap-2 text-white mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <ClockIcon className="h-5 w-5" />
                 <span className="font-medium">Tempo restante: {formatTimeLeft()}</span>
               </div>
               
@@ -481,16 +481,12 @@ export default function PaymentPage() {
                           >
                             {copied ? (
                               <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
+                                <CheckIcon className="h-5 w-5 mr-2" />
                                 Código copiado!
                               </>
                             ) : (
                               <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a2 2 0 000-2.828v0z" />
-                                </svg>
+                                <ClipboardIcon className="h-5 w-5 mr-2" />
                                 Copiar código PIX
                               </>
                             )}
