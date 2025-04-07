@@ -55,18 +55,35 @@ export async function GET(
       }
     }
     
+    // Analisar dados adicionais
+    let posts = [];
+    if (paymentRequest.additional_data) {
+      try {
+        const additionalData = JSON.parse(paymentRequest.additional_data);
+        posts = additionalData.posts || [];
+      } catch (e) {
+        console.error('Erro ao analisar additional_data:', e);
+      }
+    }
+    
     // Formatar resposta
     const response: PaymentResponse = {
       id: paymentRequest.id,
       token: paymentRequest.token,
       amount: paymentRequest.amount,
+      customer_name: paymentRequest.customer_name,
+      customer_email: paymentRequest.customer_email,
+      customer_phone: paymentRequest.customer_phone,
+      instagram_username: paymentRequest.profile_username || '',
+      service_name: paymentRequest.service_name || 'Serviço Instagram',
       description: paymentRequest.service_name,
       status: paymentRequest.status,
-      payer_name: paymentRequest.customer_name,
-      payer_email: paymentRequest.customer_email,
-      payer_phone: paymentRequest.customer_phone,
       expires_at: paymentRequest.expires_at,
       created_at: paymentRequest.created_at,
+      posts: posts,
+      pix_code: paymentRequest.transactions[0]?.pix_code || '',
+      qr_code_image: paymentRequest.transactions[0]?.pix_qrcode || '',
+      pix_key: '',
       payment: paymentRequest.transactions[0] ? {
         id: paymentRequest.transactions[0].id,
         status: paymentRequest.transactions[0].status,

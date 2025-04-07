@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { Instagram, Mail, Phone } from 'lucide-react';
+import { Instagram } from 'lucide-react';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -14,25 +13,17 @@ export function Footer() {
           {/* Logo e informações */}
           <div className="flex flex-col">
             <Link href="/" className="flex items-center mb-4">
-              <Image 
-                src="/logo.svg" 
-                alt="Viralizamos" 
-                width={40} 
-                height={40} 
-                className="h-10 w-auto"
-              />
-              <span className="ml-3 text-xl font-bold">Viralizamos</span>
+              <img src="/logo.webp" alt="Viralizamos.com" className="h-8" />
             </Link>
             <p className="text-gray-400 text-sm mb-4">
               Impulsione sua presença no Instagram com nossos serviços de alta qualidade.
-              Pagamentos seguros e rápidos para seus pedidos.
             </p>
             <div className="flex mt-2">
               <a 
                 href="https://www.instagram.com/viralizamos.ia" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-white hover:text-primary-500 transition-colors"
+                className="text-white hover:text-pink-500 transition-colors"
               >
                 <Instagram className="w-6 h-6" />
               </a>
@@ -49,62 +40,57 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="text-gray-400 hover:text-white transition-colors">
-                  FAQ
-                </Link>
-              </li>
-              <li>
                 <Link href="/acompanhar" className="text-gray-400 hover:text-white transition-colors">
                   Acompanhar Pedido
                 </Link>
               </li>
               <li>
-                <Link href="/termos" className="text-gray-400 hover:text-white transition-colors">
-                  Termos de Uso
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacidade" className="text-gray-400 hover:text-white transition-colors">
-                  Política de Privacidade
+                <Link href="/faq" className="text-gray-400 hover:text-white transition-colors">
+                  Dúvidas Frequentes
                 </Link>
               </li>
               <li>
                 <a 
-                  href="https://viralizamos.com" 
+                  href="https://wa.me/5562999915390" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="text-gray-400 hover:text-white transition-colors"
                 >
-                  Site Principal
+                  Suporte via WhatsApp
                 </a>
               </li>
             </ul>
           </div>
 
-          {/* Contato */}
+          {/* Serviços para Instagram */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Contato</h3>
-            <div className="space-y-3">
-              <div className="flex items-center text-gray-400">
-                <Mail className="w-5 h-5 mr-3" />
-                <span>contato@viralizamos.com</span>
-              </div>
-              <div className="flex items-center text-gray-400">
-                <Phone className="w-5 h-5 mr-3" />
-                <a 
-                  href="https://wa.me/5562999915390" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="hover:text-white transition-colors"
-                >
-                  +55 (62) 99991-5390
+            <h3 className="text-lg font-semibold mb-4">Serviços para Instagram</h3>
+            <ul className="space-y-2">
+              <li>
+                <a href="https://viralizamos.com/instagram/curtidas" className="text-gray-400 hover:text-white transition-colors">
+                  Turbinar Curtidas
                 </a>
-              </div>
-            </div>
+              </li>
+              <li>
+                <a href="https://viralizamos.com/instagram/seguidores" className="text-gray-400 hover:text-white transition-colors">
+                  Turbinar Seguidores
+                </a>
+              </li>
+              <li>
+                <a href="https://viralizamos.com/instagram/visualizacoes" className="text-gray-400 hover:text-white transition-colors">
+                  Visualizações para Vídeos
+                </a>
+              </li>
+              <li>
+                <a href="https://viralizamos.com/instagram/comentarios" className="text-gray-400 hover:text-white transition-colors">
+                  Turbinar Comentários
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
 
-        {/* Copyright e Links */}
+        {/* Termos e Política */}
         <div className="border-t border-gray-800 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
           <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4 mb-4 md:mb-0">
             <Link href="/termos" className="text-gray-400 hover:text-white transition-colors text-sm">
@@ -115,7 +101,7 @@ export function Footer() {
             </Link>
           </div>
           <div className="text-gray-500 text-sm">
-            &copy; {currentYear} Viralizamos. Todos os direitos reservados.
+            &copy; {currentYear} Viralizamos.com. Todos os direitos reservados.
           </div>
         </div>
       </div>

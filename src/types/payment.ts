@@ -7,11 +7,17 @@ export interface PaymentResponse {
   amount: number;
   description: string | null;
   status: string;
-  payer_name: string;
-  payer_email: string;
-  payer_phone: string | null;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string | null;
+  instagram_username?: string;
+  service_name?: string;
   expires_at: Date | null;
   created_at: Date;
+  posts: any[];
+  pix_code?: string;
+  qr_code_image?: string;
+  pix_key?: string;
   payment?: {
     id: string;
     status: string;

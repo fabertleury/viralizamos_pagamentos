@@ -7,13 +7,14 @@ import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
 
 export default function Header() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSticky, setIsSticky] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsSticky(window.scrollY > 10);
+      const scrollPosition = window.scrollY;
+      setIsSticky(scrollPosition > 100); // Fica sticky após 100px de rolagem
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -22,164 +23,133 @@ export default function Header() {
 
   useEffect(() => {
     // Disable body scroll when mobile menu is open
-    if (isOpen) {
+    if (isMenuOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-  }, [isOpen]);
+  }, [isMenuOpen]);
 
   // Close mobile menu when route changes
   useEffect(() => {
-    setIsOpen(false);
+    setIsMenuOpen(false);
   }, [pathname]);
 
   return (
     <header 
       className={`
-        bg-white border-b transition-all duration-300 z-50
-        ${isSticky ? 'fixed top-0 left-0 right-0 shadow-md' : 'relative'}
+        bg-white border-b transition-all duration-300 z-[9999]
+        ${isSticky 
+          ? 'fixed top-0 left-0 right-0 shadow-md animate-slide-down' 
+          : 'relative'
+        }
       `}
     >
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
-            <Image 
-              src="/logo.svg" 
-              alt="Viralizamos" 
-              width={40} 
-              height={40} 
-              className="h-10 w-auto"
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/logo.webp"
+              alt="Viralizamos"
+              width={150}
+              height={50}
+              style={{ width: 'auto', height: 'auto' }}
+              priority
             />
-            <div className="font-bold text-xl text-pink-600">
-              Viralizamos
-              <span className="inline-block text-xs font-medium bg-gray-100 text-gray-500 px-2 py-1 rounded ml-2">
-                Pagamentos
-              </span>
-            </div>
           </Link>
 
           {/* Mobile Menu Button */}
           <button
-            className="block md:hidden p-2 text-gray-500"
-            onClick={() => setIsOpen(true)}
+            className="block md:hidden p-2 z-50"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
           >
-            <Menu size={24} />
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
-            <nav className="flex gap-6">
-              <Link 
-                href="/faq" 
-                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
-                  pathname === '/faq' ? 'text-pink-600 font-semibold' : ''
-                }`}
-              >
-                FAQ
-              </Link>
-              <Link 
-                href="/acompanhar" 
-                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
-                  pathname === '/acompanhar' ? 'text-pink-600 font-semibold' : ''
-                }`}
-              >
-                Acompanhar pedido
-              </Link>
-              <Link 
-                href="/termos" 
-                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
-                  pathname === '/termos' ? 'text-pink-600 font-semibold' : ''
-                }`}
-              >
-                Termos de uso
-              </Link>
-              <Link 
-                href="/privacidade" 
-                className={`text-gray-600 font-medium hover:text-pink-600 transition-colors ${
-                  pathname === '/privacidade' ? 'text-pink-600 font-semibold' : ''
-                }`}
-              >
-                Privacidade
-              </Link>
-            </nav>
-            <a 
-              href="https://viralizamos.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="bg-pink-600 text-white px-4 py-2 rounded font-medium hover:bg-pink-700 transition-colors"
+          <nav className="hidden md:flex items-center gap-6">
+            <Link href="/" className={`text-gray-700 hover:text-[#C43582] ${pathname === '/' ? 'text-[#C43582] font-semibold' : ''}`}>
+              Início
+            </Link>
+            
+            <Link 
+              href="/faq" 
+              className={`text-gray-700 hover:text-[#C43582] ${pathname === '/faq' ? 'text-[#C43582] font-semibold' : ''}`}
             >
-              Voltar ao site
-            </a>
-          </div>
+              FAQ
+            </Link>
+            
+            {/* Action Buttons */}
+            <button className="font-medium bg-[#C43582] text-white hover:bg-[#a62c6c] px-4 py-2 rounded">
+              <Link href="/acompanhar">
+                Acompanhar Pedido
+              </Link>
+            </button>
+            
+            <button className="font-medium bg-[#C43582] text-white hover:bg-[#a62c6c] px-4 py-2 rounded">
+              <a href="https://viralizamos.com" target="_blank" rel="noopener noreferrer">
+                Voltar ao site
+              </a>
+            </button>
+          </nav>
 
-          {/* Mobile Menu */}
-          {isOpen && (
-            <div className="fixed inset-0 bg-white z-50">
-              <div className="container mx-auto px-4 py-4">
-                <div className="flex justify-between items-center mb-8">
-                  <Link href="/" className="flex items-center gap-3" onClick={() => setIsOpen(false)}>
-                    <Image 
-                      src="/logo.svg" 
-                      alt="Viralizamos" 
-                      width={40} 
-                      height={40}
-                      className="h-10 w-auto" 
-                    />
-                    <div className="font-bold text-xl text-pink-600">
-                      Viralizamos
-                      <span className="inline-block text-xs font-medium bg-gray-100 text-gray-500 px-2 py-1 rounded ml-2">
-                        Pagamentos
-                      </span>
-                    </div>
-                  </Link>
-                  <button
-                    className="p-2 text-gray-500"
-                    onClick={() => setIsOpen(false)}
+          {/* Mobile Navigation */}
+          {isMenuOpen && (
+            <div className="fixed inset-0 bg-white z-40 pt-20">
+              <div className="container mx-auto px-4 py-8">
+                <div className="flex flex-col space-y-4">
+                  <Link 
+                    href="/" 
+                    className="text-gray-700 hover:text-[#C43582] py-2 border-b"
+                    onClick={() => setIsMenuOpen(false)}
                   >
-                    <X size={24} />
-                  </button>
-                </div>
-                <nav className="flex flex-col gap-4">
+                    Início
+                  </Link>
+                  
                   <Link 
                     href="/faq" 
-                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-pink-600"
-                    onClick={() => setIsOpen(false)}
+                    className="text-gray-700 hover:text-[#C43582] py-2 border-b"
+                    onClick={() => setIsMenuOpen(false)}
                   >
                     FAQ
                   </Link>
-                  <Link 
-                    href="/acompanhar" 
-                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-pink-600"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Acompanhar pedido
-                  </Link>
+                  
                   <Link 
                     href="/termos" 
-                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-pink-600"
-                    onClick={() => setIsOpen(false)}
+                    className="text-gray-700 hover:text-[#C43582] py-2 border-b"
+                    onClick={() => setIsMenuOpen(false)}
                   >
-                    Termos de uso
+                    Termos de Uso
                   </Link>
+                  
                   <Link 
                     href="/privacidade" 
-                    className="text-gray-600 font-medium py-3 border-b border-gray-100 hover:text-pink-600"
-                    onClick={() => setIsOpen(false)}
+                    className="text-gray-700 hover:text-[#C43582] py-2 border-b"
+                    onClick={() => setIsMenuOpen(false)}
                   >
-                    Privacidade
+                    Política de Privacidade
                   </Link>
-                </nav>
-                <div className="mt-6">
-                  <a 
-                    href="https://viralizamos.com" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="block w-full bg-pink-600 text-white text-center px-4 py-3 rounded font-medium hover:bg-pink-700 transition-colors"
-                  >
-                    Voltar ao site
-                  </a>
+                  
+                  <div className="pt-4">
+                    <button 
+                      className="w-full font-medium bg-[#C43582] text-white hover:bg-[#a62c6c] px-4 py-2 rounded mb-3"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Link href="/acompanhar">
+                        Acompanhar Pedido
+                      </Link>
+                    </button>
+                    
+                    <button 
+                      className="w-full font-medium bg-[#C43582] text-white hover:bg-[#a62c6c] px-4 py-2 rounded"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <a href="https://viralizamos.com" target="_blank" rel="noopener noreferrer">
+                        Voltar ao site
+                      </a>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

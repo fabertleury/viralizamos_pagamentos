@@ -179,38 +179,44 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
           
           <h2 className="text-xl font-semibold text-gray-700 mb-3">Posts selecionados</h2>
           
-          {payment.posts.map((post) => (
-            <div key={post.id} className="flex mb-4 border-b pb-4">
-              <div className="w-20 h-20 mr-4 bg-gray-100 flex-shrink-0 rounded overflow-hidden">
-                {post.thumbnail_url ? (
-                  <img src={post.thumbnail_url} alt="Thumbnail" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect width="24" height="24" rx="4" fill="#E5E7EB"/>
-                      <path d="M12 8V16M8 12H16" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex-1">
-                <h3 className="text-sm font-medium mb-1">
-                  {post.caption || 'Post do Instagram'}
-                </h3>
+          {payment.posts && payment.posts.length > 0 ? (
+            payment.posts.map((post) => (
+              <div key={post.id} className="flex mb-4 border-b pb-4">
+                <div className="w-20 h-20 mr-4 bg-gray-100 flex-shrink-0 rounded overflow-hidden">
+                  {post.thumbnail_url ? (
+                    <img src={post.thumbnail_url} alt="Thumbnail" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="24" height="24" rx="4" fill="#E5E7EB"/>
+                        <path d="M12 8V16M8 12H16" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  )}
+                </div>
                 
-                <div className="flex justify-between items-center text-xs text-gray-500">
-                  <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:underline">
-                    Ver post original
-                  </a>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium mb-1">
+                    {post.caption || 'Post do Instagram'}
+                  </h3>
                   
-                  <span>
-                    {post.quantity} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
-                  </span>
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:underline">
+                      Ver post original
+                    </a>
+                    
+                    <span>
+                      {post.quantity} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
+                    </span>
+                  </div>
                 </div>
               </div>
+            ))
+          ) : (
+            <div className="p-4 bg-gray-50 rounded-lg mb-4 text-center">
+              <p className="text-gray-500">Não há posts selecionados.</p>
             </div>
-          ))}
+          )}
           
           <div className="flex justify-between items-center py-2 border-b mb-2">
             <span>Subtotal</span>
@@ -236,12 +242,18 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
           
           <div className="flex flex-col items-center mb-6">
             <div className="border-2 border-gray-200 p-4 rounded-lg mb-4">
-              {payment.qr_code_image && (
+              {payment.qr_code_image ? (
                 <img 
                   src={payment.qr_code_image} 
                   alt="QR Code PIX" 
                   className="w-48 h-48 mx-auto"
                 />
+              ) : (
+                <div className="w-48 h-48 mx-auto flex items-center justify-center bg-gray-100">
+                  <p className="text-gray-500 text-sm text-center">
+                    QR Code não disponível
+                  </p>
+                </div>
               )}
             </div>
             
