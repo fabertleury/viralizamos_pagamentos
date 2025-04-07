@@ -2,39 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { 
-  PaymentContainer, 
-  OrderDetailsSection, 
-  QRCodeSection,
-  Card, 
-  Title,
-  Subtitle,
-  Text,
-  MutedText,
-  ListItem,
-  TimerContainer,
-  TimerText,
-  TimerBar,
-  TimerMessage,
-  QRCodeContainer,
-  QRCodeImage,
-  Button,
-  PixCodeContainer,
-  PixCode,
-  CopyButton,
-  CopyFeedback,
-  PostItemContainer,
-  PostThumbnail,
-  PostInfo,
-  PostTitle,
-  PostMeta,
-  PostLink,
-  PostQuantity,
-  PriceRow,
-  TotalRow,
-  CustomerInfo,
-  InfoRow
-} from '@/components/styles/payment-styles';
 
 // Definir interfaces para os tipos de dados
 interface PaymentRequest {
@@ -144,21 +111,21 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
   
   if (loading) {
     return (
-      <PaymentContainer>
-        <Card style={{ textAlign: 'center', padding: '2rem' }}>
-          <Text>Carregando informações do pagamento...</Text>
-        </Card>
-      </PaymentContainer>
+      <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[calc(100vh-180px)]">
+        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6 text-center">
+          <p className="text-gray-600 mb-4">Carregando informações do pagamento...</p>
+        </div>
+      </div>
     );
   }
   
   if (error || !payment) {
     return (
-      <PaymentContainer>
-        <Card style={{ textAlign: 'center', padding: '2rem' }}>
-          <Text style={{ color: '#ef4444' }}>{error || 'Pagamento não encontrado'}</Text>
-        </Card>
-      </PaymentContainer>
+      <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[calc(100vh-180px)]">
+        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6 text-center">
+          <p className="text-red-500">{error || 'Pagamento não encontrado'}</p>
+        </div>
+      </div>
     );
   }
   
@@ -166,142 +133,144 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
   const timePercentage = Math.min(100, Math.max(0, (timeRemaining / 1800) * 100));
   
   return (
-    <PaymentContainer>
+    <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[calc(100vh-180px)]">
       {/* Seção de detalhes do pedido */}
-      <OrderDetailsSection>
-        <Title>Pagamento</Title>
-        <Text>Complete seu pagamento para confirmar seu pedido</Text>
+      <div className="w-full">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Pagamento</h1>
+        <p className="text-gray-600 mb-4">Complete seu pagamento para confirmar seu pedido</p>
         
-        <Card>
-          <TimerContainer>
-            <TimerText>{formattedTime}</TimerText>
-            <TimerBar style={{ '--timer-progress': `${timePercentage}%` } as React.CSSProperties} />
-            <TimerMessage>Este QR Code expira em {formattedTime}</TimerMessage>
-          </TimerContainer>
-        </Card>
+        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6">
+          <div className="mb-6">
+            <p className="text-xl font-bold text-center mb-2">{formattedTime}</p>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-primary-600 h-2 rounded-full transition-all duration-1000" 
+                style={{ width: `${timePercentage}%` }}
+              ></div>
+            </div>
+            <p className="text-sm text-gray-500 text-center mt-2">Este QR Code expira em {formattedTime}</p>
+          </div>
+        </div>
         
-        <Card>
-          <Subtitle>Detalhes do Pedido</Subtitle>
+        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6">
+          <h2 className="text-xl font-semibold text-gray-700 mb-3">Detalhes do Pedido</h2>
           
-          <InfoRow>
+          <div className="mb-2">
             <strong>Serviço:</strong> {payment.service_name}
-          </InfoRow>
+          </div>
           
-          <InfoRow>
+          <div className="mb-4">
             <strong>Instagram:</strong> @{payment.instagram_username}
-          </InfoRow>
+          </div>
           
-          <CustomerInfo>
-            <InfoRow>
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="mb-2">
               <strong>Nome:</strong> {payment.customer_name}
-            </InfoRow>
-            <InfoRow>
+            </div>
+            <div className="mb-2">
               <strong>Email:</strong> {payment.customer_email}
-            </InfoRow>
+            </div>
             {payment.customer_phone && (
-              <InfoRow>
+              <div className="mb-2">
                 <strong>Telefone:</strong> {payment.customer_phone}
-              </InfoRow>
+              </div>
             )}
-          </CustomerInfo>
+          </div>
           
-          <Subtitle>Posts selecionados</Subtitle>
+          <h2 className="text-xl font-semibold text-gray-700 mb-3">Posts selecionados</h2>
           
           {payment.posts.map((post) => (
-            <PostItemContainer key={post.id}>
-              <PostThumbnail>
+            <div key={post.id} className="flex mb-4 border-b pb-4">
+              <div className="w-20 h-20 mr-4 bg-gray-100 flex-shrink-0 rounded overflow-hidden">
                 {post.thumbnail_url ? (
-                  <img src={post.thumbnail_url} alt="Thumbnail" />
+                  <img src={post.thumbnail_url} alt="Thumbnail" className="w-full h-full object-cover" />
                 ) : (
-                  <div style={{ 
-                    backgroundColor: '#f3f4f6', 
-                    width: '100%', 
-                    height: '100%', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center' 
-                  }}>
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <rect width="24" height="24" rx="4" fill="#E5E7EB"/>
                       <path d="M12 8V16M8 12H16" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
                 )}
-              </PostThumbnail>
+              </div>
               
-              <PostInfo>
-                <PostTitle>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium mb-1">
                   {post.caption || 'Post do Instagram'}
-                </PostTitle>
+                </h3>
                 
-                <PostMeta>
-                  <PostLink href={post.url} target="_blank" rel="noopener noreferrer">
+                <div className="flex justify-between items-center text-xs text-gray-500">
+                  <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
                     Ver post original
-                  </PostLink>
+                  </a>
                   
-                  <PostQuantity>
+                  <span>
                     {post.quantity} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
-                  </PostQuantity>
-                </PostMeta>
-              </PostInfo>
-            </PostItemContainer>
+                  </span>
+                </div>
+              </div>
+            </div>
           ))}
           
-          <PriceRow>
+          <div className="flex justify-between items-center py-2 border-b mb-2">
             <span>Subtotal</span>
-            <span>R$ {(payment.amount / 100).toFixed(2)}</span>
-          </PriceRow>
+            <span>R$ {(payment.amount * 0.9).toFixed(2)}</span>
+          </div>
           
-          <TotalRow>
+          <div className="flex justify-between items-center py-2 border-b mb-2">
+            <span>Taxa de processamento</span>
+            <span>R$ {(payment.amount * 0.1).toFixed(2)}</span>
+          </div>
+          
+          <div className="flex justify-between items-center py-3 font-bold">
             <span>Total</span>
-            <span>R$ {(payment.amount / 100).toFixed(2)}</span>
-          </TotalRow>
-        </Card>
-      </OrderDetailsSection>
+            <span>R$ {payment.amount.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
       
-      {/* Seção do QR Code */}
-      <QRCodeSection>
-        <Card>
-          <Subtitle>Pague com PIX</Subtitle>
-          <MutedText>Escaneie o QR Code abaixo com o app do seu banco</MutedText>
+      {/* Seção do QR Code do PIX */}
+      <div className="w-full">
+        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6">
+          <h2 className="text-xl font-semibold text-gray-700 mb-4 text-center">Pague com PIX</h2>
           
-          <QRCodeContainer>
-            {payment.qr_code_image && (
-              <QRCodeImage 
-                src={payment.qr_code_image} 
-                alt="QR Code PIX" 
-              />
-            )}
-          </QRCodeContainer>
+          <div className="flex flex-col items-center mb-6">
+            <div className="border-2 border-gray-200 p-4 rounded-lg mb-4">
+              {payment.qr_code_image && (
+                <img 
+                  src={payment.qr_code_image} 
+                  alt="QR Code PIX" 
+                  className="w-48 h-48 mx-auto"
+                />
+              )}
+            </div>
+            
+            <p className="text-sm text-gray-500 mb-4 text-center">
+              Escaneie este QR Code com o app do seu banco ou copie o código PIX abaixo
+            </p>
+            
+            <div className="w-full relative">
+              <div className="border border-gray-300 rounded-lg p-3 bg-gray-50 overflow-hidden mb-2">
+                <pre className="text-xs text-gray-600 whitespace-normal break-all">{payment.pix_code}</pre>
+              </div>
+              
+              <button
+                onClick={copyPixCode}
+                className="w-full bg-primary-600 text-white px-4 py-2 rounded font-medium hover:bg-primary-700 transition-colors"
+              >
+                {showCopyFeedback ? "Código copiado!" : "Copiar código PIX"}
+              </button>
+            </div>
+          </div>
           
-          <MutedText>Ou copie o código PIX abaixo</MutedText>
-          
-          <PixCodeContainer>
-            <PixCode>{payment.pix_code}</PixCode>
-            <CopyButton onClick={copyPixCode}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M8 5H6C4.89543 5 4 5.89543 4 7V19C4 20.1046 4.89543 21 6 21H16C17.1046 21 18 20.1046 18 19V17M16 3H10C8.89543 3 8 3.89543 8 5V15C8 16.1046 8.89543 17 10 17H16C17.1046 17 18 16.1046 18 15V5C18 3.89543 17.1046 3 16 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </CopyButton>
-          </PixCodeContainer>
-          
-          <Button>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 3V21M19 7L12 3L5 7M19 7V18.0984C19 18.6092 18.6092 19 18.0984 19H5.90164C5.39084 19 5 18.6092 5 18.0984V7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Já paguei
-          </Button>
-        </Card>
-        
-        <MutedText style={{ textAlign: 'center', marginTop: '1rem' }}>
-          Após o pagamento, você receberá uma confirmação por email.
-        </MutedText>
-      </QRCodeSection>
-      
-      {/* Feedback de cópia */}
-      <CopyFeedback className={showCopyFeedback ? 'visible' : ''}>
-        Código PIX copiado!
-      </CopyFeedback>
-    </PaymentContainer>
+          <div className="border-t pt-4">
+            <p className="text-sm text-gray-500 text-center">
+              Após o pagamento, o sistema irá processar automaticamente seu pedido.
+              Este processo pode levar até 5 minutos. Não feche esta janela.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 } 
