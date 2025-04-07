@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
-import { ClipboardIcon, CheckIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { ClockIcon, ClipboardIcon, CheckIcon } from '@heroicons/react/24/solid';
 
 // Tipo para dados do pagamento
 interface PaymentRequest {
