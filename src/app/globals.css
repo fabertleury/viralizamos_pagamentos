@@ -56,4 +56,27 @@ button {
   margin-right: auto;
   padding-left: 1rem;
   padding-right: 1rem;
+}
+
+/* Animação de spin para loaders */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Melhoria para visualização de códigos PIX */
+.pix-code {
+  overflow-x: auto;
+  white-space: nowrap;
+  word-break: keep-all;
+  max-width: 100%;
+  font-family: monospace;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  padding-right: 3rem;
 } 

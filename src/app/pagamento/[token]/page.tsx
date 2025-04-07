@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { QRCodeSVG } from 'qrcode.react';
 
 // Definir interfaces para os tipos de dados
 interface PaymentRequest {
@@ -244,15 +245,27 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
             <div className="border-2 border-gray-200 p-4 rounded-lg mb-4">
               {payment.qr_code_image ? (
                 <img 
-                  src={payment.qr_code_image} 
+                  src={payment.qr_code_image.startsWith('data:') ? payment.qr_code_image : `data:image/png;base64,${payment.qr_code_image}`} 
                   alt="QR Code PIX" 
                   className="w-48 h-48 mx-auto"
+                  onError={(e) => {
+                    console.log('Erro ao carregar QR code como imagem, gerando como SVG');
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
+              ) : payment.pix_code ? (
+                <QRCodeSVG 
+                  value={payment.pix_code} 
+                  size={200}
+                  includeMargin={true}
+                  bgColor="#FFFFFF"
+                  fgColor="#000000"
+                  level="M"
                 />
               ) : (
-                <div className="w-48 h-48 mx-auto flex items-center justify-center bg-gray-100">
-                  <p className="text-gray-500 text-sm text-center">
-                    QR Code não disponível
-                  </p>
+                <div className="w-48 h-48 flex items-center justify-center bg-gray-100">
+                  <p className="text-gray-500 text-center">QR Code não disponível</p>
                 </div>
               )}
             </div>
@@ -261,21 +274,27 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
               Escaneie este QR Code com o app do seu banco ou copie o código PIX abaixo
             </p>
             
-            <div className="w-full relative">
-              <div className="border border-gray-300 rounded-lg p-3 bg-gray-50 overflow-hidden mb-2">
-                <pre className="text-xs text-gray-600 whitespace-normal break-all">{payment.pix_code}</pre>
+            {payment.pix_code && (
+              <div className="w-full mb-4">
+                <div className="bg-gray-100 p-3 rounded-lg relative overflow-hidden">
+                  <div className="overflow-x-auto max-w-full">
+                    <p className="whitespace-nowrap text-xs text-gray-700 pr-20">
+                      {payment.pix_code}
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={copyPixCode}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-pink-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-pink-700 transition-colors"
+                  >
+                    {showCopyFeedback ? 'Copiado!' : 'Copiar código'}
+                  </button>
+                </div>
               </div>
-              
-              <button
-                onClick={copyPixCode}
-                className="w-full bg-pink-600 text-white px-4 py-2 rounded font-medium hover:bg-pink-700 transition-colors"
-              >
-                {showCopyFeedback ? "Código copiado!" : "Copiar código PIX"}
-              </button>
-            </div>
+            )}
           </div>
           
-          <div className="border-t pt-4">
+          <div className="border-t pt-4 mt-2">
             <p className="text-sm text-gray-500 text-center">
               Após o pagamento, o sistema irá processar automaticamente seu pedido.
               Este processo pode levar até 5 minutos. Não feche esta janela.

@@ -9,6 +9,7 @@ import { Menu, X } from 'lucide-react';
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSticky, setIsSticky] = useState(false);
+  const [logoError, setLogoError] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -34,6 +35,10 @@ export default function Header() {
     setIsOpen(false);
   }, [pathname]);
 
+  const handleLogoError = () => {
+    setLogoError(true);
+  };
+
   return (
     <header 
       className={`
@@ -48,14 +53,19 @@ export default function Header() {
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <Image
-              src="/logo.webp"
-              alt="Viralizamos"
-              width={150}
-              height={50}
-              style={{ width: 'auto', height: 'auto' }}
-              priority
-            />
+            {logoError ? (
+              <span className="text-xl font-bold text-pink-600">Viralizamos</span>
+            ) : (
+              <Image
+                src="/logo.webp"
+                alt="Viralizamos"
+                width={150}
+                height={50}
+                style={{ width: 'auto', height: 'auto' }}
+                priority
+                onError={handleLogoError}
+              />
+            )}
           </Link>
 
           {/* Mobile Menu Button */}
