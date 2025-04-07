@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       // Tratar diferentemente com base no tipo de serviço
       if (isFollowersService) {
         // Para serviço de seguidores, criar apenas uma transação
-        const txn = await db.transaction.create({
+        const followersTxn = await db.transaction.create({
           data: {
             payment_request_id: paymentRequest.id,
             external_id: mpResponse.id.toString(),
@@ -195,7 +195,68 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        console.log('[SOLUÇÃO INTEGRADA] Transação de seguidores criada com ID:', txn.id);
+        console.log('[SOLUÇÃO INTEGRADA] Transação de seguidores criada com ID:', followersTxn.id);
+        
+        // Atualizar a solicitação de pagamento para 'processing'
+        await db.paymentRequest.update({
+          where: { id: paymentRequest.id },
+          data: { status: 'processing' }
+        });
+        
+        // Criar um registro de fila de processamento
+        await db.processingQueue.create({
+          data: {
+            payment_request_id: paymentRequest.id,
+            status: 'pending',
+            type: 'payment_confirmation',
+            priority: 1,
+            metadata: JSON.stringify({
+              transaction_id: followersTxn.id,
+              external_id: mpResponse.id.toString()
+            })
+          }
+        });
+        
+        // Salvar resposta para idempotência
+        const followersResponseData = {
+          id: followersTxn.id,
+          status: followersTxn.status,
+          method: followersTxn.method,
+          amount: followersTxn.amount,
+          pix_code: followersTxn.pix_code,
+          pix_qrcode: followersTxn.pix_qrcode,
+          created_at: followersTxn.created_at
+        };
+        
+        await db.paymentIdempotencyLog.create({
+          data: {
+            key: idempotencyKey,
+            response: JSON.stringify(followersResponseData)
+          }
+        });
+        
+        // Retornar a resposta completa para serviço de seguidores
+        return NextResponse.json({
+          id: paymentRequest.id,
+          token: paymentRequest.token,
+          amount: paymentRequest.amount,
+          service_name: paymentRequest.service_name,
+          status: 'processing',
+          customer_name: paymentRequest.customer_name,
+          customer_email: paymentRequest.customer_email,
+          customer_phone: paymentRequest.customer_phone,
+          created_at: paymentRequest.created_at,
+          expires_at: paymentRequest.expires_at,
+          payment_url: paymentUrl,
+          payment: {
+            id: followersTxn.id,
+            status: followersTxn.status,
+            method: followersTxn.method,
+            pix_code: followersTxn.pix_code,
+            pix_qrcode: followersTxn.pix_qrcode,
+            amount: followersTxn.amount
+          }
+        });
       }
       // Criar transações no banco - uma para cada post, se houver múltiplos posts
       else if (posts.length > 1) {
