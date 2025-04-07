@@ -170,6 +170,14 @@ export async function POST(request: NextRequest) {
       console.log('[SOLUÇÃO INTEGRADA] Resposta do Mercado Pago:', JSON.stringify(mpResponse).substring(0, 200) + '...');
       
       // Tratar diferentemente com base no tipo de serviço
+      let transactionId = '';
+      let transactionStatus = 'pending';
+      let transactionMethod = 'pix';
+      let transactionAmount = paymentRequest.amount;
+      let transactionPixCode = mpResponse.point_of_interaction?.transaction_data?.qr_code;
+      let transactionPixQrcode = mpResponse.point_of_interaction?.transaction_data?.qr_code_base64;
+      let transactionCreatedAt = new Date();
+      
       if (isFollowersService) {
         // Para serviço de seguidores, criar apenas uma transação
         const followersTxn = await db.transaction.create({
@@ -197,70 +205,21 @@ export async function POST(request: NextRequest) {
         
         console.log('[SOLUÇÃO INTEGRADA] Transação de seguidores criada com ID:', followersTxn.id);
         
-        // Atualizar a solicitação de pagamento para 'processing'
-        await db.paymentRequest.update({
-          where: { id: paymentRequest.id },
-          data: { status: 'processing' }
-        });
-        
-        // Criar um registro de fila de processamento
-        await db.processingQueue.create({
-          data: {
-            payment_request_id: paymentRequest.id,
-            status: 'pending',
-            type: 'payment_confirmation',
-            priority: 1,
-            metadata: JSON.stringify({
-              transaction_id: followersTxn.id,
-              external_id: mpResponse.id.toString()
-            })
-          }
-        });
-        
-        // Salvar resposta para idempotência
-        const followersResponseData = {
-          id: followersTxn.id,
-          status: followersTxn.status,
-          method: followersTxn.method,
-          amount: followersTxn.amount,
-          pix_code: followersTxn.pix_code,
-          pix_qrcode: followersTxn.pix_qrcode,
-          created_at: followersTxn.created_at
-        };
-        
-        await db.paymentIdempotencyLog.create({
-          data: {
-            key: idempotencyKey,
-            response: JSON.stringify(followersResponseData)
-          }
-        });
-        
-        // Retornar a resposta completa para serviço de seguidores
-        return NextResponse.json({
-          id: paymentRequest.id,
-          token: paymentRequest.token,
-          amount: paymentRequest.amount,
-          service_name: paymentRequest.service_name,
-          status: 'processing',
-          customer_name: paymentRequest.customer_name,
-          customer_email: paymentRequest.customer_email,
-          customer_phone: paymentRequest.customer_phone,
-          created_at: paymentRequest.created_at,
-          expires_at: paymentRequest.expires_at,
-          payment_url: paymentUrl,
-          payment: {
-            id: followersTxn.id,
-            status: followersTxn.status,
-            method: followersTxn.method,
-            pix_code: followersTxn.pix_code,
-            pix_qrcode: followersTxn.pix_qrcode,
-            amount: followersTxn.amount
-          }
-        });
+        // Atualizar variáveis para retorno
+        transactionId = followersTxn.id;
+        transactionStatus = followersTxn.status;
+        transactionMethod = followersTxn.method;
+        transactionAmount = followersTxn.amount;
+        transactionPixCode = followersTxn.pix_code;
+        transactionPixQrcode = followersTxn.pix_qrcode;
+        transactionCreatedAt = followersTxn.created_at;
       }
       // Criar transações no banco - uma para cada post, se houver múltiplos posts
       else if (posts.length > 1) {
         console.log('[SOLUÇÃO INTEGRADA] Processando múltiplos posts:', posts.length);
+        
+        // Array para armazenar IDs de todas as transações criadas
+        const createdTransactionIds = [];
         
         // Criar transações separadas para cada post
         for (const post of posts) {
@@ -274,7 +233,7 @@ export async function POST(request: NextRequest) {
           const postType = post.type || (isReel ? 'reel' : 'post');
           
           // Criar uma transação para este post específico
-          await db.transaction.create({
+          const postTxn = await db.transaction.create({
             data: {
               payment_request_id: paymentRequest.id,
               external_id: `${mpResponse.id.toString()}_${postId}`,
@@ -303,11 +262,25 @@ export async function POST(request: NextRequest) {
               })
             }
           });
+          
+          createdTransactionIds.push(postTxn.id);
+          
+          // Usar a primeira transação como referência para retorno
+          if (createdTransactionIds.length === 1) {
+            transactionId = postTxn.id;
+            transactionStatus = postTxn.status;
+            transactionMethod = postTxn.method;
+            transactionAmount = postTxn.amount;
+            transactionPixCode = postTxn.pix_code;
+            transactionPixQrcode = postTxn.pix_qrcode;
+            transactionCreatedAt = postTxn.created_at;
+          }
         }
         
-        console.log('[SOLUÇÃO INTEGRADA] Criadas transações para todos os posts');
-      } else {
-        // Caso tradicional - uma única transação
+        console.log('[SOLUÇÃO INTEGRADA] Criadas transações para todos os posts:', createdTransactionIds);
+      }
+      // Caso tradicional - uma única transação
+      else {
         const singlePostTxn = await db.transaction.create({
           data: {
             payment_request_id: paymentRequest.id,
@@ -332,6 +305,15 @@ export async function POST(request: NextRequest) {
         });
         
         console.log('[SOLUÇÃO INTEGRADA] Transação única criada com ID:', singlePostTxn.id);
+        
+        // Atualizar variáveis para retorno
+        transactionId = singlePostTxn.id;
+        transactionStatus = singlePostTxn.status;
+        transactionMethod = singlePostTxn.method;
+        transactionAmount = singlePostTxn.amount;
+        transactionPixCode = singlePostTxn.pix_code;
+        transactionPixQrcode = singlePostTxn.pix_qrcode;
+        transactionCreatedAt = singlePostTxn.created_at;
       }
       
       // Atualizar a solicitação de pagamento para 'processing'
@@ -350,7 +332,7 @@ export async function POST(request: NextRequest) {
           type: 'payment_confirmation',
           priority: 1,
           metadata: JSON.stringify({
-            transaction_id: singlePostTxn.id,
+            transaction_id: transactionId,
             external_id: mpResponse.id.toString()
           })
         }
@@ -360,13 +342,13 @@ export async function POST(request: NextRequest) {
       
       // Salvar resposta para idempotência
       const responseData = {
-        id: singlePostTxn.id,
-        status: singlePostTxn.status,
-        method: singlePostTxn.method,
-        amount: singlePostTxn.amount,
-        pix_code: singlePostTxn.pix_code,
-        pix_qrcode: singlePostTxn.pix_qrcode,
-        created_at: singlePostTxn.created_at
+        id: transactionId,
+        status: transactionStatus,
+        method: transactionMethod,
+        amount: transactionAmount,
+        pix_code: transactionPixCode,
+        pix_qrcode: transactionPixQrcode,
+        created_at: transactionCreatedAt
       };
       
       await db.paymentIdempotencyLog.create({
@@ -392,12 +374,12 @@ export async function POST(request: NextRequest) {
         expires_at: paymentRequest.expires_at,
         payment_url: paymentUrl,
         payment: {
-          id: singlePostTxn.id,
-          status: singlePostTxn.status,
-          method: singlePostTxn.method,
-          pix_code: singlePostTxn.pix_code,
-          pix_qrcode: singlePostTxn.pix_qrcode,
-          amount: singlePostTxn.amount
+          id: transactionId,
+          status: transactionStatus,
+          method: transactionMethod,
+          pix_code: transactionPixCode,
+          pix_qrcode: transactionPixQrcode,
+          amount: transactionAmount
         }
       });
       
