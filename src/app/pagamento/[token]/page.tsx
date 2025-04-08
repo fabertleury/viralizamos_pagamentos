@@ -242,48 +242,36 @@ export default function PaymentPage() {
   const redirectToThankYouPage = () => {
     const baseUrl = payment?.return_url || 'https://viralizamos.com/agradecimento';
     
-    // Construir URL com parâmetros
-    const url = new URL(baseUrl);
-    url.searchParams.append('token', token);
-    url.searchParams.append('status', 'approved');
-    
-    if (payment?.id) {
-      url.searchParams.append('payment_id', payment.id);
-    }
-    
-    console.log('Redirecionando para:', url.toString());
-    
-    // Redirecionar
-    window.location.href = url.toString();
-  };
-  
-  // Verificação automática a cada 30 segundos
-  useEffect(() => {
-    // Não verificar se o pagamento já estiver aprovado - corrigindo para usar comparação estrita
-    if (payment?.payment?.status === 'approved') {
-      // Redirecionar automaticamente após um breve atraso
-      redirectToThankYouPage();
-      return;
-    }
-    
-    const interval = setInterval(async () => {
-      const approved = await checkPaymentStatus();
+    try {
+      // Verificar se a URL é válida antes de construir
+      let url;
       
-      if (approved) {
-        // Mostrar o diálogo por um breve momento antes de redirecionar
-        onOpen();
-        
-        // Após 2 segundos, redirecionar automaticamente
-        setTimeout(() => {
-          redirectToThankYouPage();
-        }, 2000);
-        
-        clearInterval(interval);
+      try {
+        url = new URL(baseUrl);
+      } catch (error) {
+        console.error('URL inválida:', baseUrl);
+        // Fallback para URL padrão em caso de erro
+        url = new URL('https://viralizamos.com/agradecimento');
       }
-    }, 30000); // A cada 30 segundos
-    
-    return () => clearInterval(interval);
-  }, [payment]);
+      
+      // Adicionar parâmetros
+      url.searchParams.append('token', token);
+      url.searchParams.append('status', 'approved');
+      
+      if (payment?.id) {
+        url.searchParams.append('payment_id', payment.id);
+      }
+      
+      console.log('Redirecionando para:', url.toString());
+      
+      // Redirecionar
+      window.location.href = url.toString();
+    } catch (error) {
+      console.error('Erro ao redirecionar:', error);
+      // Fallback absoluto
+      window.location.href = 'https://viralizamos.com/agradecimento';
+    }
+  };
   
   // Função para verificar pagamento manualmente (botão "Já paguei")
   const handleManualCheck = async () => {
@@ -305,6 +293,28 @@ export default function PaymentPage() {
       });
     }
   };
+  
+  // Estado para contagem regressiva de verificação
+  const [checkCountdown, setCheckCountdown] = useState<number>(30);
+  
+  // Iniciar contador regressivo para próxima verificação
+  useEffect(() => {
+    // Não iniciar se o pagamento já estiver aprovado
+    if (payment?.payment?.status === 'approved') return;
+    
+    const countdownInterval = setInterval(() => {
+      setCheckCountdown(prev => {
+        if (prev <= 1) {
+          // Quando chegar a zero, verificar o pagamento e reiniciar o contador
+          checkPaymentStatus();
+          return 30;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(countdownInterval);
+  }, [payment]);
   
   return (
     <>
@@ -609,6 +619,25 @@ export default function PaymentPage() {
                       </Box>
                     )}
                     
+                    {payment && payment.payment && (
+                      <Box width="100%" mt={4}>
+                        <Button
+                          colorScheme="green"
+                          size="lg"
+                          width="100%"
+                          leftIcon={<FaCheck />}
+                          onClick={handleManualCheck}
+                          isLoading={verifyingPayment}
+                          loadingText="Verificando..."
+                        >
+                          Já paguei {checkCountdown < 30 ? `(verificando em ${checkCountdown}s)` : ""}
+                        </Button>
+                        <Text mt={2} fontSize="sm" color="gray.600" textAlign="center">
+                          Clique no botão acima após realizar o pagamento para verificar se foi confirmado
+                        </Text>
+                      </Box>
+                    )}
+                    
                     <Box 
                       bg="gray.50" 
                       p={4} 
@@ -626,24 +655,6 @@ export default function PaymentPage() {
             </GridItem>
           </Grid>
         ) : null}
-        
-        {payment && payment.payment && (
-          <Box mt={6} textAlign="center">
-            <Button
-              colorScheme="green"
-              size="lg"
-              leftIcon={<FaCheck />}
-              onClick={handleManualCheck}
-              isLoading={verifyingPayment}
-              loadingText="Verificando..."
-            >
-              Já paguei
-            </Button>
-            <Text mt={2} fontSize="sm" color="gray.600">
-              Clique no botão acima após realizar o pagamento para verificar se foi confirmado
-            </Text>
-          </Box>
-        )}
       </Container>
       
       <ViralizamosFooter />
