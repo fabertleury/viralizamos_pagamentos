@@ -86,63 +86,107 @@ export async function POST(request: NextRequest) {
     console.log('[SOLUÇÃO INTEGRADA] Criando registro no banco de dados');
     console.log('[SOLUÇÃO INTEGRADA] DATABASE_URL configurada:', !!process.env.DATABASE_URL);
     
-    // Criar a solicitação de pagamento diretamente
-    const paymentRequest = await db.paymentRequest.create({
-      data: {
-        amount,
-        token,
-        service_id: body.service_id,
-        profile_username: body.profile_username,
-        customer_name: body.customer_name || body.payer_name,
-        customer_email: body.customer_email || body.payer_email,
-        customer_phone: body.customer_phone || body.payer_phone,
-        service_name: body.service_name || body.description,
-        return_url: body.return_url,
-        status: 'pending',
-        additional_data: typeof body.additional_data === 'string'
-          ? body.additional_data
-          : JSON.stringify(body.additional_data || body),
-        expires_at: expiresAt
-      }
-    });
-    
-    console.log('[SOLUÇÃO INTEGRADA] Registro criado com ID:', paymentRequest.id);
-    
     // Verificar se há múltiplos posts e suas quantidades
-    const additionalData = typeof body.additional_data === 'string' 
-      ? JSON.parse(body.additional_data) 
-      : body.additional_data;
+    let posts = [];
+    let additionalData: any = null;
+    let externalServiceId: string | null = null;
     
     // Determinar o tipo de serviço
     const serviceType = additionalData?.service_type || body.service_type || '';
     const isFollowersService = serviceType.toLowerCase().includes('seguidores') || 
                               serviceType.toLowerCase().includes('followers');
     
-    // Se for serviço de posts/reels, verificar posts selecionados
-    let posts = [];
-    if (!isFollowersService) {
-      posts = additionalData?.posts || [];
-      console.log('[SOLUÇÃO INTEGRADA] Posts encontrados:', posts.length);
-      
-      // Validar que há pelo menos 1 post e no máximo 5
-      if (posts.length === 0) {
-        console.error('[SOLUÇÃO INTEGRADA] Nenhum post selecionado para serviço que requer posts');
-        return NextResponse.json(
-          { error: 'É necessário selecionar pelo menos 1 post para este serviço' },
-          { status: 400 }
-        );
+    try {
+      if (body.additional_data) {
+        if (typeof body.additional_data === 'string') {
+          additionalData = JSON.parse(body.additional_data);
+        } else {
+          additionalData = body.additional_data;
+        }
+        
+        posts = additionalData.posts || [];
+        
+        // Tentar extrair external_service_id se disponível
+        if (additionalData.external_service_id) {
+          externalServiceId = additionalData.external_service_id;
+          console.log('[SOLUÇÃO INTEGRADA] External service ID encontrado nos dados adicionais:', externalServiceId);
+        }
       }
-      
-      if (posts.length > 5) {
-        console.error('[SOLUÇÃO INTEGRADA] Mais de 5 posts selecionados:', posts.length);
-        return NextResponse.json(
-          { error: 'É permitido selecionar no máximo 5 posts/reels no total' },
-          { status: 400 }
-        );
-      }
-    } else {
-      console.log('[SOLUÇÃO INTEGRADA] Serviço de seguidores detectado para:', body.profile_username);
+    } catch (e) {
+      console.error('[SOLUÇÃO INTEGRADA] Erro ao analisar additional_data:', e);
     }
+    
+    // Calcular corretamente a distribuição das quantidades entre os posts
+    const totalQuantity = additionalData?.quantity || body.quantity || 0;
+    const postsCount = posts.length;
+    const baseQuantityPerPost = Math.floor(totalQuantity / postsCount);
+    const remainder = totalQuantity % postsCount;
+    
+    // Mapear posts com suas quantidades calculadas
+    const postsWithQuantities = posts.map((post: Post, index: number) => {
+      // Se o post já tiver uma quantidade específica, usá-la
+      if (post.quantity && post.quantity > 0) {
+        return {
+          ...post,
+          quantity: post.quantity,
+          calculated_quantity: post.quantity
+        };
+      }
+      
+      // Caso contrário, calcular a quantidade
+      // Distribuir o resto para os primeiros posts
+      const extraQuantity = index < remainder ? 1 : 0;
+      const calculatedQuantity = baseQuantityPerPost + extraQuantity;
+      
+      return {
+        id: post.id || post.postId,
+        code: post.code || post.postCode || '',
+        url: post.url || post.postLink || `https://instagram.com/p/${post.code || post.postCode || ''}`,
+        image_url: post.image_url || post.thumbnail_url || post.display_url || '',
+        is_reel: post.is_reel || post.type === 'reel' || post.type === 'video' || false,
+        type: post.type || (post.is_reel || post.type === 'reel' || post.type === 'video' ? 'reel' : 'post'),
+        quantity: calculatedQuantity,
+        calculated_quantity: calculatedQuantity
+      };
+    });
+    
+    console.log('[SOLUÇÃO INTEGRADA] Quantidade total distribuída:', totalQuantity);
+    console.log('[SOLUÇÃO INTEGRADA] Distribuição por post:', postsWithQuantities.map((p: { calculated_quantity: number }) => p.calculated_quantity));
+    
+    // Salvar os dados adicionais atualizados com as quantidades distribuídas
+    const updatedAdditionalData = {
+      ...additionalData,
+      posts: postsWithQuantities,
+      total_quantity: totalQuantity,
+      posts_count: postsCount
+    };
+    
+    // Armazenar o additional_data atualizado
+    const additionalDataString = JSON.stringify(updatedAdditionalData);
+    
+    // Usar o valor de postsWithQuantities
+    posts = postsWithQuantities;
+    
+    // Criar a solicitação de pagamento
+    const paymentRequest = await db.paymentRequest.create({
+      data: {
+        amount: body.amount,
+        token,
+        service_id: body.service_id,
+        external_service_id: body.external_service_id || externalServiceId || undefined,
+        profile_username: body.profile_username,
+        customer_name: body.customer_name,
+        customer_email: body.customer_email,
+        customer_phone: body.customer_phone,
+        service_name: body.service_name,
+        return_url: body.return_url,
+        status: 'pending',
+        additional_data: additionalDataString,
+        expires_at: expiresAt
+      }
+    });
+    
+    console.log('[SOLUÇÃO INTEGRADA] Registro criado com ID:', paymentRequest.id);
     
     // ETAPA 2: Criar o pagamento PIX diretamente
     console.log('[SOLUÇÃO INTEGRADA] Criando pagamento PIX para:', paymentRequest.id);
@@ -193,42 +237,6 @@ export async function POST(request: NextRequest) {
       let transactionPixCode = mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined;
       let transactionPixQrcode = mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined;
       let transactionCreatedAt = new Date();
-      
-      // Calcular corretamente a distribuição das quantidades entre os posts
-      const totalQuantity = additionalData?.quantity || body.quantity || 0;
-      const postsCount = posts.length;
-      const baseQuantityPerPost = Math.floor(totalQuantity / postsCount);
-      const remainder = totalQuantity % postsCount;
-      
-      // Mapear posts com suas quantidades calculadas
-      const postsWithQuantities = posts.map((post: Post, index: number) => {
-        // Se o post já tiver uma quantidade específica, usá-la
-        if (post.quantity && post.quantity > 0) {
-          return {
-            ...post,
-            calculated_quantity: post.quantity
-          };
-        }
-        
-        // Caso contrário, calcular a quantidade
-        // Distribuir o resto para os primeiros posts
-        const extraQuantity = index < remainder ? 1 : 0;
-        const calculatedQuantity = baseQuantityPerPost + extraQuantity;
-        
-        return {
-          id: post.id || post.postId,
-          code: post.code || post.postCode || '',
-          url: post.url || post.postLink || `https://instagram.com/p/${post.code || post.postCode || ''}`,
-          image_url: post.image_url || post.thumbnail_url || post.display_url || '',
-          is_reel: post.is_reel || post.type === 'reel' || post.type === 'video' || false,
-          type: post.type || (post.is_reel || post.type === 'reel' || post.type === 'video' ? 'reel' : 'post'),
-          quantity: calculatedQuantity,
-          calculated_quantity: calculatedQuantity
-        };
-      });
-      
-      console.log('[SOLUÇÃO INTEGRADA] Quantidade total distribuída:', totalQuantity);
-      console.log('[SOLUÇÃO INTEGRADA] Distribuição por post:', postsWithQuantities.map((p: { calculated_quantity: number }) => p.calculated_quantity));
       
       // Criar uma única transação, independentemente do tipo de serviço ou número de posts
       const transaction = await db.transaction.create({

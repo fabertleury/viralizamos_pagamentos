@@ -44,11 +44,11 @@ export async function GET(
     }
     
     // Verificar se o pagamento foi aprovado
-    const isApproved = paymentRequest.transactions.length > 0 && 
-                        paymentRequest.transactions[0].status === 'approved';
+    const isApproved = Boolean(paymentRequest.transactions.length > 0 && 
+                        paymentRequest.transactions[0].status === 'approved');
     
     // Verificar se a solicitação expirou
-    const isExpired = paymentRequest.expires_at && new Date(paymentRequest.expires_at) < new Date();
+    const isExpired = Boolean(paymentRequest.expires_at && new Date(paymentRequest.expires_at) < new Date());
     
     // Analisar dados adicionais
     let posts = [];
@@ -77,25 +77,35 @@ export async function GET(
       }
     }
     
+    // Extrair os campos do paymentRequest diretamente, garantindo que tenham tipos corretos
+    const {
+      id, token: tokenValue, amount, customer_name, customer_email, customer_phone,
+      profile_username, service_name, status, expires_at, created_at, service_id, 
+      return_url
+    } = paymentRequest;
+
+    // Usando uma sintaxe mais segura para acessar uma propriedade que pode não existir no tipo
+    const external_service_id = (paymentRequest as any).external_service_id;
+    
     // Formatar resposta
     const response: PaymentResponse = {
-      id: paymentRequest.id,
-      token: paymentRequest.token,
-      amount: paymentRequest.amount,
-      customer_name: paymentRequest.customer_name,
-      customer_email: paymentRequest.customer_email,
-      customer_phone: paymentRequest.customer_phone,
-      instagram_username: paymentRequest.profile_username || '',
-      service_name: paymentRequest.service_name || 'Serviço Instagram',
-      service_id: paymentRequest.service_id || undefined,
-      external_service_id: paymentRequest.external_service_id || undefined,
-      description: paymentRequest.service_name,
-      status: paymentRequest.status,
-      expires_at: paymentRequest.expires_at,
-      created_at: paymentRequest.created_at,
-      posts: posts,
-      quantity: quantity,
-      return_url: paymentRequest.return_url || undefined,
+      id,
+      token: tokenValue,
+      amount,
+      customer_name,
+      customer_email,
+      customer_phone,
+      instagram_username: profile_username || '',
+      service_name: service_name || 'Serviço Instagram',
+      service_id: service_id || undefined,
+      external_service_id: external_service_id || undefined,
+      description: service_name,
+      status,
+      expires_at,
+      created_at,
+      posts,
+      quantity,
+      return_url: return_url || undefined,
       pix_code: paymentRequest.transactions[0]?.pix_code || '',
       qr_code_image: paymentRequest.transactions[0]?.pix_qrcode || '',
       pix_key: '',

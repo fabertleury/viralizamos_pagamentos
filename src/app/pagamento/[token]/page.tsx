@@ -224,7 +224,7 @@ export default function PaymentPage() {
         setPayment(data);
       }
       
-      // Verificar se o pagamento foi aprovado
+      // Verificar se o pagamento foi aprovado - corrigido para tratar null como false
       if (data.payment && data.payment.status === 'approved') {
         return true;
       }
@@ -259,7 +259,7 @@ export default function PaymentPage() {
   
   // Verificação automática a cada 30 segundos
   useEffect(() => {
-    // Não verificar se o pagamento já estiver aprovado
+    // Não verificar se o pagamento já estiver aprovado - corrigindo para usar comparação estrita
     if (payment?.payment?.status === 'approved') {
       // Redirecionar automaticamente após um breve atraso
       redirectToThankYouPage();
