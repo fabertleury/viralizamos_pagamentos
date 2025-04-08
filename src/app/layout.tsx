@@ -30,8 +30,6 @@ export default function RootLayout({
     <html lang="pt-BR">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        {/* Adicionar referência direta ao CSS para garantir que o Tailwind seja carregado */}
-        <link rel="stylesheet" href="/_next/static/css/app/layout.css" precedence="default" />
         
         {/* Estilo crítico inline para garantir estilização básica mesmo se o CSS principal falhar */}
         <style dangerouslySetInnerHTML={{
@@ -70,40 +68,6 @@ export default function RootLayout({
               padding-left: 1rem; 
               padding-right: 1rem; 
             }
-          `
-        }} />
-
-        {/* Script para corrigir problemas de estilização */}
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            (function() {
-              // Verificar se o CSS já foi carregado
-              function checkCSS() {
-                var testDiv = document.createElement('div');
-                testDiv.className = 'bg-white';
-                document.body.appendChild(testDiv);
-                var style = window.getComputedStyle(testDiv);
-                var isStyled = style.backgroundColor === 'rgb(255, 255, 255)';
-                document.body.removeChild(testDiv);
-                
-                // Se os estilos não funcionarem, adicionar link para CSS
-                if (!isStyled) {
-                  var link = document.createElement('link');
-                  link.rel = 'stylesheet';
-                  link.href = '/_next/static/css/app/layout.css?' + Date.now();
-                  document.head.appendChild(link);
-                  
-                  console.log('Estilo CSS adicional aplicado manualmente');
-                }
-              }
-              
-              // Verificar os estilos após carregamento da página
-              if (document.readyState === 'complete') {
-                checkCSS();
-              } else {
-                window.addEventListener('load', checkCSS);
-              }
-            })();
           `
         }} />
       </head>
