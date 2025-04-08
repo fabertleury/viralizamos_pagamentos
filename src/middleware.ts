@@ -9,6 +9,9 @@ const allowedOrigins = [
   'https://homolog.viralizamos.com',
   'http://localhost:3000',
   'http://localhost:3001',
+  'https://pagamentos.viralizamos.com',
+  'https://pagamentos.dev.viralizamos.com',
+  'https://orders.viralizamos.com',
 ];
 
 export function middleware(request: NextRequest) {

@@ -1,8 +1,38 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
+import { useParams } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
+import { 
+  Box, 
+  Container,
+  Grid, 
+  GridItem, 
+  Heading, 
+  Text, 
+  Card, 
+  CardBody, 
+  Stack, 
+  Divider, 
+  Button, 
+  Flex, 
+  Image, 
+  Avatar, 
+  HStack, 
+  VStack, 
+  Progress, 
+  Badge, 
+  Input, 
+  FormControl, 
+  FormLabel,
+  Link,
+  Icon,
+  SkeletonText,
+  useClipboard
+} from '@chakra-ui/react';
+import { FaHeart, FaCopy, FaInfoCircle, FaTag } from 'react-icons/fa';
+import ViralizamosHeader from '@/components/layout/ViralizamosHeader';
+import { ViralizamosFooter } from '@/components/layout/ViralizamosFooter';
 
 // Definir interfaces para os tipos de dados
 interface PaymentRequest {
@@ -21,6 +51,14 @@ interface PaymentRequest {
   pix_code: string;
   pix_key: string;
   expires_at: string;
+  payment?: {
+    id: string;
+    status: string;
+    method: string;
+    pix_code: string;
+    pix_qrcode: string;
+    amount: number;
+  };
 }
 
 interface Post {
@@ -32,13 +70,18 @@ interface Post {
   quantity: number;
 }
 
-export default function PaymentPage({ params }: { params: { token: string } }) {
+export default function PaymentPage() {
+  const params = useParams();
+  const token = params.token as string;
+  
   const [payment, setPayment] = useState<PaymentRequest | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [formattedTime, setFormattedTime] = useState<string>('30:00');
-  const [showCopyFeedback, setShowCopyFeedback] = useState<boolean>(false);
+  
+  const pixCode = payment?.payment?.pix_code || '';
+  const { hasCopied, onCopy } = useClipboard(pixCode);
   
   // Formatar o tempo restante
   const formatTimeRemaining = (seconds: number): string => {
@@ -47,17 +90,9 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
-  // Copiar código PIX para área de transferência
-  const copyPixCode = async () => {
-    if (!payment?.pix_code) return;
-    
-    try {
-      await navigator.clipboard.writeText(payment.pix_code);
-      setShowCopyFeedback(true);
-      setTimeout(() => setShowCopyFeedback(false), 3000);
-    } catch (err) {
-      console.error('Erro ao copiar código:', err);
-    }
+  // Copiar código PIX
+  const handleCopyPixCode = () => {
+    onCopy();
   };
   
   // Buscar os dados de pagamento
@@ -65,7 +100,7 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
     const fetchPaymentData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/payment-requests/${params.token}`);
+        const response = await fetch(`/api/payment-requests/${token}`);
         
         if (!response.ok) {
           throw new Error('Pagamento não encontrado ou já expirado');
@@ -92,8 +127,10 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
       }
     };
     
-    fetchPaymentData();
-  }, [params.token]);
+    if (token) {
+      fetchPaymentData();
+    }
+  }, [token]);
   
   // Atualizar o timer a cada segundo
   useEffect(() => {
@@ -110,198 +147,298 @@ export default function PaymentPage({ params }: { params: { token: string } }) {
     return () => clearInterval(timer);
   }, [timeRemaining]);
   
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[calc(100vh-180px)]">
-        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6 text-center">
-          <p className="text-gray-600 mb-4">Carregando informações do pagamento...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (error || !payment) {
-    return (
-      <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[calc(100vh-180px)]">
-        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6 text-center">
-          <p className="text-red-500">{error || 'Pagamento não encontrado'}</p>
-        </div>
-      </div>
-    );
-  }
-  
   // Calcular a porcentagem de tempo restante para a barra de progresso
   const timePercentage = Math.min(100, Math.max(0, (timeRemaining / 1800) * 100));
   
   return (
-    <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[calc(100vh-180px)]">
-      {/* Seção de detalhes do pedido */}
-      <div className="w-full">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Pagamento</h1>
-        <p className="text-gray-600 mb-4">Complete seu pagamento para confirmar seu pedido</p>
-        
-        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6">
-          <div className="mb-6">
-            <p className="text-xl font-bold text-center mb-2">{formattedTime}</p>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-pink-600 h-2 rounded-full transition-all duration-1000" 
-                style={{ width: `${timePercentage}%` }}
-              ></div>
-            </div>
-            <p className="text-sm text-gray-500 text-center mt-2">Este QR Code expira em {formattedTime}</p>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6">
-          <h2 className="text-xl font-semibold text-gray-700 mb-3">Detalhes do Pedido</h2>
-          
-          <div className="mb-2">
-            <strong>Serviço:</strong> {payment.service_name}
-          </div>
-          
-          <div className="mb-4">
-            <strong>Instagram:</strong> @{payment.instagram_username}
-          </div>
-          
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <div className="mb-2">
-              <strong>Nome:</strong> {payment.customer_name}
-            </div>
-            <div className="mb-2">
-              <strong>Email:</strong> {payment.customer_email}
-            </div>
-            {payment.customer_phone && (
-              <div className="mb-2">
-                <strong>Telefone:</strong> {payment.customer_phone}
-              </div>
-            )}
-          </div>
-          
-          <h2 className="text-xl font-semibold text-gray-700 mb-3">Posts selecionados</h2>
-          
-          {payment.posts && payment.posts.length > 0 ? (
-            payment.posts.map((post) => (
-              <div key={post.id} className="flex mb-4 border-b pb-4">
-                <div className="w-20 h-20 mr-4 bg-gray-100 flex-shrink-0 rounded overflow-hidden">
-                  {post.thumbnail_url ? (
-                    <img src={post.thumbnail_url} alt="Thumbnail" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="24" height="24" rx="4" fill="#E5E7EB"/>
-                        <path d="M12 8V16M8 12H16" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex-1">
-                  <h3 className="text-sm font-medium mb-1">
-                    {post.caption || 'Post do Instagram'}
-                  </h3>
-                  
-                  <div className="flex justify-between items-center text-xs text-gray-500">
-                    <a href={post.url} target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:underline">
-                      Ver post original
-                    </a>
-                    
-                    <span>
-                      {post.quantity} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="p-4 bg-gray-50 rounded-lg mb-4 text-center">
-              <p className="text-gray-500">Não há posts selecionados.</p>
-            </div>
-          )}
-          
-          <div className="flex justify-between items-center py-2 border-b mb-2">
-            <span>Subtotal</span>
-            <span>R$ {(payment.amount * 0.9).toFixed(2)}</span>
-          </div>
-          
-          <div className="flex justify-between items-center py-2 border-b mb-2">
-            <span>Taxa de processamento</span>
-            <span>R$ {(payment.amount * 0.1).toFixed(2)}</span>
-          </div>
-          
-          <div className="flex justify-between items-center py-3 font-bold">
-            <span>Total</span>
-            <span>R$ {payment.amount.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
+    <>
+      <ViralizamosHeader />
       
-      {/* Seção do QR Code do PIX */}
-      <div className="w-full">
-        <div className="bg-white rounded-lg shadow-md p-6 w-full mb-6">
-          <h2 className="text-xl font-semibold text-gray-700 mb-4 text-center">Pague com PIX</h2>
-          
-          <div className="flex flex-col items-center mb-6">
-            <div className="border-2 border-gray-200 p-4 rounded-lg mb-4">
-              {payment.qr_code_image ? (
-                <img 
-                  src={payment.qr_code_image.startsWith('data:') ? payment.qr_code_image : `data:image/png;base64,${payment.qr_code_image}`} 
-                  alt="QR Code PIX" 
-                  className="w-48 h-48 mx-auto"
-                  onError={(e) => {
-                    console.log('Erro ao carregar QR code como imagem, gerando como SVG');
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
-              ) : payment.pix_code ? (
-                <QRCodeSVG 
-                  value={payment.pix_code} 
-                  size={200}
-                  includeMargin={true}
-                  bgColor="#FFFFFF"
-                  fgColor="#000000"
-                  level="M"
-                />
-              ) : (
-                <div className="w-48 h-48 flex items-center justify-center bg-gray-100">
-                  <p className="text-gray-500 text-center">QR Code não disponível</p>
-                </div>
-              )}
-            </div>
-            
-            <p className="text-sm text-gray-500 mb-4 text-center">
-              Escaneie este QR Code com o app do seu banco ou copie o código PIX abaixo
-            </p>
-            
-            {payment.pix_code && (
-              <div className="w-full mb-4">
-                <div className="bg-gray-100 p-3 rounded-lg relative overflow-hidden">
-                  <div className="overflow-x-auto max-w-full">
-                    <p className="whitespace-nowrap text-xs text-gray-700 pr-20">
-                      {payment.pix_code}
-                    </p>
-                  </div>
+      <Container maxW="container.xl" py={10}>
+        <Heading as="h1" size="lg" mb={4}>Pagamento</Heading>
+        <Text mb={6}>Complete seu pagamento para confirmar seu pedido</Text>
+        
+        {loading ? (
+          <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
+            <GridItem>
+              <Box height="400px" borderRadius="lg" p={6} bg="white" boxShadow="md">
+                <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
+              </Box>
+            </GridItem>
+            <GridItem>
+              <Box height="400px" borderRadius="lg" p={6} bg="white" boxShadow="md">
+                <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
+              </Box>
+            </GridItem>
+          </Grid>
+        ) : error ? (
+          <Card>
+            <CardBody>
+              <Text color="red.500">{error}</Text>
+            </CardBody>
+          </Card>
+        ) : payment ? (
+          <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
+            {/* Coluna esquerda - Detalhes do pedido */}
+            <GridItem>
+              <Card mb={6} variant="elevated" shadow="md">
+                <CardBody>
+                  <Heading size="md" mb={3}>Detalhes do Pedido</Heading>
                   
-                  <button
-                    onClick={copyPixCode}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-pink-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-pink-700 transition-colors"
-                  >
-                    {showCopyFeedback ? 'Copiado!' : 'Copiar código'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="border-t pt-4 mt-2">
-            <p className="text-sm text-gray-500 text-center">
-              Após o pagamento, o sistema irá processar automaticamente seu pedido.
-              Este processo pode levar até 5 minutos. Não feche esta janela.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+                  <Stack divider={<Divider />} spacing={4}>
+                    <Box>
+                      <HStack mb={2}>
+                        <Icon as={FaInfoCircle} color="pink.600" />
+                        <Text fontWeight="semibold">Serviço:</Text>
+                      </HStack>
+                      <Text>{payment.service_name}</Text>
+                    </Box>
+                    
+                    <Box>
+                      <HStack mb={2}>
+                        <Icon as={FaInfoCircle} color="pink.600" />
+                        <Text fontWeight="semibold">Instagram:</Text>
+                      </HStack>
+                      <HStack spacing={3}>
+                        <Avatar 
+                          size="sm" 
+                          name={payment.instagram_username} 
+                          src="/instagram-avatar-placeholder.png" 
+                        />
+                        <Text>@{payment.instagram_username}</Text>
+                      </HStack>
+                    </Box>
+                    
+                    <Box>
+                      <HStack mb={2}>
+                        <Icon as={FaInfoCircle} color="pink.600" />
+                        <Text fontWeight="semibold">Informações de Contato:</Text>
+                      </HStack>
+                      <Text>Nome: {payment.customer_name}</Text>
+                      <Text>Email: {payment.customer_email}</Text>
+                      {payment.customer_phone && (
+                        <Text>Telefone: {payment.customer_phone}</Text>
+                      )}
+                    </Box>
+                  </Stack>
+                </CardBody>
+              </Card>
+              
+              <Card variant="elevated" shadow="md">
+                <CardBody>
+                  <Heading size="md" mb={3}>Posts selecionados</Heading>
+                  
+                  {payment.posts && payment.posts.length > 0 ? (
+                    <VStack spacing={4} align="stretch">
+                      {payment.posts.map((post) => (
+                        <Flex 
+                          key={post.id} 
+                          borderWidth="1px" 
+                          borderRadius="md" 
+                          p={3} 
+                          align="center"
+                        >
+                          <Box 
+                            width="60px" 
+                            height="60px" 
+                            bg="gray.100" 
+                            borderRadius="md" 
+                            overflow="hidden" 
+                            mr={4}
+                          >
+                            {post.thumbnail_url ? (
+                              <Image 
+                                src={post.thumbnail_url} 
+                                alt="Thumbnail" 
+                                width="100%" 
+                                height="100%" 
+                                objectFit="cover" 
+                              />
+                            ) : (
+                              <Flex 
+                                align="center" 
+                                justify="center" 
+                                height="100%" 
+                                bg="gray.200"
+                              >
+                                <Icon as={FaHeart} color="gray.400" />
+                              </Flex>
+                            )}
+                          </Box>
+                          
+                          <Box flex={1}>
+                            <Text fontSize="sm" fontWeight="medium" mb={1} noOfLines={1}>
+                              {post.caption || 'Post do Instagram'}
+                            </Text>
+                            
+                            <Flex justify="space-between" align="center">
+                              <Link 
+                                href={post.url} 
+                                color="pink.600" 
+                                fontSize="xs" 
+                                isExternal
+                              >
+                                Ver post original
+                              </Link>
+                              
+                              <Badge colorScheme="pink">
+                                {post.quantity} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
+                              </Badge>
+                            </Flex>
+                          </Box>
+                        </Flex>
+                      ))}
+                    </VStack>
+                  ) : (
+                    <Box py={4} textAlign="center">
+                      <Text color="gray.500">Não há posts selecionados.</Text>
+                    </Box>
+                  )}
+                  
+                  <Divider my={4} />
+                  
+                  <Stack spacing={2}>
+                    <Flex justify="space-between">
+                      <Text>Subtotal</Text>
+                      <Text>R$ {(payment.amount * 0.9).toFixed(2)}</Text>
+                    </Flex>
+                    
+                    <Flex justify="space-between">
+                      <Text>Taxa de processamento</Text>
+                      <Text>R$ {(payment.amount * 0.1).toFixed(2)}</Text>
+                    </Flex>
+                    
+                    <Divider />
+                    
+                    <Flex justify="space-between" fontWeight="bold">
+                      <Text>Total</Text>
+                      <Text color="pink.600">R$ {payment.amount.toFixed(2)}</Text>
+                    </Flex>
+                  </Stack>
+                </CardBody>
+              </Card>
+            </GridItem>
+            
+            {/* Coluna direita - Informações de pagamento */}
+            <GridItem>
+              <Card mb={6} variant="elevated" shadow="md">
+                <CardBody>
+                  <Flex direction="column" align="center">
+                    <Text fontWeight="bold" fontSize="xl" mb={1}>{formattedTime}</Text>
+                    <Text fontSize="sm" color="gray.500" mb={4}>
+                      Este QR Code expira em {formattedTime}
+                    </Text>
+                    
+                    <Progress
+                      value={timePercentage}
+                      size="sm"
+                      colorScheme="pink"
+                      width="100%"
+                      borderRadius="full"
+                      mb={4}
+                    />
+                  </Flex>
+                </CardBody>
+              </Card>
+              
+              <Card variant="elevated" shadow="md">
+                <CardBody>
+                  <Heading size="md" textAlign="center" mb={6}>Pague com PIX</Heading>
+                  
+                  <VStack spacing={6} align="center">
+                    <Box 
+                      p={4} 
+                      borderWidth="2px" 
+                      borderColor="gray.200" 
+                      borderRadius="md"
+                      bg="white"
+                    >
+                      {payment?.payment?.pix_qrcode ? (
+                        <Image 
+                          src={`data:image/png;base64,${payment.payment.pix_qrcode}`} 
+                          alt="QR Code PIX" 
+                          width="200px" 
+                          height="200px"
+                        />
+                      ) : payment?.payment?.pix_code ? (
+                        <QRCodeSVG 
+                          value={payment.payment.pix_code} 
+                          size={200}
+                          includeMargin={true}
+                          bgColor="#FFFFFF"
+                          fgColor="#000000"
+                          level="M"
+                        />
+                      ) : (
+                        <Flex 
+                          width="200px" 
+                          height="200px" 
+                          bg="gray.100" 
+                          borderRadius="md" 
+                          align="center" 
+                          justify="center"
+                        >
+                          <Text color="gray.500">QR Code não disponível</Text>
+                        </Flex>
+                      )}
+                    </Box>
+                    
+                    <Text color="gray.600" fontSize="sm">
+                      Escaneie este QR Code com o app do seu banco ou copie o código PIX abaixo
+                    </Text>
+                    
+                    {payment?.payment?.pix_code && (
+                      <Box width="100%">
+                        <FormControl>
+                          <FormLabel fontSize="sm" fontWeight="medium">
+                            <HStack>
+                              <Icon as={FaTag} color="pink.600" />
+                              <Text>Código PIX</Text>
+                            </HStack>
+                          </FormLabel>
+                          <Flex>
+                            <Input 
+                              value={payment.payment.pix_code}
+                              isReadOnly
+                              pr="4.5rem"
+                              fontFamily="mono"
+                              fontSize="xs"
+                              bg="gray.50"
+                            />
+                            <Button
+                              ml={2}
+                              colorScheme="pink"
+                              onClick={handleCopyPixCode}
+                              leftIcon={<Icon as={FaCopy} />}
+                            >
+                              {hasCopied ? "Copiado" : "Copiar"}
+                            </Button>
+                          </Flex>
+                        </FormControl>
+                      </Box>
+                    )}
+                    
+                    <Box 
+                      bg="gray.50" 
+                      p={4} 
+                      borderRadius="md" 
+                      width="100%" 
+                      mt={2}
+                    >
+                      <Text fontSize="sm" color="gray.600" textAlign="center">
+                        Após o pagamento, o sistema irá processar automaticamente seu pedido.
+                        Este processo pode levar até 5 minutos. Não feche esta janela.
+                      </Text>
+                    </Box>
+                  </VStack>
+                </CardBody>
+              </Card>
+            </GridItem>
+          </Grid>
+        ) : null}
+      </Container>
+      
+      <ViralizamosFooter />
+    </>
   );
 } 

@@ -1,0 +1,2 @@
+Arquivo de placeholder para garantir que a pasta public exista no repositório.
+Aqui podem ser colocados recursos estáticos como imagens, favicon, etc. 
