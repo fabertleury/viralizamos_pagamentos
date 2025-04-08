@@ -3,6 +3,22 @@ import { db } from '@/lib/prisma';
 import crypto from 'crypto';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 
+// Interface para o tipo de Post
+interface Post {
+  id?: string;
+  postId?: string;
+  code?: string;
+  postCode?: string;
+  url?: string;
+  postLink?: string;
+  image_url?: string;
+  thumbnail_url?: string;
+  display_url?: string;
+  is_reel?: boolean;
+  type?: string;
+  quantity?: number;
+}
+
 // Configuração do Mercado Pago
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN!,
@@ -178,143 +194,50 @@ export async function POST(request: NextRequest) {
       let transactionPixQrcode = mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined;
       let transactionCreatedAt = new Date();
       
-      if (isFollowersService) {
-        // Para serviço de seguidores, criar apenas uma transação
-        const followersTxn = await db.transaction.create({
-          data: {
-            payment_request_id: paymentRequest.id,
-            external_id: mpResponse.id.toString(),
-            status: 'pending',
-            method: 'pix',
-            amount: paymentRequest.amount,
-            provider: 'mercadopago',
-            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
-            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
-            metadata: JSON.stringify({
-              mercadopago_response: mpResponse,
-              idempotency_key: idempotencyKey,
-              service_id: body.service_id,
-              service_name: body.service_name,
-              service_type: serviceType,
-              profile_username: body.profile_username,
-              is_followers_service: true,
-              followers_quantity: additionalData?.quantity || body.quantity || 0
-            })
-          }
-        });
-        
-        console.log('[SOLUÇÃO INTEGRADA] Transação de seguidores criada com ID:', followersTxn.id);
-        
-        // Atualizar variáveis para retorno
-        transactionId = followersTxn.id;
-        transactionStatus = followersTxn.status;
-        transactionMethod = followersTxn.method;
-        transactionAmount = followersTxn.amount;
-        transactionPixCode = followersTxn.pix_code || undefined;
-        transactionPixQrcode = followersTxn.pix_qrcode || undefined;
-        transactionCreatedAt = followersTxn.created_at;
-      }
-      // Criar transações no banco - uma para cada post, se houver múltiplos posts
-      else if (posts.length > 1) {
-        console.log('[SOLUÇÃO INTEGRADA] Processando múltiplos posts:', posts.length);
-        
-        // Array para armazenar IDs de todas as transações criadas
-        const createdTransactionIds = [];
-        
-        // Criar transações separadas para cada post
-        for (const post of posts) {
-          // Extrair a quantidade específica para este post
-          const postQuantity = post.quantity || 0;
-          const postId = post.id || post.postId;
-          const postCode = post.code || post.postCode || '';
-          const postUrl = post.url || post.postLink || `https://instagram.com/p/${postCode}`;
-          const imageUrl = post.image_url || post.thumbnail_url || post.display_url || '';
-          const isReel = post.is_reel || post.type === 'reel' || post.type === 'video' || false;
-          const postType = post.type || (isReel ? 'reel' : 'post');
-          
-          // Criar uma transação para este post específico
-          const postTxn = await db.transaction.create({
-            data: {
-              payment_request_id: paymentRequest.id,
-              external_id: `${mpResponse.id.toString()}_${postId}`,
-              status: 'pending',
-              method: 'pix',
-              amount: paymentRequest.amount / posts.length, // Dividir o valor proporcionalmente
-              provider: 'mercadopago',
-              pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
-              pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
-              metadata: JSON.stringify({
-                mercadopago_response: mpResponse,
-                idempotency_key: idempotencyKey,
-                post_id: postId,
-                post_code: postCode,
-                post_url: postUrl,
-                image_url: imageUrl,
-                is_reel: isReel,
-                post_type: postType,
-                quantity: postQuantity,
-                is_multi_post: true,
-                service_id: body.service_id,
-                service_name: body.service_name,
-                service_type: serviceType,
-                profile_username: body.profile_username,
-                complete_post_data: post
-              })
-            }
-          });
-          
-          createdTransactionIds.push(postTxn.id);
-          
-          // Usar a primeira transação como referência para retorno
-          if (createdTransactionIds.length === 1) {
-            transactionId = postTxn.id;
-            transactionStatus = postTxn.status;
-            transactionMethod = postTxn.method;
-            transactionAmount = postTxn.amount;
-            transactionPixCode = postTxn.pix_code || undefined;
-            transactionPixQrcode = postTxn.pix_qrcode || undefined;
-            transactionCreatedAt = postTxn.created_at;
-          }
+      // Criar uma única transação, independentemente do tipo de serviço ou número de posts
+      const transaction = await db.transaction.create({
+        data: {
+          payment_request_id: paymentRequest.id,
+          external_id: mpResponse.id.toString(),
+          status: 'pending',
+          method: 'pix',
+          amount: paymentRequest.amount,
+          provider: 'mercadopago',
+          pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
+          pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
+          metadata: JSON.stringify({
+            mercadopago_response: mpResponse,
+            idempotency_key: idempotencyKey,
+            service_id: body.service_id,
+            service_name: body.service_name,
+            service_type: serviceType,
+            profile_username: body.profile_username,
+            is_followers_service: isFollowersService,
+            total_quantity: additionalData?.quantity || body.quantity || 0,
+            posts: posts.map((post: Post) => ({
+              id: post.id || post.postId,
+              code: post.code || post.postCode || '',
+              url: post.url || post.postLink || `https://instagram.com/p/${post.code || post.postCode || ''}`,
+              image_url: post.image_url || post.thumbnail_url || post.display_url || '',
+              is_reel: post.is_reel || post.type === 'reel' || post.type === 'video' || false,
+              type: post.type || (post.is_reel || post.type === 'reel' || post.type === 'video' ? 'reel' : 'post'),
+              quantity: Math.floor((additionalData?.quantity || body.quantity || 0) / posts.length)
+            })),
+            posts_count: posts.length
+          })
         }
-        
-        console.log('[SOLUÇÃO INTEGRADA] Criadas transações para todos os posts:', createdTransactionIds);
-      }
-      // Caso tradicional - uma única transação
-      else {
-        const singlePostTxn = await db.transaction.create({
-          data: {
-            payment_request_id: paymentRequest.id,
-            external_id: mpResponse.id.toString(),
-            status: 'pending',
-            method: 'pix',
-            amount: paymentRequest.amount,
-            provider: 'mercadopago',
-            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
-            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
-            metadata: JSON.stringify({
-              mercadopago_response: mpResponse,
-              idempotency_key: idempotencyKey,
-              is_multi_post: false,
-              service_id: body.service_id,
-              service_name: body.service_name,
-              service_type: serviceType,
-              profile_username: body.profile_username,
-              post_data: posts.length === 1 ? posts[0] : null
-            })
-          }
-        });
-        
-        console.log('[SOLUÇÃO INTEGRADA] Transação única criada com ID:', singlePostTxn.id);
-        
-        // Atualizar variáveis para retorno
-        transactionId = singlePostTxn.id;
-        transactionStatus = singlePostTxn.status;
-        transactionMethod = singlePostTxn.method;
-        transactionAmount = singlePostTxn.amount;
-        transactionPixCode = singlePostTxn.pix_code || undefined;
-        transactionPixQrcode = singlePostTxn.pix_qrcode || undefined;
-        transactionCreatedAt = singlePostTxn.created_at;
-      }
+      });
+      
+      console.log('[SOLUÇÃO INTEGRADA] Transação única criada com ID:', transaction.id);
+      
+      // Atualizar variáveis para retorno
+      transactionId = transaction.id;
+      transactionStatus = transaction.status;
+      transactionMethod = transaction.method;
+      transactionAmount = transaction.amount;
+      transactionPixCode = transaction.pix_code || undefined;
+      transactionPixQrcode = transaction.pix_qrcode || undefined;
+      transactionCreatedAt = transaction.created_at;
       
       // Atualizar a solicitação de pagamento para 'processing'
       await db.paymentRequest.update({

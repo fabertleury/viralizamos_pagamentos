@@ -26,13 +26,33 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Verificar se o usuário já existe e criar caso não exista
+    const customerEmail = body.customer_email || body.payer_email;
+    const customerName = body.customer_name || body.payer_name;
+    
+    let user = await db.user.findUnique({
+      where: { email: customerEmail }
+    });
+    
+    if (!user) {
+      console.log(`Usuário com email ${customerEmail} não encontrado. Criando novo usuário.`);
+      
+      // Criar novo usuário
+      user = await db.user.create({
+        data: {
+          email: customerEmail,
+          name: customerName,
+          role: 'customer' // Definir role padrão como customer
+        }
+      });
+      
+      console.log(`Novo usuário criado: ${user.name} (${user.email})`);
+    } else {
+      console.log(`Usuário encontrado: ${user.name} (${user.email})`);
+    }
+    
     // Gerar token único para acesso à página de pagamento
     const token = generateToken();
-    
-    // Definir data de expiração (padrão: 24 horas)
-    const expiresAt = body.expires_at 
-      ? new Date(body.expires_at) 
-      : new Date(Date.now() + 24 * 60 * 60 * 1000);
     
     // Obter external_service_id do body ou do additional_data se disponível
     const externalServiceId = body.external_service_id || 
@@ -42,6 +62,11 @@ export async function POST(request: NextRequest) {
     console.log('Service ID interno:', body.service_id);
     console.log('Service ID externo:', externalServiceId);
     
+    // Definir data de expiração (padrão: 24 horas)
+    const expiresAt = body.expires_at 
+      ? new Date(body.expires_at) 
+      : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    
     // Criar a solicitação de pagamento com os campos corretos
     const paymentRequest = await db.paymentRequest.create({
       data: {
@@ -50,8 +75,8 @@ export async function POST(request: NextRequest) {
         service_id: body.service_id,
         external_service_id: externalServiceId,
         profile_username: body.profile_username,
-        customer_name: body.customer_name || body.payer_name,
-        customer_email: body.customer_email || body.payer_email,
+        customer_name: customerName,
+        customer_email: customerEmail,
         customer_phone: body.customer_phone || body.payer_phone,
         service_name: body.service_name || body.description,
         return_url: body.return_url,
