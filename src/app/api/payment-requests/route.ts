@@ -34,12 +34,21 @@ export async function POST(request: NextRequest) {
       ? new Date(body.expires_at) 
       : new Date(Date.now() + 24 * 60 * 60 * 1000);
     
+    // Obter external_service_id do body ou do additional_data se disponível
+    const externalServiceId = body.external_service_id || 
+                             (body.additional_data && typeof body.additional_data === 'object' && body.additional_data.external_service_id) ||
+                             null;
+    
+    console.log('Service ID interno:', body.service_id);
+    console.log('Service ID externo:', externalServiceId);
+    
     // Criar a solicitação de pagamento com os campos corretos
     const paymentRequest = await db.paymentRequest.create({
       data: {
         amount,
         token,
         service_id: body.service_id,
+        external_service_id: externalServiceId,
         profile_username: body.profile_username,
         customer_name: body.customer_name || body.payer_name,
         customer_email: body.customer_email || body.payer_email,
@@ -62,6 +71,8 @@ export async function POST(request: NextRequest) {
       id: paymentRequest.id,
       token: paymentRequest.token,
       amount: paymentRequest.amount,
+      service_id: paymentRequest.service_id,
+      external_service_id: paymentRequest.external_service_id,
       service_name: paymentRequest.service_name,
       status: paymentRequest.status,
       customer_name: paymentRequest.customer_name,

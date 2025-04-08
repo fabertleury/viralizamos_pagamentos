@@ -22,6 +22,7 @@ model PaymentRequest {
   token                String    @unique
   amount               Float
   service_id           String?
+  external_service_id  String?   // ID do serviço no provedor (externo)
   profile_username     String?
   customer_email       String
   customer_name        String
@@ -43,6 +44,7 @@ model PaymentRequest {
   @@index([token])
   @@index([status])
   @@index([service_id])
+  @@index([external_service_id])
   @@index([created_at])
 }
 
