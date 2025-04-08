@@ -85,6 +85,25 @@ const getProxyImageUrl = (url: string | undefined) => {
   return url;
 };
 
+// Atualizar o cálculo da quantidade por post quando são selecionados múltiplos posts
+// Se houver múltiplos posts, a quantidade total deve ser dividida entre eles
+const calculatePostQuantity = (payment: PaymentRequest, postIndex: number) => {
+  if (!payment || !payment.posts || payment.posts.length === 0) return 0;
+  
+  // Se há apenas um post, mostra o total
+  if (payment.posts.length === 1) return payment.quantity;
+  
+  // Se há quantidade específica no post, usa ela
+  if (payment.posts[postIndex].quantity) return payment.posts[postIndex].quantity;
+  
+  // Senão, divide a quantidade total pelo número de posts (distribui igualmente)
+  const quantityPerPost = Math.floor(payment.quantity / payment.posts.length);
+  
+  // Distribui o resto para o primeiro post
+  const remainder = payment.quantity % payment.posts.length;
+  return postIndex === 0 ? quantityPerPost + remainder : quantityPerPost;
+};
+
 export default function PaymentPage() {
   const params = useParams();
   const token = params.token as string;
@@ -338,7 +357,7 @@ export default function PaymentPage() {
                               </Link>
                               
                               <Badge colorScheme="pink" fontSize="sm" px={2} py={1} borderRadius="md">
-                                {payment.posts.length === 1 ? payment.quantity : post.quantity} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
+                                {calculatePostQuantity(payment, payment.posts.indexOf(post))} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
                               </Badge>
                             </Flex>
                           </Box>
