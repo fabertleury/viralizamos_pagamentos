@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
+import { notifyOrdersService } from '@/lib/orders-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -112,6 +113,17 @@ export async function POST(request: NextRequest) {
         });
         
         console.log(`PaymentRequest ${paymentRequestId} atualizado para completed com ${transactions.length} transações`);
+        
+        // Notificar o serviço de orders sobre a aprovação do pagamento
+        try {
+          for (const transaction of transactions) {
+            const notificationResult = await notifyOrdersService(transaction.id);
+            console.log(`Notificação para o serviço de orders ${notificationResult ? 'enviada com sucesso' : 'falhou'} para a transação ${transaction.id}`);
+          }
+        } catch (notificationError) {
+          console.error('Erro ao notificar serviço de orders:', notificationError);
+          // Não lançamos a exceção para permitir que o processamento continue
+        }
       }
       
     } catch (error) {
