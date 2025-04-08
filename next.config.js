@@ -23,6 +23,30 @@ const nextConfig = {
       },
     ];
   },
+  images: {
+    domains: [
+      'scontent-lga3-1.cdninstagram.com',
+      'scontent-lga3-2.cdninstagram.com',
+      'scontent.cdninstagram.com',
+      'instagram.fgru10-1.fna.fbcdn.net',
+      'instagram.ftjl1-2.fna.fbcdn.net',
+      'images.weserv.nl',
+    ],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.cdninstagram.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.fbcdn.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.weserv.nl',
+      },
+    ],
+  },
 };
 
 module.exports = nextConfig; 

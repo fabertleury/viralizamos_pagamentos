@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import NextImage from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   Box, 
@@ -16,7 +17,7 @@ import {
   Divider, 
   Button, 
   Flex, 
-  Image, 
+  Image as ChakraImage, 
   Avatar, 
   HStack, 
   VStack, 
@@ -30,7 +31,7 @@ import {
   SkeletonText,
   useClipboard
 } from '@chakra-ui/react';
-import { FaHeart, FaCopy, FaInfoCircle, FaTag } from 'react-icons/fa';
+import { FaHeart, FaCopy, FaInfoCircle, FaTag, FaInstagram } from 'react-icons/fa';
 import ViralizamosHeader from '@/components/layout/ViralizamosHeader';
 import { ViralizamosFooter } from '@/components/layout/ViralizamosFooter';
 
@@ -66,9 +67,22 @@ interface Post {
   url: string;
   media_type: string;
   thumbnail_url?: string;
+  image_url?: string;
   caption?: string;
   quantity: number;
 }
+
+// Função para resolver problemas de CORS com imagens externas do Instagram
+const getProxyImageUrl = (url: string | undefined) => {
+  if (!url) return null;
+  
+  // Se a URL contiver scontent-*.cdninstagram.com, usar um proxy de imagens
+  if (url.includes('cdninstagram.com') || url.includes('fbcdn.net')) {
+    return `https://images.weserv.nl/?url=${encodeURIComponent(url)}`;
+  }
+  
+  return url;
+};
 
 export default function PaymentPage() {
   const params = useParams();
@@ -77,7 +91,7 @@ export default function PaymentPage() {
   const [payment, setPayment] = useState<PaymentRequest | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [timeRemaining, setTimeRemaining] = useState<number>(1800); // 30 minutos em segundos
   const [formattedTime, setFormattedTime] = useState<string>('30:00');
   
   const pixCode = payment?.payment?.pix_code || '';
@@ -116,8 +130,14 @@ export default function PaymentPage() {
           const remainingMs = Math.max(0, expiryTime - now);
           const remainingSecs = Math.floor(remainingMs / 1000);
           
-          setTimeRemaining(remainingSecs);
-          setFormattedTime(formatTimeRemaining(remainingSecs));
+          // Garantir que o tempo inicial seja de 30 minutos (1800 segundos) ou o tempo restante, o que for menor
+          const initialTime = Math.min(1800, Math.max(0, remainingSecs));
+          setTimeRemaining(initialTime);
+          setFormattedTime(formatTimeRemaining(initialTime));
+        } else {
+          // Se não houver data de expiração, definir para 30 minutos
+          setTimeRemaining(1800);
+          setFormattedTime('30:00');
         }
         
       } catch (err) {
@@ -200,11 +220,16 @@ export default function PaymentPage() {
                         <Text fontWeight="semibold">Instagram:</Text>
                       </HStack>
                       <HStack spacing={3}>
-                        <Avatar 
-                          size="sm" 
-                          name={payment.instagram_username} 
-                          src="/instagram-avatar-placeholder.png" 
-                        />
+                        <Flex
+                          width="32px"
+                          height="32px"
+                          borderRadius="full"
+                          bg="pink.50"
+                          justify="center"
+                          align="center"
+                        >
+                          <Icon as={FaInstagram} color="pink.500" boxSize={4} />
+                        </Flex>
                         <Text>@{payment.instagram_username}</Text>
                       </HStack>
                     </Box>
@@ -246,14 +271,16 @@ export default function PaymentPage() {
                             overflow="hidden" 
                             mr={4}
                           >
-                            {post.thumbnail_url ? (
-                              <Image 
-                                src={post.thumbnail_url} 
-                                alt="Thumbnail" 
-                                width="100%" 
-                                height="100%" 
-                                objectFit="cover" 
-                              />
+                            {post.image_url || post.thumbnail_url ? (
+                              <Box position="relative" width="100%" height="100%">
+                                <NextImage 
+                                  src={getProxyImageUrl(post.image_url || post.thumbnail_url) || '/placeholder-post.png'} 
+                                  alt="Thumbnail" 
+                                  fill
+                                  style={{ objectFit: 'cover' }}
+                                  unoptimized={true}
+                                />
+                              </Box>
                             ) : (
                               <Flex 
                                 align="center" 
@@ -261,7 +288,7 @@ export default function PaymentPage() {
                                 height="100%" 
                                 bg="gray.200"
                               >
-                                <Icon as={FaHeart} color="gray.400" />
+                                <Icon as={FaInstagram} color="gray.400" boxSize={5} />
                               </Flex>
                             )}
                           </Box>
@@ -354,7 +381,7 @@ export default function PaymentPage() {
                       bg="white"
                     >
                       {payment?.payment?.pix_qrcode ? (
-                        <Image 
+                        <ChakraImage 
                           src={`data:image/png;base64,${payment.payment.pix_qrcode}`} 
                           alt="QR Code PIX" 
                           width="200px" 
@@ -426,8 +453,7 @@ export default function PaymentPage() {
                       mt={2}
                     >
                       <Text fontSize="sm" color="gray.600" textAlign="center">
-                        Após o pagamento, o sistema irá processar automaticamente seu pedido.
-                        Este processo pode levar até 5 minutos. Não feche esta janela.
+                        Você será redirecionado após o pagamento, o sistema irá processar automaticamente seu pedido.
                       </Text>
                     </Box>
                   </VStack>

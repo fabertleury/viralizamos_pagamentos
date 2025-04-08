@@ -12,7 +12,7 @@ export default function ViralizamosHeader() {
     <Box as="header" borderBottom="1px solid" borderColor="gray.200" bg="white">
       <Container maxW="container.xl" py={4}>
         <Flex justify="space-between" align="center">
-          <NextLink href="/" passHref>
+          <NextLink href="/" passHref legacyBehavior>
             <Link>
               <Image
                 src="/logo-viralizamos.png"
@@ -25,25 +25,25 @@ export default function ViralizamosHeader() {
           </NextLink>
           
           <HStack spacing={6} display={{ base: 'none', md: 'flex' }}>
-            <NextLink href="https://viralizamos.com" passHref>
+            <NextLink href="https://viralizamos.com" passHref legacyBehavior>
               <Link color="gray.600" fontSize="sm" fontWeight="medium" _hover={{ color: "brand.600" }}>
                 Home
               </Link>
             </NextLink>
             
-            <NextLink href="https://viralizamos.com/sobre" passHref>
+            <NextLink href="https://viralizamos.com/sobre" passHref legacyBehavior>
               <Link color="gray.600" fontSize="sm" fontWeight="medium" _hover={{ color: "brand.600" }}>
                 Sobre
               </Link>
             </NextLink>
             
-            <NextLink href="https://viralizamos.com/servicos" passHref>
+            <NextLink href="https://viralizamos.com/servicos" passHref legacyBehavior>
               <Link color="gray.600" fontSize="sm" fontWeight="medium" _hover={{ color: "brand.600" }}>
                 Serviços
               </Link>
             </NextLink>
             
-            <NextLink href="https://viralizamos.com/contato" passHref>
+            <NextLink href="https://viralizamos.com/contato" passHref legacyBehavior>
               <Link color="gray.600" fontSize="sm" fontWeight="medium" _hover={{ color: "brand.600" }}>
                 Contato
               </Link>
