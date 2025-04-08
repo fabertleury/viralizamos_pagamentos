@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
 import crypto from 'crypto';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
+import jwt from 'jsonwebtoken';
 
 // Interface para o tipo de Post
 interface Post {
@@ -50,6 +51,40 @@ function generateIdempotencyKey(paymentRequestId: string): string {
  */
 export async function POST(request: NextRequest) {
   console.log('[SOLUÇÃO INTEGRADA] Recebida solicitação de pagamento');
+  
+  // Verificar o token JWT no cabeçalho de autorização
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('[SOLUÇÃO INTEGRADA] Erro: Token de autorização ausente ou inválido');
+    return NextResponse.json(
+      { error: 'Token de autorização ausente ou inválido' },
+      { status: 401 }
+    );
+  }
+  
+  const token = authHeader.split(' ')[1];
+  try {
+    // Verificar o token JWT
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error('[SOLUÇÃO INTEGRADA] ERRO CRÍTICO: JWT_SECRET não definida');
+      return NextResponse.json(
+        { error: 'Erro de configuração no servidor' },
+        { status: 500 }
+      );
+    }
+    
+    const decoded = jwt.verify(token, jwtSecret);
+    // Opcionalmente, você pode verificar claims específicos do token aqui
+    
+    console.log('[SOLUÇÃO INTEGRADA] Token JWT válido:', decoded);
+  } catch (jwtError) {
+    console.error('[SOLUÇÃO INTEGRADA] Erro na verificação do token JWT:', jwtError);
+    return NextResponse.json(
+      { error: 'Token de autorização inválido ou expirado' },
+      { status: 401 }
+    );
+  }
   
   try {
     const body = await request.json();
