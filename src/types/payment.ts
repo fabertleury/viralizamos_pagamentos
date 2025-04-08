@@ -15,6 +15,7 @@ export interface PaymentResponse {
   expires_at: Date | null;
   created_at: Date;
   posts: any[];
+  quantity?: number; // Quantidade total de curtidas/visualizações
   pix_code?: string;
   qr_code_image?: string;
   pix_key?: string;

@@ -57,10 +57,28 @@ export async function GET(
     
     // Analisar dados adicionais
     let posts = [];
+    let quantity = 0;
     if (paymentRequest.additional_data) {
       try {
         const additionalData = JSON.parse(paymentRequest.additional_data);
         posts = additionalData.posts || [];
+        
+        // Extrair a quantidade total de curtidas/visualizações
+        quantity = additionalData.quantity || additionalData.total_quantity || 0;
+        
+        // Se tiver metadata na transação, tentar extrair de lá também
+        if (paymentRequest.transactions[0]?.metadata) {
+          try {
+            const transactionMetadata = JSON.parse(paymentRequest.transactions[0].metadata);
+            if (!quantity && transactionMetadata.total_quantity) {
+              quantity = transactionMetadata.total_quantity;
+            }
+          } catch (metaErr) {
+            console.error('Erro ao analisar metadata da transação:', metaErr);
+          }
+        }
+        
+        console.log('Quantidade extraída:', quantity);
       } catch (e) {
         console.error('Erro ao analisar additional_data:', e);
       }
@@ -81,6 +99,7 @@ export async function GET(
       expires_at: paymentRequest.expires_at,
       created_at: paymentRequest.created_at,
       posts: posts,
+      quantity: quantity,
       pix_code: paymentRequest.transactions[0]?.pix_code || '',
       qr_code_image: paymentRequest.transactions[0]?.pix_qrcode || '',
       pix_key: '',
