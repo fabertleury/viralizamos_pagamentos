@@ -56,7 +56,7 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
       amount: transaction.amount,
       metadata: {
         service: transaction.payment_request.service_id,
-        external_service_id: transaction.payment_request.external_service_id,
+        external_service_id: transaction.payment_request.external_service_id || '',
         profile: transaction.payment_request.profile_username,
         service_type: serviceType,
         posts: posts.map(post => ({
@@ -75,6 +75,8 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
         is_followers_service: isFollowersService
       }
     };
+
+    console.log(`Enviando notificação com external_service_id: ${transaction.payment_request.external_service_id || 'não definido'}`);
 
     // Gerar token JWT para autenticação
     const token = sign(
