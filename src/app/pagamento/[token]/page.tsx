@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import NextImage from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -29,9 +29,17 @@ import {
   Link,
   Icon,
   SkeletonText,
-  useClipboard
+  useClipboard,
+  useToast,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useDisclosure,
 } from '@chakra-ui/react';
-import { FaHeart, FaCopy, FaInfoCircle, FaTag, FaInstagram } from 'react-icons/fa';
+import { FaHeart, FaCopy, FaInfoCircle, FaTag, FaInstagram, FaCheck } from 'react-icons/fa';
 import ViralizamosHeader from '@/components/layout/ViralizamosHeader';
 import { ViralizamosFooter } from '@/components/layout/ViralizamosFooter';
 
@@ -61,6 +69,7 @@ interface PaymentRequest {
     pix_qrcode: string;
     amount: number;
   };
+  return_url?: string;
 }
 
 interface Post {
@@ -107,12 +116,19 @@ const calculatePostQuantity = (payment: PaymentRequest, postIndex: number) => {
 export default function PaymentPage() {
   const params = useParams();
   const token = params.token as string;
+  const router = useRouter();
+  const toast = useToast();
   
   const [payment, setPayment] = useState<PaymentRequest | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(1800); // 30 minutos em segundos
   const [formattedTime, setFormattedTime] = useState<string>('30:00');
+  const [verifyingPayment, setVerifyingPayment] = useState<boolean>(false);
+  
+  // Estado para o diálogo de confirmação de pagamento
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
   
   const pixCode = payment?.payment?.pix_code || '';
   const { hasCopied, onCopy } = useClipboard(pixCode);
@@ -189,6 +205,106 @@ export default function PaymentPage() {
   
   // Calcular a porcentagem de tempo restante para a barra de progresso
   const timePercentage = Math.min(100, Math.max(0, (timeRemaining / 1800) * 100));
+  
+  // Função para verificar se o pagamento foi aprovado
+  const checkPaymentStatus = async (): Promise<boolean> => {
+    try {
+      setVerifyingPayment(true);
+      const response = await fetch(`/api/payment-requests/check/${token}`);
+      
+      if (!response.ok) {
+        throw new Error('Erro ao verificar status do pagamento');
+      }
+      
+      const data = await response.json();
+      console.log('Status do pagamento:', data);
+      
+      // Atualizar informações do pagamento
+      if (data.payment && data.payment.status !== payment?.payment?.status) {
+        setPayment(data);
+      }
+      
+      // Verificar se o pagamento foi aprovado
+      if (data.payment && data.payment.status === 'approved') {
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Erro ao verificar pagamento:', error);
+      return false;
+    } finally {
+      setVerifyingPayment(false);
+    }
+  };
+  
+  // Função para redirecionar para a página de agradecimento
+  const redirectToThankYouPage = () => {
+    const baseUrl = payment?.return_url || 'https://viralizamos.com/agradecimento';
+    
+    // Construir URL com parâmetros
+    const url = new URL(baseUrl);
+    url.searchParams.append('token', token);
+    url.searchParams.append('status', 'approved');
+    
+    if (payment?.id) {
+      url.searchParams.append('payment_id', payment.id);
+    }
+    
+    console.log('Redirecionando para:', url.toString());
+    
+    // Redirecionar
+    window.location.href = url.toString();
+  };
+  
+  // Verificação automática a cada 30 segundos
+  useEffect(() => {
+    // Não verificar se o pagamento já estiver aprovado
+    if (payment?.payment?.status === 'approved') {
+      // Redirecionar automaticamente após um breve atraso
+      redirectToThankYouPage();
+      return;
+    }
+    
+    const interval = setInterval(async () => {
+      const approved = await checkPaymentStatus();
+      
+      if (approved) {
+        // Mostrar o diálogo por um breve momento antes de redirecionar
+        onOpen();
+        
+        // Após 2 segundos, redirecionar automaticamente
+        setTimeout(() => {
+          redirectToThankYouPage();
+        }, 2000);
+        
+        clearInterval(interval);
+      }
+    }, 30000); // A cada 30 segundos
+    
+    return () => clearInterval(interval);
+  }, [payment]);
+  
+  // Função para verificar pagamento manualmente (botão "Já paguei")
+  const handleManualCheck = async () => {
+    const approved = await checkPaymentStatus();
+    
+    if (approved) {
+      // Mostrar o diálogo e redirecionar automaticamente após 2 segundos
+      onOpen();
+      setTimeout(() => {
+        redirectToThankYouPage();
+      }, 2000);
+    } else {
+      toast({
+        title: 'Pagamento em processamento',
+        description: 'Seu pagamento ainda não foi confirmado. Tente novamente em alguns instantes.',
+        status: 'info',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
   
   return (
     <>
@@ -510,9 +626,47 @@ export default function PaymentPage() {
             </GridItem>
           </Grid>
         ) : null}
+        
+        {payment && payment.payment && (
+          <Box mt={6} textAlign="center">
+            <Button
+              colorScheme="green"
+              size="lg"
+              leftIcon={<FaCheck />}
+              onClick={handleManualCheck}
+              isLoading={verifyingPayment}
+              loadingText="Verificando..."
+            >
+              Já paguei
+            </Button>
+            <Text mt={2} fontSize="sm" color="gray.600">
+              Clique no botão acima após realizar o pagamento para verificar se foi confirmado
+            </Text>
+          </Box>
+        )}
       </Container>
       
       <ViralizamosFooter />
+      
+      {/* Diálogo de confirmação de pagamento */}
+      <AlertDialog
+        isOpen={isOpen}
+        leastDestructiveRef={cancelRef}
+        onClose={onClose}
+        isCentered
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold" color="green.500">
+              Pagamento confirmado!
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Seu pagamento foi processado com sucesso. Você será redirecionado automaticamente...
+            </AlertDialogBody>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </>
   );
 } 

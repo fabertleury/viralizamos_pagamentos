@@ -12,10 +12,13 @@ export interface PaymentResponse {
   customer_phone: string | null;
   instagram_username?: string;
   service_name?: string;
+  service_id?: string;
+  external_service_id?: string;
   expires_at: Date | null;
   created_at: Date;
   posts: any[];
   quantity?: number; // Quantidade total de curtidas/visualizações
+  return_url?: string; // URL de retorno após pagamento
   pix_code?: string;
   qr_code_image?: string;
   pix_key?: string;
@@ -27,6 +30,8 @@ export interface PaymentResponse {
     pix_qrcode?: string | null;
     amount: number;
   };
+  is_approved?: boolean; // Indica se o pagamento foi aprovado
+  is_expired?: boolean; // Indica se o pagamento expirou
 }
 
 // Tipo simplificado para PaymentRequest com transações incluídas

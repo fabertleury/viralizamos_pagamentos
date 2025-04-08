@@ -3,7 +3,7 @@ import { db } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { PaymentResponse } from '@/types/payment';
 
-// Buscar solicitação de pagamento por token
+// Endpoint para verificar status do pagamento por token
 export async function GET(
   request: NextRequest,
   { params }: { params: { token: string } }
@@ -18,7 +18,7 @@ export async function GET(
       );
     }
     
-    console.log(`Buscando pagamento com token: ${token}`);
+    console.log(`Verificando status do pagamento com token: ${token}`);
     
     // Buscar a solicitação de pagamento com a última transação
     const paymentRequest = await db.paymentRequest.findUnique({
@@ -43,17 +43,12 @@ export async function GET(
       );
     }
     
+    // Verificar se o pagamento foi aprovado
+    const isApproved = paymentRequest.transactions.length > 0 && 
+                        paymentRequest.transactions[0].status === 'approved';
+    
     // Verificar se a solicitação expirou
-    if (paymentRequest.expires_at && new Date(paymentRequest.expires_at) < new Date()) {
-      // Atualizar status para expirado se ainda não estiver
-      if (paymentRequest.status === 'pending') {
-        await db.paymentRequest.update({
-          where: { id: paymentRequest.id },
-          data: { status: 'expired' }
-        });
-        paymentRequest.status = 'expired';
-      }
-    }
+    const isExpired = paymentRequest.expires_at && new Date(paymentRequest.expires_at) < new Date();
     
     // Analisar dados adicionais
     let posts = [];
@@ -77,8 +72,6 @@ export async function GET(
             console.error('Erro ao analisar metadata da transação:', metaErr);
           }
         }
-        
-        console.log('Quantidade extraída:', quantity);
       } catch (e) {
         console.error('Erro ao analisar additional_data:', e);
       }
@@ -94,9 +87,9 @@ export async function GET(
       customer_phone: paymentRequest.customer_phone,
       instagram_username: paymentRequest.profile_username || '',
       service_name: paymentRequest.service_name || 'Serviço Instagram',
-      description: paymentRequest.service_name,
       service_id: paymentRequest.service_id || undefined,
       external_service_id: paymentRequest.external_service_id || undefined,
+      description: paymentRequest.service_name,
       status: paymentRequest.status,
       expires_at: paymentRequest.expires_at,
       created_at: paymentRequest.created_at,
@@ -113,17 +106,18 @@ export async function GET(
         pix_code: paymentRequest.transactions[0].pix_code,
         pix_qrcode: paymentRequest.transactions[0].pix_qrcode,
         amount: paymentRequest.transactions[0].amount
-      } : undefined
+      } : undefined,
+      is_approved: isApproved,
+      is_expired: isExpired
     };
     
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Erro ao buscar solicitação de pagamento:', error);
+    console.error('Erro ao verificar status do pagamento:', error);
     return NextResponse.json(
       { 
-        error: 'Erro ao buscar solicitação de pagamento',
-        message: (error as Error).message,
-        stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
+        error: 'Erro ao verificar status do pagamento',
+        message: (error as Error).message
       },
       { status: 500 }
     );
