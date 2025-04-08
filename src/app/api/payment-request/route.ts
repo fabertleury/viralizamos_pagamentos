@@ -194,6 +194,42 @@ export async function POST(request: NextRequest) {
       let transactionPixQrcode = mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined;
       let transactionCreatedAt = new Date();
       
+      // Calcular corretamente a distribuição das quantidades entre os posts
+      const totalQuantity = additionalData?.quantity || body.quantity || 0;
+      const postsCount = posts.length;
+      const baseQuantityPerPost = Math.floor(totalQuantity / postsCount);
+      const remainder = totalQuantity % postsCount;
+      
+      // Mapear posts com suas quantidades calculadas
+      const postsWithQuantities = posts.map((post: Post, index: number) => {
+        // Se o post já tiver uma quantidade específica, usá-la
+        if (post.quantity && post.quantity > 0) {
+          return {
+            ...post,
+            calculated_quantity: post.quantity
+          };
+        }
+        
+        // Caso contrário, calcular a quantidade
+        // Distribuir o resto para os primeiros posts
+        const extraQuantity = index < remainder ? 1 : 0;
+        const calculatedQuantity = baseQuantityPerPost + extraQuantity;
+        
+        return {
+          id: post.id || post.postId,
+          code: post.code || post.postCode || '',
+          url: post.url || post.postLink || `https://instagram.com/p/${post.code || post.postCode || ''}`,
+          image_url: post.image_url || post.thumbnail_url || post.display_url || '',
+          is_reel: post.is_reel || post.type === 'reel' || post.type === 'video' || false,
+          type: post.type || (post.is_reel || post.type === 'reel' || post.type === 'video' ? 'reel' : 'post'),
+          quantity: calculatedQuantity,
+          calculated_quantity: calculatedQuantity
+        };
+      });
+      
+      console.log('[SOLUÇÃO INTEGRADA] Quantidade total distribuída:', totalQuantity);
+      console.log('[SOLUÇÃO INTEGRADA] Distribuição por post:', postsWithQuantities.map((p: { calculated_quantity: number }) => p.calculated_quantity));
+      
       // Criar uma única transação, independentemente do tipo de serviço ou número de posts
       const transaction = await db.transaction.create({
         data: {
@@ -213,17 +249,9 @@ export async function POST(request: NextRequest) {
             service_type: serviceType,
             profile_username: body.profile_username,
             is_followers_service: isFollowersService,
-            total_quantity: additionalData?.quantity || body.quantity || 0,
-            posts: posts.map((post: Post) => ({
-              id: post.id || post.postId,
-              code: post.code || post.postCode || '',
-              url: post.url || post.postLink || `https://instagram.com/p/${post.code || post.postCode || ''}`,
-              image_url: post.image_url || post.thumbnail_url || post.display_url || '',
-              is_reel: post.is_reel || post.type === 'reel' || post.type === 'video' || false,
-              type: post.type || (post.is_reel || post.type === 'reel' || post.type === 'video' ? 'reel' : 'post'),
-              quantity: Math.floor((additionalData?.quantity || body.quantity || 0) / posts.length)
-            })),
-            posts_count: posts.length
+            total_quantity: totalQuantity,
+            posts: postsWithQuantities,
+            posts_count: postsCount
           })
         }
       });
