@@ -42,6 +42,7 @@ interface PaymentRequest {
   status: string;
   created_at: string;
   amount: number;
+  quantity: number;
   customer_name: string;
   customer_email: string;
   customer_phone?: string;
@@ -212,6 +213,13 @@ export default function PaymentPage() {
                         <Text fontWeight="semibold">Serviço:</Text>
                       </HStack>
                       <Text>{payment.service_name}</Text>
+                      <Text mt={1} fontWeight="medium" color="pink.600">
+                        Total: {payment.quantity || 0} 
+                        {payment.posts && payment.posts.length > 0 && payment.posts[0]?.media_type === 'VIDEO' 
+                          ? 'visualizações' 
+                          : 'curtidas'
+                        }
+                      </Text>
                     </Box>
                     
                     <Box>
@@ -251,7 +259,16 @@ export default function PaymentPage() {
               
               <Card variant="elevated" shadow="md">
                 <CardBody>
-                  <Heading size="md" mb={3}>Posts selecionados</Heading>
+                  <Flex justify="space-between" align="center" mb={3}>
+                    <Heading size="md">Posts selecionados</Heading>
+                    <Badge colorScheme="pink" fontSize="sm" px={2} py={1}>
+                      Total: {payment.quantity || 0}
+                      {payment.posts && payment.posts.length > 0 && payment.posts[0]?.media_type === 'VIDEO' 
+                        ? ' visualizações' 
+                        : ' curtidas'
+                      }
+                    </Badge>
+                  </Flex>
                   
                   {payment.posts && payment.posts.length > 0 ? (
                     <VStack spacing={4} align="stretch">
@@ -280,6 +297,18 @@ export default function PaymentPage() {
                                   style={{ objectFit: 'cover' }}
                                   unoptimized={true}
                                 />
+                                <Flex 
+                                  position="absolute"
+                                  top="0"
+                                  left="0"
+                                  bg="rgba(0,0,0,0.4)"
+                                  color="white"
+                                  fontSize="xs"
+                                  px={1}
+                                  borderBottomRightRadius="sm"
+                                >
+                                  {post.media_type === 'VIDEO' ? 'Vídeo' : 'Foto'}
+                                </Flex>
                               </Box>
                             ) : (
                               <Flex 
@@ -308,8 +337,8 @@ export default function PaymentPage() {
                                 Ver post original
                               </Link>
                               
-                              <Badge colorScheme="pink">
-                                {post.quantity} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
+                              <Badge colorScheme="pink" fontSize="sm" px={2} py={1} borderRadius="md">
+                                {payment.posts.length === 1 ? payment.quantity : post.quantity} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
                               </Badge>
                             </Flex>
                           </Box>
