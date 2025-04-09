@@ -6,16 +6,30 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Definir interface para o tipo Order
+interface Order {
+  id: string;
+  external_order_id?: string;
+  status: string;
+  service?: {
+    name?: string;
+  };
+  target_username?: string;
+  quantity?: number;
+  amount?: number;
+  created_at: string;
+}
+
 export default function AcompanharPedidoPage() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [searched, setSearched] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Função para mapear o status do pagamento para o status do pedido
-  const mapPaymentStatusToOrderStatus = (paymentStatus) => {
+  const mapPaymentStatusToOrderStatus = (paymentStatus: string): string => {
     switch (paymentStatus?.toLowerCase()) {
       case 'approved':
         return 'processing';
@@ -76,7 +90,7 @@ export default function AcompanharPedidoPage() {
   };
 
   // Função para formatar a data
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -87,7 +101,7 @@ export default function AcompanharPedidoPage() {
     });
   };
 
-  const handleSearchOrders = async (e) => {
+  const handleSearchOrders = async (e: React.FormEvent | null = null) => {
     if (e) e.preventDefault();
     
     if (!email.trim()) {
