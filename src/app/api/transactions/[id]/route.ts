@@ -13,6 +13,8 @@ export async function GET(
     // Verificar se o ID é um UUID válido usando a função helper
     const isUuid = isValidUuid(id);
     
+    console.log(`[API] Buscando transação com ${isUuid ? 'UUID' : 'ID externo'}: ${id}`);
+    
     let transaction: Transaction | null = null;
     
     if (isUuid) {

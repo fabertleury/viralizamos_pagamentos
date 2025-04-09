@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // Verificar se o ID é um UUID válido
     const idValue = getSingleValue(id);
-    const isUuid = isValidUuid(id);
+    const isUuid = isValidUuid(idValue);
     
     console.log(`[API] Buscando transação com ${isUuid ? 'UUID' : 'ID externo'}: ${idValue}`);
     
