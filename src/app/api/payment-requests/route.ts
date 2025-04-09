@@ -11,8 +11,13 @@ export async function POST(request: NextRequest) {
     const origin = request.headers.get('origin') || '';
     const isTrustedOrigin = [
       'https://viralizamos.com', 
-      'https://www.viralizamos.com', 
-      'http://localhost:3000'
+      'https://www.viralizamos.com',
+      'https://orders.viralizamos.com',
+      'https://painel.viralizamos.com',
+      'https://pagamentos.viralizamos.com',
+      'https://dev.viralizamos.com',
+      'http://localhost:3000',
+      'http://localhost:3001'
     ].includes(origin);
     
     console.log(`Requisição recebida de origem: ${origin}, confiável: ${isTrustedOrigin}`);
