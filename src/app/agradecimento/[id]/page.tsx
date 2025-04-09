@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Confetti from 'react-confetti';
@@ -39,12 +39,11 @@ export default function AgradecimentoPage() {
 }
 
 function AgradecimentoContent() {
-  const searchParams = useSearchParams();
+  const params = useParams();
   const [loading, setLoading] = useState(true);
   const [transaction, setTransaction] = useState<TransactionType | null>(null);
   const [customer, setCustomer] = useState<CustomerType | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
   const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 });
   const [showConfetti, setShowConfetti] = useState(true);
 
@@ -80,12 +79,8 @@ function AgradecimentoContent() {
       try {
         setLoading(true);
         
-        // Obter ID da transação da URL
-        const transactionId = searchParams.get('id');
-        let emailParam = searchParams.get('email');
-        
-        // Armazenar o email para uso posterior
-        setEmail(emailParam);
+        // Obter ID da transação dos parâmetros da rota
+        const transactionId = params.id;
         
         if (!transactionId) {
           setError('ID da transação não encontrado');
@@ -93,7 +88,7 @@ function AgradecimentoContent() {
           return;
         }
         
-        // Buscar dados da transação via API em vez de diretamente com Prisma (segurança)
+        // Buscar dados da transação via API
         let transactionData;
         try {
           // Fazer requisição para API interna
@@ -134,7 +129,7 @@ function AgradecimentoContent() {
     };
 
     fetchTransactionAndCustomer();
-  }, [searchParams]);
+  }, [params.id]);
 
   if (loading) {
     return (
@@ -249,22 +244,10 @@ function AgradecimentoContent() {
             </div>
           )}
           
-          <div className="text-center space-y-4">            
-            <div className="pt-4 space-y-3">
-              <Link 
-                href={`/acompanhar?email=${encodeURIComponent(email || (customer?.email || ''))}`}
-                className="inline-block w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-200"
-              >
-                Acompanhar meu pedido
-              </Link>
-              
-              <Link 
-                href="/" 
-                className="inline-block w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-6 rounded-lg transition-colors duration-200"
-              >
-                Voltar para a página inicial
-              </Link>
-            </div>
+          <div className="text-center">
+            <Link href="/" className="text-primary hover:underline">
+              Voltar para a página inicial
+            </Link>
           </div>
         </div>
       </div>
