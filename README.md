@@ -114,3 +114,41 @@ Este projeto está licenciado sob a [MIT License](LICENSE).
 ## Suporte
 
 Para problemas ou dúvidas, abra uma issue no repositório ou entre em contato com a equipe de desenvolvimento.
+
+## Troubleshooting
+
+### Problemas de comunicação com o serviço de orders
+
+Se você estiver enfrentando problemas com pagamentos aprovados que não estão sendo enviados para o serviço de orders, siga este guia:
+
+1. **Verificar o status das transações**: Certifique-se que existem transações com status `approved` no banco de dados.
+
+2. **Verificar logs de notificação**: Verifique se existem registros na tabela `payment_notification_logs`. Transações corretamente notificadas devem ter um registro com `status = 'success'`.
+
+3. **Verificar JWT_SECRET**: O problema mais comum é que a chave JWT_SECRET não está sincronizada entre os serviços. A mesma chave deve ser usada nos dois serviços:
+   - Verifique no microserviço de Pagamentos: arquivo `.env`
+   - Verifique no microserviço de Orders: arquivo `.env`
+
+4. **Executar o script de diagnóstico**:
+   ```bash
+   node scripts/debug-notification.js
+   ```
+   Este script irá verificar a conectividade com o serviço de orders e identificar possíveis problemas.
+
+5. **Corrigir o problema e reenviar notificações**:
+   ```bash
+   # Após corrigir a chave JWT_SECRET, execute:
+   node scripts/fix-orders-communication.js
+   ```
+   Este script irá reenviar notificações para todas as transações aprovadas que ainda não foram processadas.
+
+6. **Verificar o endpoint no Orders Service**: O endpoint `/api/orders/webhook/payment` no serviço de orders deve estar configurado para receber as notificações.
+
+7. **Logs detalhados**:
+   - Verifique logs do webhook Mercado Pago: `webhookLog`
+   - Verifique logs de notificação: `paymentNotificationLog`
+   - Verifique se há erros específicos (código 401 indica problema de autenticação JWT)
+
+### Outras questões comuns
+
+...
