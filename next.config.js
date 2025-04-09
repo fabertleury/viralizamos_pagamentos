@@ -28,7 +28,7 @@ const nextConfig = {
             key: 'Access-Control-Allow-Origin',
             value: process.env.NODE_ENV === 'development' 
               ? '*' 
-              : 'https://viralizamos.com, https://www.viralizamos.com',
+              : 'https://viralizamos.com,https://www.viralizamos.com,https://dev.viralizamos.com,http://dev.viralizamos.com,https://orders.viralizamos.com,https://painel.viralizamos.com,https://pagamentos.viralizamos.com,https://checkout.viralizamos.com',
           },
           {
             key: 'Access-Control-Allow-Methods',
@@ -36,7 +36,7 @@ const nextConfig = {
           },
           {
             key: 'Access-Control-Allow-Headers',
-            value: 'Content-Type, Authorization, X-Requested-With',
+            value: 'Content-Type, Authorization, X-Requested-With, X-Payment-Source',
           },
           {
             key: 'Access-Control-Allow-Credentials',

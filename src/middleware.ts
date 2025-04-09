@@ -10,6 +10,8 @@ const allowedOrigins = [
   'https://painel.viralizamos.com',
   'https://pagamentos.viralizamos.com',
   'https://dev.viralizamos.com',
+  'http://dev.viralizamos.com',
+  'https://checkout.viralizamos.com',
   'http://localhost:3000',
   'http://localhost:3001'
 ];
@@ -46,7 +48,7 @@ export function middleware(request: NextRequest) {
     // Configurações CORS adicionais
     responseHeaders.set('Access-Control-Allow-Credentials', 'true');
     responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Payment-Source');
     
     // Responder à solicitação OPTIONS (pre-flight)
     if (requestMethod === 'OPTIONS') {
