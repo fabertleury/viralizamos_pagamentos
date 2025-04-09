@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isValidUuid } from '@/lib/helpers';
+import { Transaction } from '@/lib/types';
 
 export async function GET(
   request: Request,
@@ -8,10 +10,10 @@ export async function GET(
   try {
     const id = params.id;
     
-    // Verificar se o ID é um UUID válido
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    // Verificar se o ID é um UUID válido usando a função helper
+    const isUuid = isValidUuid(id);
     
-    let transaction = null;
+    let transaction: Transaction | null = null;
     
     if (isUuid) {
       // Buscar por ID
@@ -20,7 +22,7 @@ export async function GET(
         include: {
           payment_request: true,
         },
-      });
+      }) as Transaction | null;
     } else {
       // Buscar por ID externo
       transaction = await db.transaction.findFirst({
@@ -28,7 +30,7 @@ export async function GET(
         include: {
           payment_request: true,
         },
-      });
+      }) as Transaction | null;
     }
     
     if (!transaction) {
@@ -50,9 +52,14 @@ export async function GET(
       method: transaction.method,
       metadata: transaction.metadata ? JSON.parse(transaction.metadata) : null,
       status_provider: transaction.status,
-      customer_name: transaction.payment_request?.customer_name,
-      customer_email: transaction.payment_request?.customer_email,
-      customer_phone: transaction.payment_request?.customer_phone,
+      customer_name: transaction.payment_request?.customer_name || null,
+      customer_email: transaction.payment_request?.customer_email || null,
+      customer_phone: transaction.payment_request?.customer_phone || null,
+      customer: transaction.payment_request ? {
+        name: transaction.payment_request.customer_name,
+        email: transaction.payment_request.customer_email,
+        phone: transaction.payment_request.customer_phone
+      } : null
     };
     
     return NextResponse.json(transactionData);
