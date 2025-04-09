@@ -12,17 +12,15 @@ export default function ViralizamosHeader() {
     <Box as="header" borderBottom="1px solid" borderColor="gray.200" bg="white">
       <Container maxW="container.xl" py={4}>
         <Flex justify="space-between" align="center">
-          <NextLink href="/" passHref legacyBehavior>
-            <Link>
-              <Image
-                src="/logo-viralizamos.png"
-                alt="Viralizamos"
-                h="40px"
-                w="auto"
-                fallback={<Text fontSize="xl" fontWeight="bold" color="brand.600">Viralizamos</Text>}
-              />
-            </Link>
-          </NextLink>
+          <Link href="https://viralizamos.com" isExternal>
+            <Image
+              src="/logo.webp"
+              alt="Viralizamos"
+              h="40px"
+              w="auto"
+              fallback={<Text fontSize="xl" fontWeight="bold" color="brand.600">Viralizamos</Text>}
+            />
+          </Link>
           
           <HStack spacing={6} display={{ base: 'none', md: 'flex' }}>
             <NextLink href="https://viralizamos.com" passHref legacyBehavior>
