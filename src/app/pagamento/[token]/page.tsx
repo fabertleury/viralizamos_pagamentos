@@ -151,7 +151,7 @@ export default function PaymentPage() {
     const fetchPaymentData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/payment-requests/${token}`);
+        const response = await fetch(`/api/payment-request/${token}`);
         
         if (!response.ok) {
           throw new Error('Pagamento não encontrado ou já expirado');
@@ -211,7 +211,7 @@ export default function PaymentPage() {
   const checkPaymentStatus = async (): Promise<boolean> => {
     try {
       setVerifyingPayment(true);
-      const response = await fetch(`/api/payment-requests/check/${token}`);
+      const response = await fetch(`/api/payment-request/check/${token}`);
       
       if (!response.ok) {
         throw new Error('Erro ao verificar status do pagamento');

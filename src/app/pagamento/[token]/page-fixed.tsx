@@ -67,7 +67,7 @@ export default function PaymentPage() {
   // Buscar dados da solicitação de pagamento
   const fetchPaymentRequest = async () => {
     try {
-      const response = await fetch(`/api/payment-requests/${token}`);
+      const response = await fetch(`/api/payment-request/${token}`);
       
       if (!response.ok) {
         throw new Error(`Erro ao buscar dados do pagamento: ${response.status}`);
@@ -138,7 +138,7 @@ export default function PaymentPage() {
       if (!paymentRequest || paymentRequest.status === 'completed') return;
       
       try {
-        const response = await fetch(`/api/payment-requests/${token}`);
+        const response = await fetch(`/api/payment-request/${token}`);
         
         if (response.ok) {
           const data = await response.json();
