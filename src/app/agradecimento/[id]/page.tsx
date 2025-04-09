@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Confetti from 'react-confetti';
+import Image from 'next/image';
 
 interface TransactionType {
   id: string;
@@ -145,7 +146,7 @@ function AgradecimentoContent() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <Loader2 className="h-12 w-12 animate-spin text-[#C43582] mb-4" />
         <h1 className="text-2xl font-bold text-center">Carregando...</h1>
       </div>
     );
@@ -158,7 +159,7 @@ function AgradecimentoContent() {
           <strong className="font-bold">Erro! </strong>
           <span className="block sm:inline">{error}</span>
         </div>
-        <Link href="/" className="text-primary hover:underline">
+        <Link href="/" className="text-[#C43582] hover:underline">
           Voltar para a página inicial
         </Link>
       </div>
@@ -174,12 +175,23 @@ function AgradecimentoContent() {
           recycle={true}
           numberOfPieces={200}
           gravity={0.15}
-          colors={['#FF92CD', '#FF3399', '#00CCFF', '#33FF99', '#FFFF00', '#FF9933']}
+          colors={['#FF92CD', '#C43582', '#00CCFF', '#33FF99', '#FFFF00', '#FF9933']}
         />
       )}
       
       <div className="max-w-md w-full bg-white rounded-lg shadow-xl overflow-hidden">
         <div className="p-6 sm:p-8">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <Image 
+              src="/images/viralizamos-color.png" 
+              alt="Viralizamos" 
+              width={200} 
+              height={60} 
+              priority
+            />
+          </div>
+          
           <div className="flex justify-center mb-6">
             <div className="bg-green-100 p-3 rounded-full">
               <svg className="h-12 w-12 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -198,14 +210,20 @@ function AgradecimentoContent() {
           
           {transaction && (
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Detalhes do Pedido</h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">ID da Transação:</span>
-                  <span className="font-medium">{transaction.payment_id || transaction.external_id || transaction.id.substring(0, 8)}</span>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalhes do Pedido</h2>
+              <div className="space-y-3">
+                {customer && customer.name && (
+                  <div className="flex justify-between border-b pb-2">
+                    <span className="text-gray-600 font-medium">Cliente:</span>
+                    <span className="font-medium">{customer.name}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600 font-medium">ID da Transação:</span>
+                  <span className="font-medium">{transaction.payment_id || transaction.external_id || transaction.id}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Valor:</span>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600 font-medium">Valor:</span>
                   <span className="font-medium">
                     {new Intl.NumberFormat('pt-BR', {
                       style: 'currency',
@@ -213,51 +231,34 @@ function AgradecimentoContent() {
                     }).format(transaction.amount)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Data:</span>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-600 font-medium">Data:</span>
                   <span className="font-medium">
                     {new Date(transaction.created_at).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Status:</span>
+                  <span className="text-gray-600 font-medium">Status:</span>
                   <span className="font-medium text-green-600">Aprovado</span>
                 </div>
-                {transaction.status_provider && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Status no Provedor:</span>
-                    <span className="font-medium">
-                      {transaction.status_provider === 'completed' ? (
-                        <span className="text-green-600">Completado</span>
-                      ) : transaction.status_provider === 'processing' ? (
-                        <span className="text-yellow-600">Em Processamento</span>
-                      ) : transaction.status_provider === 'error' ? (
-                        <span className="text-red-600">Erro</span>
-                      ) : (
-                        transaction.status_provider
-                      )}
-                    </span>
-                  </div>
-                )}
-                {transaction.external_order_id && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">ID do Pedido:</span>
-                    <span className="font-medium">{transaction.external_order_id}</span>
-                  </div>
-                )}
-                {customer && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Cliente:</span>
-                    <span className="font-medium">{customer.name || customer.email}</span>
-                  </div>
-                )}
               </div>
             </div>
           )}
           
-          <div className="text-center">
-            <Link href="/" className="text-primary hover:underline">
+          {/* Botões de ação */}
+          <div className="flex flex-col sm:flex-row gap-4 mt-6">
+            <a 
+              href="https://viralizamos.com" 
+              className="flex-1 bg-[#C43582] hover:bg-[#a62c6c] text-white text-center py-3 px-6 rounded-md font-medium transition-colors duration-300 shadow-sm"
+            >
               Voltar para a página inicial
+            </a>
+            
+            <Link 
+              href={`/acompanhar/${transaction?.id || params.id}`}
+              className="flex-1 border border-[#C43582] text-[#C43582] hover:bg-[#fce7f3] text-center py-3 px-6 rounded-md font-medium transition-colors duration-300"
+            >
+              Acompanhar pedido
             </Link>
           </div>
         </div>
