@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
 import { notifyOrdersService } from '@/lib/orders-service';
 
+/**
+ * Webhook para receber notificações do Mercado Pago
+ */
 export async function POST(request: NextRequest) {
   try {
     // Verificar se a requisição é válida
@@ -109,6 +112,7 @@ export async function POST(request: NextRequest) {
       // compartilham o mesmo payment_request
       if (status === 'approved' && transactions.length > 0) {
         const paymentRequestId = transactions[0].payment_request_id;
+        const paymentRequest = transactions[0].payment_request;
         
         await db.paymentRequest.update({
           where: { id: paymentRequestId },
@@ -119,6 +123,57 @@ export async function POST(request: NextRequest) {
         });
         
         console.log(`[Webhook Mercado Pago] PaymentRequest ${paymentRequestId} atualizado para completed com ${transactions.length} transações`);
+        
+        // Criar ou atualizar o usuário com os dados da transação
+        try {
+          const customerEmail = paymentRequest.customer_email;
+          const customerName = paymentRequest.customer_name;
+          const customerPhone = paymentRequest.customer_phone;
+          
+          if (customerEmail) {
+            console.log(`[Webhook Mercado Pago] Verificando se usuário ${customerEmail} já existe`);
+            
+            // Verificar se o usuário já existe
+            const existingUser = await db.user.findUnique({
+              where: { email: customerEmail }
+            });
+            
+            if (existingUser) {
+              console.log(`[Webhook Mercado Pago] Usuário ${customerEmail} já existe, atualizando...`);
+              
+              // Atualizar usuário existente
+              await db.user.update({
+                where: { email: customerEmail },
+                data: {
+                  name: customerName || existingUser.name,
+                  updated_at: new Date()
+                }
+              });
+              
+              console.log(`[Webhook Mercado Pago] Usuário ${customerEmail} atualizado com sucesso!`);
+            } else {
+              console.log(`[Webhook Mercado Pago] Usuário ${customerEmail} não existe, criando...`);
+              
+              // Criar novo usuário
+              await db.user.create({
+                data: {
+                  email: customerEmail,
+                  name: customerName || customerEmail.split('@')[0],
+                  role: 'customer',
+                  created_at: new Date(),
+                  updated_at: new Date()
+                }
+              });
+              
+              console.log(`[Webhook Mercado Pago] Usuário ${customerEmail} criado com sucesso!`);
+            }
+          } else {
+            console.log(`[Webhook Mercado Pago] Sem e-mail do cliente para criar/atualizar usuário.`);
+          }
+        } catch (userError) {
+          console.error('[Webhook Mercado Pago] Erro ao processar usuário:', userError);
+          // Continuar o processamento mesmo se houver erro com o usuário
+        }
         
         // Notificar o serviço de orders sobre a aprovação do pagamento
         try {
