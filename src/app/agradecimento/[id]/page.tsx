@@ -88,14 +88,22 @@ function AgradecimentoContent() {
           return;
         }
         
+        // Verificar se o ID é um UUID válido
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(transactionId);
+        
         // Buscar dados da transação via API
         let transactionData;
         try {
-          // Fazer requisição para API interna
-          const response = await fetch(`/api/transactions/${transactionId}`);
+          // Fazer requisição para API interna - usar endpoint diferente dependendo do formato do ID
+          const apiUrl = isUuid 
+            ? `/api/transactions/${transactionId}` 
+            : `/api/transactions/token/${transactionId}`;
+          
+          console.log(`Buscando transação usando: ${apiUrl}`);
+          const response = await fetch(apiUrl);
           
           if (!response.ok) {
-            throw new Error('Erro ao buscar transação');
+            throw new Error(`Erro ao buscar transação: ${response.status}`);
           }
           
           transactionData = await response.json();
