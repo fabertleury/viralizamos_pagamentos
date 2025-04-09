@@ -62,10 +62,14 @@ export async function POST(request: NextRequest) {
     );
   }
   
+  // Obter o body da requisição
+  const body = await request.json();
+  
   const token = authHeader.split(' ')[1];
+  let decodedToken;
   try {
     // Verificar o token JWT
-    const jwtSecret = process.env.JWT_SECRET;
+    const jwtSecret = process.env.JWT_SECRET || 'jwt_fallback_secret_key';
     if (!jwtSecret) {
       console.error('[SOLUÇÃO INTEGRADA] ERRO CRÍTICO: JWT_SECRET não definida');
       return NextResponse.json(
@@ -74,10 +78,28 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const decoded = jwt.verify(token, jwtSecret);
-    // Opcionalmente, você pode verificar claims específicos do token aqui
+    decodedToken = jwt.verify(token, jwtSecret) as {
+      payment_request_id: string;
+      scope: string;
+      exp: number;
+    };
     
-    console.log('[SOLUÇÃO INTEGRADA] Token JWT válido:', decoded);
+    // Verificar se o token tem escopo de escrita para criar pagamentos
+    if (body.payment_request_id && decodedToken.payment_request_id !== body.payment_request_id) {
+      return NextResponse.json(
+        { error: 'Token não autorizado para este pagamento' },
+        { status: 403 }
+      );
+    }
+    
+    if (decodedToken.scope !== 'write' && !body.is_status_check) {
+      return NextResponse.json(
+        { error: 'Token não tem permissão para criar pagamentos' },
+        { status: 403 }
+      );
+    }
+    
+    console.log('[SOLUÇÃO INTEGRADA] Token JWT válido:', decodedToken);
   } catch (jwtError) {
     console.error('[SOLUÇÃO INTEGRADA] Erro na verificação do token JWT:', jwtError);
     return NextResponse.json(
@@ -87,7 +109,6 @@ export async function POST(request: NextRequest) {
   }
   
   try {
-    const body = await request.json();
     console.log('[SOLUÇÃO INTEGRADA] Dados recebidos:', JSON.stringify(body).substring(0, 200) + '...');
     
     // Validar campos obrigatórios

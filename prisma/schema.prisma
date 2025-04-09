@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x"]
@@ -14,116 +8,112 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Schema for the payment system - estrutura exata do banco existente
-
 /// Estrutura da tabela payment_request existente no banco de dados
 model PaymentRequest {
-  id                   String    @id @default(uuid())
-  token                String    @unique
+  id                   String            @id @default(uuid())
+  token                String            @unique
   amount               Float
   service_id           String?
-  external_service_id  String?   // ID do serviço no provedor (externo)
   profile_username     String?
   customer_email       String
   customer_name        String
   customer_phone       String?
   service_name         String?
   return_url           String?
-  status               String    @default("pending") // pending, processing, completed, expired, cancelled, failed
+  status               String            @default("pending")
   processed_payment_id String?
-  additional_data      String?   // JSON string
-  created_at           DateTime  @default(now())
+  additional_data      String?
+  created_at           DateTime          @default(now())
   expires_at           DateTime?
   processed_at         DateTime?
-
-  // Relations
+  external_service_id  String?
+  processingQueue      ProcessingQueue[]
   transactions         Transaction[]
-  processingQueue     ProcessingQueue[]
-  
-  @@map("payment_requests")
+
   @@index([token])
   @@index([status])
   @@index([service_id])
   @@index([external_service_id])
   @@index([created_at])
+  @@map("payment_requests")
 }
 
 model Transaction {
-  id                     String    @id @default(uuid())
-  external_id            String?   // ID externo (e.g. ID no Mercado Pago)
-  provider               String    // mercadopago, etc.
-  method                 String    // pix, credit_card, etc.
-  status                 String    // pending, completed, failed, etc.
-  amount                 Float
-  pix_code               String?
-  pix_qrcode             String?
-  metadata               String?   // JSON string
-  payment_request_id     String
-  payment_request        PaymentRequest @relation(fields: [payment_request_id], references: [id])
-  created_at             DateTime  @default(now())
-  updated_at             DateTime  @updatedAt
-  processed_at           DateTime?
-  webhook_logs           WebhookLog[]
-  processing_failures    PaymentProcessingFailure[]
-  notification_logs      PaymentNotificationLog[]
+  id                  String                     @id @default(uuid())
+  payment_request_id  String
+  external_id         String?
+  status              String
+  method              String
+  amount              Float
+  provider            String
+  pix_code            String?
+  pix_qrcode          String?
+  metadata            String?
+  created_at          DateTime                   @default(now())
+  updated_at          DateTime                   @updatedAt
+  processed_at        DateTime?
+  notification_logs   PaymentNotificationLog[]
+  processing_failures PaymentProcessingFailure[]
+  payment_request     PaymentRequest             @relation(fields: [payment_request_id], references: [id])
+  webhook_logs        WebhookLog[]
 
-  @@map("transactions")
   @@index([payment_request_id])
   @@index([external_id])
   @@index([provider])
   @@index([status])
   @@index([created_at])
+  @@map("transactions")
 }
 
 model PaymentIdempotencyLog {
-  id          String   @id @default(uuid())
-  key         String   @unique
-  response    String   // JSON string
-  created_at  DateTime @default(now())
+  id         String   @id @default(uuid())
+  key        String   @unique
+  response   String
+  created_at DateTime @default(now())
 
-  @@map("payment_idempotency_log")
   @@index([key])
   @@index([created_at])
+  @@map("payment_idempotency_log")
 }
 
 model PaymentProcessingFailure {
-  id             String    @id @default(uuid())
+  id             String      @id @default(uuid())
   transaction_id String
-  transaction    Transaction @relation(fields: [transaction_id], references: [id])
   error_code     String
   error_message  String
   stack_trace    String?
-  metadata       String?   // JSON string
-  created_at     DateTime  @default(now())
+  metadata       String?
+  created_at     DateTime    @default(now())
+  transaction    Transaction @relation(fields: [transaction_id], references: [id])
 
-  @@map("payment_processing_failures")
   @@index([transaction_id])
   @@index([error_code])
   @@index([created_at])
+  @@map("payment_processing_failures")
 }
 
 model ProcessingQueue {
-  id                String    @id @default(uuid())
+  id                 String         @id @default(uuid())
   payment_request_id String
+  status             String
+  type               String
+  priority           Int            @default(0)
+  attempts           Int            @default(0)
+  max_attempts       Int            @default(3)
+  last_error         String?
+  metadata           String?
+  created_at         DateTime       @default(now())
+  updated_at         DateTime       @updatedAt
+  processed_at       DateTime?
+  next_attempt_at    DateTime?
   payment_request    PaymentRequest @relation(fields: [payment_request_id], references: [id])
-  status            String    // pending, processing, completed, failed
-  type              String    // payment_creation, payment_confirmation, etc.
-  priority          Int       @default(0)
-  attempts          Int       @default(0)
-  max_attempts      Int       @default(3)
-  last_error        String?
-  metadata          String?   // JSON string
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
-  processed_at      DateTime?
-  next_attempt_at   DateTime?
 
-  @@map("processing_queue")
   @@index([payment_request_id])
   @@index([status])
   @@index([type])
   @@index([priority])
   @@index([next_attempt_at])
+  @@map("processing_queue")
 }
 
 model User {
@@ -134,47 +124,46 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  @@map("users")
   @@index([email])
   @@index([role])
+  @@map("users")
 }
 
 model WebhookLog {
-  id             String     @id @default(uuid())
-  type           String     // mercadopago, etc.
-  event          String     // payment.update, etc.
-  data           String     // JSON do webhook
-  processed      Boolean    @default(false)
-  error          String?
-  created_at     DateTime   @default(now())
+  id             String       @id @default(uuid())
   transaction_id String?
+  type           String
+  event          String
+  data           String
+  processed      Boolean      @default(false)
+  error          String?
+  created_at     DateTime     @default(now())
   transaction    Transaction? @relation(fields: [transaction_id], references: [id])
 
-  @@map("webhook_logs")
   @@index([transaction_id])
   @@index([type])
   @@index([event])
   @@index([processed])
   @@index([created_at])
+  @@map("webhook_logs")
 }
 
-// Modelo para logs de notificações enviadas para outros serviços
 model PaymentNotificationLog {
-  id               String     @id @default(uuid())
-  transaction_id   String
-  type             String     // orders_service, email, etc.
-  target_url       String?    // URL para onde a notificação foi enviada
-  status           String     // success, failed, etc.
-  error_message    String?    // Mensagem de erro, se houver
-  error_stack      String?    // Stack trace de erro, se houver
-  payload          String?    // JSON enviado
-  response         String?    // Resposta do serviço
-  created_at       DateTime   @default(now())
-  transaction      Transaction @relation(fields: [transaction_id], references: [id])
+  id             String      @id @default(uuid())
+  transaction_id String
+  type           String
+  target_url     String?
+  status         String
+  error_message  String?
+  error_stack    String?
+  payload        String?
+  response       String?
+  created_at     DateTime    @default(now())
+  transaction    Transaction @relation(fields: [transaction_id], references: [id])
 
-  @@map("payment_notification_logs")
   @@index([transaction_id])
   @@index([type])
   @@index([status])
   @@index([created_at])
+  @@map("payment_notification_logs")
 }

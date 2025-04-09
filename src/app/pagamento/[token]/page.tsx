@@ -42,6 +42,7 @@ import {
 import { FaHeart, FaCopy, FaInfoCircle, FaTag, FaInstagram, FaCheck } from 'react-icons/fa';
 import ViralizamosHeader from '@/components/layout/ViralizamosHeader';
 import { ViralizamosFooter } from '@/components/layout/ViralizamosFooter';
+import PixPaymentButton from '@/components/PixPaymentButton';
 
 // Definir interfaces para os tipos de dados
 interface PaymentRequest {
@@ -316,6 +317,42 @@ export default function PaymentPage() {
     return () => clearInterval(countdownInterval);
   }, [payment]);
   
+  // Função para lidar com a criação bem-sucedida do pagamento PIX
+  const handlePixPaymentSuccess = (paymentData: {
+    id: string;
+    status: string;
+    method: string;
+    pix_code: string;
+    pix_qrcode: string;
+    amount: number;
+  }) => {
+    // Atualizar o estado com os dados do pagamento
+    if (payment) {
+      setPayment({
+        ...payment,
+        payment: {
+          id: paymentData.id,
+          status: paymentData.status,
+          method: paymentData.method,
+          pix_code: paymentData.pix_code,
+          pix_qrcode: paymentData.pix_qrcode,
+          amount: paymentData.amount
+        }
+      });
+    }
+  };
+
+  // Função para lidar com erros na criação do pagamento PIX
+  const handlePixPaymentError = (errorMessage: string) => {
+    toast({
+      title: 'Erro ao gerar pagamento',
+      description: errorMessage,
+      status: 'error',
+      duration: 5000,
+      isClosable: true,
+    });
+  };
+  
   return (
     <>
       <ViralizamosHeader />
@@ -547,21 +584,42 @@ export default function PaymentPage() {
                   <Heading size="md" textAlign="center" mb={6}>Pague com PIX</Heading>
                   
                   <VStack spacing={6} align="center">
-                    <Box 
-                      p={4} 
-                      borderWidth="2px" 
-                      borderColor="gray.200" 
-                      borderRadius="md"
-                      bg="white"
-                    >
-                      {payment?.payment?.pix_qrcode ? (
+                    {!payment?.payment && (
+                      <Box width="100%" mb={4}>
+                        <PixPaymentButton 
+                          paymentRequestId={payment?.id || ''}
+                          onSuccess={handlePixPaymentSuccess}
+                          onError={handlePixPaymentError}
+                        />
+                        <Text mt={2} fontSize="sm" color="gray.600" textAlign="center">
+                          Clique no botão acima para gerar o código PIX para pagamento
+                        </Text>
+                      </Box>
+                    )}
+                    
+                    {payment?.payment?.pix_qrcode ? (
+                      <Box 
+                        p={4} 
+                        borderWidth="2px" 
+                        borderColor="gray.200" 
+                        borderRadius="md"
+                        bg="white"
+                      >
                         <ChakraImage 
                           src={`data:image/png;base64,${payment.payment.pix_qrcode}`} 
                           alt="QR Code PIX" 
                           width="200px" 
                           height="200px"
                         />
-                      ) : payment?.payment?.pix_code ? (
+                      </Box>
+                    ) : payment?.payment?.pix_code ? (
+                      <Box 
+                        p={4} 
+                        borderWidth="2px" 
+                        borderColor="gray.200" 
+                        borderRadius="md"
+                        bg="white"
+                      >
                         <QRCodeSVG 
                           value={payment.payment.pix_code} 
                           size={200}
@@ -570,23 +628,29 @@ export default function PaymentPage() {
                           fgColor="#000000"
                           level="M"
                         />
-                      ) : (
-                        <Flex 
-                          width="200px" 
-                          height="200px" 
-                          bg="gray.100" 
-                          borderRadius="md" 
-                          align="center" 
-                          justify="center"
-                        >
-                          <Text color="gray.500">QR Code não disponível</Text>
-                        </Flex>
-                      )}
-                    </Box>
+                      </Box>
+                    ) : (
+                      <Box 
+                        p={4} 
+                        borderWidth="2px" 
+                        borderColor="gray.200" 
+                        borderRadius="md"
+                        bg="white"
+                        width="200px" 
+                        height="200px"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                      >
+                        <Text color="gray.500">QR Code não disponível</Text>
+                      </Box>
+                    )}
                     
-                    <Text color="gray.600" fontSize="sm">
-                      Escaneie este QR Code com o app do seu banco ou copie o código PIX abaixo
-                    </Text>
+                    {payment?.payment && (
+                      <Text color="gray.600" fontSize="sm">
+                        Escaneie este QR Code com o app do seu banco ou copie o código PIX abaixo
+                      </Text>
+                    )}
                     
                     {payment?.payment?.pix_code && (
                       <Box width="100%">
