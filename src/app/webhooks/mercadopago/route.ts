@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'success', message: 'Webhook recorded but transactions not found' });
     }
     
+    console.log(`[Webhook Mercado Pago] Encontradas ${transactions.length} transações para o pagamento ${mercadoPagoId}`);
+    
     try {
       // Buscar dados atualizados do pagamento no Mercado Pago
       const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${mercadoPagoId}`, {
@@ -68,9 +70,11 @@ export async function POST(request: NextRequest) {
       }
       
       const mpData = await mpResponse.json();
+      console.log(`[Webhook Mercado Pago] Status do pagamento ${mercadoPagoId}: ${mpData.status}`);
       
       // Mapear status do Mercado Pago para nosso sistema
       const status = mapMercadoPagoStatus(mpData.status);
+      console.log(`[Webhook Mercado Pago] Status mapeado: ${status}`);
       
       // Loop para atualizar todas as transações encontradas
       for (const transaction of transactions) {
@@ -85,6 +89,8 @@ export async function POST(request: NextRequest) {
             })
           }
         });
+        
+        console.log(`[Webhook Mercado Pago] Transação ${transaction.id} atualizada para status: ${status}`);
         
         // Registrar o webhook para cada transação
         await db.webhookLog.create({
@@ -112,22 +118,56 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        console.log(`PaymentRequest ${paymentRequestId} atualizado para completed com ${transactions.length} transações`);
+        console.log(`[Webhook Mercado Pago] PaymentRequest ${paymentRequestId} atualizado para completed com ${transactions.length} transações`);
         
         // Notificar o serviço de orders sobre a aprovação do pagamento
         try {
+          console.log(`[Webhook Mercado Pago] Iniciando notificação ao serviço de orders para ${transactions.length} transações`);
+          
           for (const transaction of transactions) {
+            console.log(`[Webhook Mercado Pago] Notificando orders sobre a transação ${transaction.id}`);
             const notificationResult = await notifyOrdersService(transaction.id);
-            console.log(`Notificação para o serviço de orders ${notificationResult ? 'enviada com sucesso' : 'falhou'} para a transação ${transaction.id}`);
+            console.log(`[Webhook Mercado Pago] Notificação para o serviço de orders ${notificationResult ? 'enviada com sucesso' : 'falhou'} para a transação ${transaction.id}`);
+            
+            // Registrar resultado da notificação
+            await db.webhookLog.create({
+              data: {
+                transaction_id: transaction.id,
+                type: 'mercadopago_notification_result',
+                event: 'order_service_notification',
+                data: JSON.stringify({
+                  success: notificationResult,
+                  timestamp: new Date().toISOString()
+                }),
+                processed: true
+              }
+            });
           }
         } catch (notificationError) {
-          console.error('Erro ao notificar serviço de orders:', notificationError);
-          // Não lançamos a exceção para permitir que o processamento continue
+          console.error('[Webhook Mercado Pago] Erro ao notificar serviço de orders:', notificationError);
+          
+          // Registrar erro de notificação
+          await db.webhookLog.create({
+            data: {
+              transaction_id: transactions[0].id,
+              type: 'mercadopago_notification_error',
+              event: 'order_service_notification_failed',
+              data: JSON.stringify({
+                error: notificationError instanceof Error ? notificationError.message : 'Erro desconhecido',
+                stack: notificationError instanceof Error ? notificationError.stack : undefined,
+                timestamp: new Date().toISOString()
+              }),
+              processed: false,
+              error: notificationError instanceof Error ? notificationError.message : 'Erro desconhecido'
+            }
+          });
+          
+          // Mesmo com erro, permitimos que o processamento continue
         }
       }
       
     } catch (error) {
-      console.error('Erro ao processar pagamento:', error);
+      console.error('[Webhook Mercado Pago] Erro ao processar pagamento:', error);
       
       // Registrar falha de processamento para cada transação
       for (const transaction of transactions) {
@@ -162,7 +202,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ status: 'success' });
   } catch (error) {
-    console.error('Erro ao processar webhook do Mercado Pago:', error);
+    console.error('[Webhook Mercado Pago] Erro ao processar webhook do Mercado Pago:', error);
     
     // Mesmo em caso de erro, retornamos 200 para evitar que o Mercado Pago 
     // considere a notificação como falha e tente novamente

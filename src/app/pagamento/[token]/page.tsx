@@ -241,36 +241,45 @@ export default function PaymentPage() {
   
   // Função para redirecionar para a página de agradecimento
   const redirectToThankYouPage = () => {
-    const baseUrl = payment?.return_url || 'https://viralizamos.com/agradecimento';
+    // Verificar se o site principal enviou uma URL de retorno
+    // Se sim, usar essa URL; caso contrário, usar a página de agradecimento interna
+    const hasCustomReturnUrl = payment?.return_url && payment.return_url.includes('viralizamos.com');
     
-    try {
-      // Verificar se a URL é válida antes de construir
-      let url;
-      
+    if (hasCustomReturnUrl) {
       try {
-        url = new URL(baseUrl);
+        // Verificar se a URL é válida antes de construir
+        let url;
+        
+        try {
+          url = new URL(payment!.return_url!);
+        } catch (error) {
+          console.error('URL inválida:', payment?.return_url);
+          // Usar a URL interna
+          window.location.href = `/agradecimento/${token}`;
+          return;
+        }
+        
+        // Adicionar parâmetros
+        url.searchParams.append('token', token);
+        url.searchParams.append('status', 'approved');
+        
+        if (payment?.id) {
+          url.searchParams.append('payment_id', payment.id);
+        }
+        
+        console.log('Redirecionando para URL personalizada:', url.toString());
+        
+        // Redirecionar
+        window.location.href = url.toString();
       } catch (error) {
-        console.error('URL inválida:', baseUrl);
-        // Fallback para URL padrão em caso de erro
-        url = new URL('https://viralizamos.com/agradecimento');
+        console.error('Erro ao redirecionar para URL personalizada:', error);
+        // Fallback para URL interna
+        window.location.href = `/agradecimento/${token}`;
       }
-      
-      // Adicionar parâmetros
-      url.searchParams.append('token', token);
-      url.searchParams.append('status', 'approved');
-      
-      if (payment?.id) {
-        url.searchParams.append('payment_id', payment.id);
-      }
-      
-      console.log('Redirecionando para:', url.toString());
-      
-      // Redirecionar
-      window.location.href = url.toString();
-    } catch (error) {
-      console.error('Erro ao redirecionar:', error);
-      // Fallback absoluto
-      window.location.href = 'https://viralizamos.com/agradecimento';
+    } else {
+      // Se não há URL de retorno personalizada, usar a página interna
+      console.log('Redirecionando para página de agradecimento interna');
+      window.location.href = `/agradecimento/${token}`;
     }
   };
   

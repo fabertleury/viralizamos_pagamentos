@@ -6,6 +6,8 @@ import { sign } from 'jsonwebtoken';
  * Esta função deve ser chamada após a confirmação de pagamento pelo provedor
  */
 export async function notifyOrdersService(transactionId: string): Promise<boolean> {
+  console.log(`[OrdersService] Iniciando notificação da transação ${transactionId} para o serviço de orders`);
+  
   try {
     // Buscar a transação completa com os dados do pagamento
     const transaction = await db.transaction.findUnique({
@@ -16,15 +18,17 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
     });
 
     if (!transaction) {
-      console.error(`Transação ${transactionId} não encontrada ao notificar orders`);
+      console.error(`[OrdersService] Transação ${transactionId} não encontrada ao notificar orders`);
       return false;
     }
 
     // Verificar se o pagamento foi de fato aprovado
     if (transaction.status !== 'approved') {
-      console.log(`Transação ${transactionId} não está aprovada (status: ${transaction.status}), ignorando notificação`);
+      console.log(`[OrdersService] Transação ${transactionId} não está aprovada (status: ${transaction.status}), ignorando notificação`);
       return false;
     }
+
+    console.log(`[OrdersService] Transação ${transactionId} está aprovada, preparando dados para notificação`);
 
     // Extrair dados adicionais do payment_request
     let metadata: any = {};
@@ -32,14 +36,16 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
     try {
       if (transaction.metadata) {
         metadata = JSON.parse(transaction.metadata);
+        console.log(`[OrdersService] Metadata da transação:`, metadata);
       }
       
       if (transaction.payment_request.additional_data) {
         const additionalData = JSON.parse(transaction.payment_request.additional_data);
         posts = additionalData.posts || [];
+        console.log(`[OrdersService] Posts encontrados: ${posts.length}`);
       }
     } catch (error) {
-      console.error('Erro ao extrair dados adicionais:', error);
+      console.error('[OrdersService] Erro ao extrair dados adicionais:', error);
     }
 
     // Determinar tipo de serviço e outras informações
@@ -76,7 +82,8 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
       }
     };
 
-    console.log(`Enviando notificação com external_service_id: ${transaction.payment_request.external_service_id || 'não definido'}`);
+    console.log(`[OrdersService] Enviando notificação com external_service_id: ${transaction.payment_request.external_service_id || 'não definido'}`);
+    console.log(`[OrdersService] Profile username: ${transaction.payment_request.profile_username}`);
 
     // Gerar token JWT para autenticação
     const token = sign(
@@ -89,7 +96,8 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
     const ordersServiceUrl = process.env.ORDERS_SERVICE_URL || 'https://orders.viralizamos.com';
     const webhookUrl = `${ordersServiceUrl}/api/orders/webhook/payment`;
 
-    console.log(`Notificando serviço de orders em ${webhookUrl}`);
+    console.log(`[OrdersService] Notificando serviço de orders em ${webhookUrl}`);
+    console.log(`[OrdersService] Payload:`, JSON.stringify(payload, null, 2));
 
     // Enviar notificação para o serviço de orders
     const response = await fetch(webhookUrl, {
@@ -101,13 +109,23 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
       body: JSON.stringify(payload)
     });
 
+    // Verificar resposta do serviço de orders
+    const responseText = await response.text();
+    console.log(`[OrdersService] Resposta do serviço de orders (status ${response.status}):`, responseText);
+
     if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`Falha ao notificar orders: ${response.status} - ${errorBody}`);
+      throw new Error(`Falha ao notificar orders: ${response.status} - ${responseText}`);
     }
 
-    const result = await response.json();
-    console.log('Notificação para orders enviada com sucesso:', result);
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (e) {
+      console.warn(`[OrdersService] Resposta não é um JSON válido:`, responseText);
+      result = { text: responseText };
+    }
+
+    console.log('[OrdersService] Notificação para orders enviada com sucesso:', result);
 
     // Registrar que a notificação foi enviada
     await db.paymentNotificationLog.create({
@@ -123,7 +141,7 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
 
     return true;
   } catch (error) {
-    console.error('Erro ao notificar serviço de orders:', error);
+    console.error('[OrdersService] Erro ao notificar serviço de orders:', error);
     
     // Registrar falha de notificação
     try {
@@ -137,7 +155,7 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
         }
       });
     } catch (logError) {
-      console.error('Erro ao registrar falha de notificação:', logError);
+      console.error('[OrdersService] Erro ao registrar falha de notificação:', logError);
     }
     
     return false;
