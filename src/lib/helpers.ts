@@ -8,8 +8,14 @@
  * @returns Boolean indicando se é um UUID válido
  */
 export function isValidUuid(value: string | string[]): boolean {
-  const singleValue = getSingleValue(value);
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(singleValue);
+  // Garantir que temos uma string única
+  const stringValue = Array.isArray(value) ? value[0] : value;
+  
+  // Verificar se é undefined ou null
+  if (!stringValue) return false;
+  
+  // Validar o formato UUID
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stringValue);
 }
 
 /**
@@ -18,7 +24,8 @@ export function isValidUuid(value: string | string[]): boolean {
  * @returns String única
  */
 export function getSingleValue(value: string | string[]): string {
-  return Array.isArray(value) ? value[0] : value;
+  if (!value) return '';
+  return Array.isArray(value) ? value[0] || '' : value;
 }
 
 /**
