@@ -6,6 +6,29 @@ import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Confetti from 'react-confetti';
 import Image from 'next/image';
+import { Header } from '@/components/ui/Header';
+import {
+  Box,
+  Container,
+  Flex,
+  Heading,
+  Text,
+  Button,
+  Stack,
+  VStack,
+  HStack,
+  Card,
+  CardBody,
+  CardHeader,
+  CardFooter,
+  Divider,
+  useColorModeValue,
+  Spinner,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription
+} from '@chakra-ui/react';
 
 interface TransactionType {
   id: string;
@@ -31,61 +54,14 @@ interface CustomerType {
   phone?: string;
 }
 
-// Componente do Header
-function Header() {
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  return (
-    <header className="bg-white border-b transition-all duration-300 z-[9999] relative">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center py-4">
-          <Link href="/" className="flex items-center">
-            <Image 
-              src="/images/viralizamos-color.png" 
-              alt="Viralizamos" 
-              width={150} 
-              height={50} 
-              priority
-            />
-          </Link>
-          
-          <button 
-            className="block md:hidden p-2 z-50"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-menu">
-              <line x1="4" x2="20" y1="12" y2="12"></line>
-              <line x1="4" x2="20" y1="6" y2="6"></line>
-              <line x1="4" x2="20" y1="18" y2="18"></line>
-            </svg>
-          </button>
-          
-          <nav className={`${menuOpen ? 'flex flex-col absolute top-full left-0 right-0 bg-white p-4 shadow-lg' : 'hidden'} md:flex md:items-center md:static md:shadow-none md:flex-row gap-6`}>
-            <Link href="/" className="text-gray-700 hover:text-primary py-2 md:py-0">Início</Link>
-            <Link href="/instagram" className="text-gray-700 hover:text-gray-900 py-2 md:py-0">Serviços para Instagram</Link>
-            <Link href="/faq" className="text-gray-700 hover:text-primary py-2 md:py-0">FAQ</Link>
-            <Link
-              href="/analisar-perfil" 
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:text-accent-foreground h-9 px-4 py-2 font-medium bg-[#C43582] text-white hover:bg-[#a62c6c]"
-            >
-              Analisar Perfil
-            </Link>
-            <Link 
-              href="/acompanhar" 
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:text-accent-foreground h-9 px-4 py-2 font-medium bg-[#C43582] text-white hover:bg-[#a62c6c]"
-            >
-              Acompanhar Pedido
-            </Link>
-          </nav>
-        </div>
-      </div>
-    </header>
-  );
-}
-
 export default function AgradecimentoPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+    <Suspense fallback={
+      <Flex minH="100vh" align="center" justify="center">
+        <Spinner size="xl" thickness="4px" speed="0.65s" emptyColor="gray.200" color="primary.500" />
+        <Text ml={4} fontSize="xl" fontWeight="medium">Carregando...</Text>
+      </Flex>
+    }>
       <AgradecimentoContent />
     </Suspense>
   );
@@ -99,6 +75,9 @@ function AgradecimentoContent() {
   const [error, setError] = useState<string | null>(null);
   const [windowDimensions, setWindowDimensions] = useState({ width: 0, height: 0 });
   const [showConfetti, setShowConfetti] = useState(true);
+
+  const bgColor = useColorModeValue('gray.50', 'gray.900');
+  const cardBgColor = useColorModeValue('white', 'gray.800');
 
   // Configurar as dimensões da janela para o confetti
   useEffect(() => {
@@ -197,39 +176,40 @@ function AgradecimentoContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <Box minH="100vh" display="flex" flexDir="column">
         <Header />
-        <div className="flex-grow flex items-center justify-center p-4">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-[#C43582] mx-auto mb-4" />
-            <h1 className="text-2xl font-bold">Carregando...</h1>
-          </div>
-        </div>
-      </div>
+        <Flex flex="1" align="center" justify="center" p={4}>
+          <VStack>
+            <Spinner size="xl" thickness="4px" color="primary.500" mb={4} />
+            <Heading size="lg">Carregando...</Heading>
+          </VStack>
+        </Flex>
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <Box minH="100vh" display="flex" flexDir="column">
         <Header />
-        <div className="flex-grow flex items-center justify-center p-4">
-          <div className="max-w-md w-full text-center">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-              <strong className="font-bold">Erro! </strong>
-              <span className="block sm:inline">{error}</span>
-            </div>
-            <Link href="/" className="text-[#C43582] hover:underline">
+        <Flex flex="1" align="center" justify="center" p={4}>
+          <VStack maxW="md" w="full" textAlign="center">
+            <Alert status="error" variant="subtle" flexDirection="column" alignItems="center" justifyContent="center" textAlign="center" borderRadius="lg" mb={4}>
+              <AlertIcon boxSize="40px" mr={0} />
+              <AlertTitle mt={4} mb={1} fontSize="lg">Erro!</AlertTitle>
+              <AlertDescription maxWidth="sm">{error}</AlertDescription>
+            </Alert>
+            <Button as={Link} href="/" colorScheme="primary" variant="link">
               Voltar para a página inicial
-            </Link>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </VStack>
+        </Flex>
+      </Box>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <Box minH="100vh" display="flex" flexDir="column">
       <Header />
       
       {showConfetti && (
@@ -243,89 +223,100 @@ function AgradecimentoContent() {
         />
       )}
       
-      <div className="flex-grow bg-gradient-to-b from-white to-gray-100 py-12">
-        <div className="container mx-auto px-4 flex justify-center">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-xl overflow-hidden">
-            <div className="p-6 sm:p-8">
-              <div className="flex justify-center mb-6">
-                <div className="bg-green-100 p-3 rounded-full">
-                  <svg className="h-12 w-12 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-              </div>
-              
-              <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
-                Pagamento Aprovado!
-              </h1>
-              
-              <p className="text-center text-gray-600 mb-6">
-                Seu pedido foi confirmado e está sendo processado.
-              </p>
-              
-              {transaction && (
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalhes do Pedido</h2>
-                  <div className="space-y-3">
-                    {customer && customer.name && (
-                      <div className="flex justify-between border-b pb-2">
-                        <span className="text-gray-600 font-medium">Cliente:</span>
-                        <span className="font-medium">{customer.name}</span>
-                      </div>
-                    )}
-                    {customer && customer.email && (
-                      <div className="flex justify-between border-b pb-2">
-                        <span className="text-gray-600 font-medium">Email:</span>
-                        <span className="font-medium">{customer.email}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-gray-600 font-medium">ID da Transação:</span>
-                      <span className="font-medium">{transaction.payment_id || transaction.external_id || transaction.id}</span>
-                    </div>
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-gray-600 font-medium">Valor:</span>
-                      <span className="font-medium">
-                        {new Intl.NumberFormat('pt-BR', {
-                          style: 'currency',
-                          currency: 'BRL'
-                        }).format(transaction.amount)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-gray-600 font-medium">Data:</span>
-                      <span className="font-medium">
-                        {new Date(transaction.created_at).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 font-medium">Status:</span>
-                      <span className="font-medium text-green-600">Aprovado</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Botões de ação */}
-              <div className="flex flex-col sm:flex-row gap-4 mt-6">
-                <a 
-                  href="https://viralizamos.com" 
-                  className="flex-1 bg-[#C43582] hover:bg-[#a62c6c] text-white text-center py-3 px-6 rounded-md font-medium transition-colors duration-300 shadow-sm"
-                >
-                  Voltar para a página inicial
-                </a>
+      <Box flex="1" bg={bgColor} py={12}>
+        <Container maxW="container.md" centerContent>
+          <Card maxW="md" w="full" bg={cardBgColor} shadow="xl" borderRadius="lg" overflow="hidden">
+            <CardBody p={8}>
+              <VStack spacing={6}>
+                <Box bg="green.100" p={3} borderRadius="full">
+                  <Box as="svg" h={12} w={12} color="green.500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 13l4 4L19 7" />
+                  </Box>
+                </Box>
                 
-                <Link 
-                  href={customer && customer.email ? `/acompanhar?email=${encodeURIComponent(customer.email)}` : "/acompanhar"}
-                  className="flex-1 border border-[#C43582] text-[#C43582] hover:bg-[#fce7f3] text-center py-3 px-6 rounded-md font-medium transition-colors duration-300"
-                >
-                  Acompanhar pedido
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+                <Heading textAlign="center" size="lg" color="gray.900">
+                  Pagamento Aprovado!
+                </Heading>
+                
+                <Text textAlign="center" color="gray.600">
+                  Seu pedido foi confirmado e está sendo processado.
+                </Text>
+                
+                {transaction && (
+                  <Card bg="gray.50" borderRadius="lg" w="full" mb={6}>
+                    <CardHeader pb={0}>
+                      <Heading size="md" color="gray.900">Detalhes do Pedido</Heading>
+                    </CardHeader>
+                    <CardBody>
+                      <VStack spacing={3} align="stretch">
+                        {customer && customer.name && (
+                          <Flex justify="space-between" borderBottom="1px" borderColor="gray.200" pb={2}>
+                            <Text color="gray.600" fontWeight="medium">Cliente:</Text>
+                            <Text fontWeight="medium">{customer.name}</Text>
+                          </Flex>
+                        )}
+                        {customer && customer.email && (
+                          <Flex justify="space-between" borderBottom="1px" borderColor="gray.200" pb={2}>
+                            <Text color="gray.600" fontWeight="medium">Email:</Text>
+                            <Text fontWeight="medium">{customer.email}</Text>
+                          </Flex>
+                        )}
+                        <Flex justify="space-between" borderBottom="1px" borderColor="gray.200" pb={2}>
+                          <Text color="gray.600" fontWeight="medium">ID da Transação:</Text>
+                          <Text fontWeight="medium">{transaction.payment_id || transaction.external_id || transaction.id}</Text>
+                        </Flex>
+                        <Flex justify="space-between" borderBottom="1px" borderColor="gray.200" pb={2}>
+                          <Text color="gray.600" fontWeight="medium">Valor:</Text>
+                          <Text fontWeight="medium">
+                            {new Intl.NumberFormat('pt-BR', {
+                              style: 'currency',
+                              currency: 'BRL'
+                            }).format(transaction.amount)}
+                          </Text>
+                        </Flex>
+                        <Flex justify="space-between" borderBottom="1px" borderColor="gray.200" pb={2}>
+                          <Text color="gray.600" fontWeight="medium">Data:</Text>
+                          <Text fontWeight="medium">
+                            {new Date(transaction.created_at).toLocaleDateString('pt-BR')}
+                          </Text>
+                        </Flex>
+                        <Flex justify="space-between">
+                          <Text color="gray.600" fontWeight="medium">Status:</Text>
+                          <Text fontWeight="medium" color="green.600">Aprovado</Text>
+                        </Flex>
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                )}
+                
+                <Stack direction={{ base: "column", sm: "row" }} spacing={4} w="full">
+                  <Button
+                    as="a"
+                    href="https://viralizamos.com"
+                    colorScheme="primary"
+                    size="lg"
+                    flex="1"
+                    shadow="sm"
+                  >
+                    Voltar para a página inicial
+                  </Button>
+                  
+                  <Button
+                    as={Link}
+                    href={customer && customer.email ? `/acompanhar?email=${encodeURIComponent(customer.email)}` : "/acompanhar"}
+                    variant="outline"
+                    colorScheme="primary"
+                    size="lg"
+                    flex="1"
+                  >
+                    Acompanhar pedido
+                  </Button>
+                </Stack>
+              </VStack>
+            </CardBody>
+          </Card>
+        </Container>
+      </Box>
+    </Box>
   );
 } 
