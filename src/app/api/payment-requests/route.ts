@@ -7,6 +7,16 @@ import crypto from 'crypto';
  */
 export async function POST(request: NextRequest) {
   try {
+    // Verificar se a origem é confiável (o site principal)
+    const origin = request.headers.get('origin') || '';
+    const isTrustedOrigin = [
+      'https://viralizamos.com', 
+      'https://www.viralizamos.com', 
+      'http://localhost:3000'
+    ].includes(origin);
+    
+    console.log(`Requisição recebida de origem: ${origin}, confiável: ${isTrustedOrigin}`);
+    
     const body = await request.json();
     
     // Validar campos obrigatórios

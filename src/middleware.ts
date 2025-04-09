@@ -1,73 +1,78 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Lista de origens permitidas
+// Definir uma lista de origens permitidas
 const allowedOrigins = [
   'https://viralizamos.com',
   'https://www.viralizamos.com',
-  'https://dev.viralizamos.com',
-  'https://homolog.viralizamos.com',
+  'https://admin.viralizamos.com',
   'http://localhost:3000',
-  'http://localhost:3001',
-  'https://pagamentos.viralizamos.com',
-  'https://pagamentos.dev.viralizamos.com',
-  'https://orders.viralizamos.com',
+  'http://localhost:3001'
 ];
 
 export function middleware(request: NextRequest) {
-  // Obter a origem da requisição
+  // Extrair a origem da requisição
   const origin = request.headers.get('origin') || '';
   const requestMethod = request.method;
-  const path = request.nextUrl.pathname;
   
-  // Processar somente requisições para a API
-  if (path.startsWith('/api/')) {
-    // Verificar se é uma requisição OPTIONS (preflight)
-    if (requestMethod === 'OPTIONS') {
-      // Para requisições preflight, verificamos se a origem é permitida
-      const isAllowed = allowedOrigins.includes(origin) || origin === '';
-      
-      // Retornar resposta apropriada para preflight
-      return NextResponse.json(
-        {},
-        {
-          status: 200,
-          headers: {
-            'Access-Control-Allow-Origin': isAllowed ? origin : allowedOrigins[0],
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-Payment-Source',
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Max-Age': '86400', // 24 horas
-          },
-        }
-      );
-    }
+  // Verificar se a rota é uma API (todas as APIs começam com /api/)
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
+  
+  // Opções de resposta padrão para CORS
+  const responseHeaders = new Headers(request.headers);
+  
+  // Se a rota for uma API, aplicar CORS
+  if (isApiRoute) {
+    // Verificar se a origem está na lista de permitidas
+    const isAllowedOrigin = allowedOrigins.includes(origin);
     
-    // Para requisições não-preflight, apenas modificamos a resposta para incluir os cabeçalhos CORS
-    const response = NextResponse.next();
-    
-    // Verificar se a origem é permitida
-    const isAllowed = allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development';
-    
-    // Adicionar cabeçalhos CORS
-    if (isAllowed) {
-      response.headers.set('Access-Control-Allow-Origin', origin);
-      response.headers.set('Access-Control-Allow-Credentials', 'true');
+    // Configurar cabeçalhos CORS
+    if (isAllowedOrigin) {
+      responseHeaders.set('Access-Control-Allow-Origin', origin);
     } else {
-      // Em ambiente de produção, você pode querer restringir mais
-      response.headers.set('Access-Control-Allow-Origin', allowedOrigins[0]);
+      // Permitir origens não listadas em desenvolvimento
+      if (process.env.NODE_ENV === 'development') {
+        responseHeaders.set('Access-Control-Allow-Origin', origin);
+      } else {
+        // Em produção, usar a lista de origens permitidas
+        responseHeaders.set('Access-Control-Allow-Origin', allowedOrigins[0]);
+      }
     }
     
-    return response;
+    // Configurações CORS adicionais
+    responseHeaders.set('Access-Control-Allow-Credentials', 'true');
+    responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    
+    // Responder à solicitação OPTIONS (pre-flight)
+    if (requestMethod === 'OPTIONS') {
+      return NextResponse.json({}, { headers: responseHeaders, status: 200 });
+    }
   }
   
-  // Para requisições não-API, apenas prosseguir normalmente
-  return NextResponse.next();
+  // Continuar com a requisição normal com os cabeçalhos CORS configurados
+  const response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    }
+  });
+  
+  // Aplicar os cabeçalhos CORS à resposta
+  if (isApiRoute) {
+    Object.entries(Object.fromEntries(responseHeaders.entries())).forEach(([key, value]) => {
+      if (key.toLowerCase().startsWith('access-control-')) {
+        response.headers.set(key, value);
+      }
+    });
+  }
+  
+  return response;
 }
 
+// Configurar em quais caminhos o middleware deve ser executado
 export const config = {
   matcher: [
-    // Aplicar middleware para todas as rotas da API
-    '/api/:path*',
+    // Aplicar a todas as rotas da API e da página
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }; 

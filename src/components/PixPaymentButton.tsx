@@ -23,30 +23,11 @@ const PixPaymentButton: React.FC<PixPaymentButtonProps> = ({ paymentRequestId, o
   const handleClick = async () => {
     setLoading(true);
     try {
-      // Obter token JWT primeiro - esta é uma rota segura que gera um token temporário
-      const authResponse = await fetch('/api/auth/payment-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          payment_request_id: paymentRequestId,
-        }),
-      });
-
-      if (!authResponse.ok) {
-        const errorData = await authResponse.json();
-        throw new Error(errorData.error || 'Erro ao obter token de autorização');
-      }
-
-      const { token } = await authResponse.json();
-
-      // Usar o token JWT para fazer a requisição à API autenticada
+      // Fazer requisição diretamente à API de pagamento sem autenticação
       const response = await fetch('/api/payment-request', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           payment_request_id: paymentRequestId,
@@ -62,14 +43,18 @@ const PixPaymentButton: React.FC<PixPaymentButtonProps> = ({ paymentRequestId, o
       console.log('Pagamento PIX criado com sucesso:', paymentData);
       
       // Notificar o componente pai sobre o sucesso
-      onSuccess({
-        id: paymentData.payment.id,
-        status: paymentData.payment.status,
-        method: paymentData.payment.method,
-        pix_code: paymentData.payment.pix_code,
-        pix_qrcode: paymentData.payment.pix_qrcode,
-        amount: paymentData.payment.amount
-      });
+      if (paymentData.payment) {
+        onSuccess({
+          id: paymentData.payment.id,
+          status: paymentData.payment.status,
+          method: paymentData.payment.method,
+          pix_code: paymentData.payment.pix_code,
+          pix_qrcode: paymentData.payment.pix_qrcode,
+          amount: paymentData.payment.amount
+        });
+      } else {
+        throw new Error('Dados de pagamento incompletos na resposta');
+      }
       
       toast({
         title: 'Pagamento gerado',

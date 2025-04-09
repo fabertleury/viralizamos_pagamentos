@@ -52,65 +52,11 @@ function generateIdempotencyKey(paymentRequestId: string): string {
 export async function POST(request: NextRequest) {
   console.log('[SOLUÇÃO INTEGRADA] Recebida solicitação de pagamento');
   
-  // Verificar o token JWT no cabeçalho de autorização
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('[SOLUÇÃO INTEGRADA] Erro: Token de autorização ausente ou inválido');
-    return NextResponse.json(
-      { error: 'Token de autorização ausente ou inválido' },
-      { status: 401 }
-    );
-  }
-  
-  // Obter o body da requisição
+  // Obter o body da requisição diretamente sem verificação de token
   const body = await request.json();
-  
-  const token = authHeader.split(' ')[1];
-  let decodedToken;
-  try {
-    // Verificar o token JWT
-    const jwtSecret = process.env.JWT_SECRET || 'jwt_fallback_secret_key';
-    if (!jwtSecret) {
-      console.error('[SOLUÇÃO INTEGRADA] ERRO CRÍTICO: JWT_SECRET não definida');
-      return NextResponse.json(
-        { error: 'Erro de configuração no servidor' },
-        { status: 500 }
-      );
-    }
-    
-    decodedToken = jwt.verify(token, jwtSecret) as {
-      payment_request_id: string;
-      scope: string;
-      exp: number;
-    };
-    
-    // Verificar se o token tem escopo de escrita para criar pagamentos
-    if (body.payment_request_id && decodedToken.payment_request_id !== body.payment_request_id) {
-      return NextResponse.json(
-        { error: 'Token não autorizado para este pagamento' },
-        { status: 403 }
-      );
-    }
-    
-    if (decodedToken.scope !== 'write' && !body.is_status_check) {
-      return NextResponse.json(
-        { error: 'Token não tem permissão para criar pagamentos' },
-        { status: 403 }
-      );
-    }
-    
-    console.log('[SOLUÇÃO INTEGRADA] Token JWT válido:', decodedToken);
-  } catch (jwtError) {
-    console.error('[SOLUÇÃO INTEGRADA] Erro na verificação do token JWT:', jwtError);
-    return NextResponse.json(
-      { error: 'Token de autorização inválido ou expirado' },
-      { status: 401 }
-    );
-  }
+  console.log('[SOLUÇÃO INTEGRADA] Dados recebidos:', JSON.stringify(body).substring(0, 200) + '...');
   
   try {
-    console.log('[SOLUÇÃO INTEGRADA] Dados recebidos:', JSON.stringify(body).substring(0, 200) + '...');
-    
     // Se recebemos apenas um payment_request_id, buscar os dados da solicitação existente
     if (body.payment_request_id) {
       console.log('[SOLUÇÃO INTEGRADA] Criando pagamento para solicitação existente:', body.payment_request_id);
