@@ -111,6 +111,158 @@ export async function POST(request: NextRequest) {
   try {
     console.log('[SOLUÇÃO INTEGRADA] Dados recebidos:', JSON.stringify(body).substring(0, 200) + '...');
     
+    // Se recebemos apenas um payment_request_id, buscar os dados da solicitação existente
+    if (body.payment_request_id) {
+      console.log('[SOLUÇÃO INTEGRADA] Criando pagamento para solicitação existente:', body.payment_request_id);
+      
+      // Buscar a solicitação de pagamento
+      const existingRequest = await db.paymentRequest.findUnique({
+        where: { id: body.payment_request_id }
+      });
+      
+      if (!existingRequest) {
+        return NextResponse.json(
+          { error: 'Solicitação de pagamento não encontrada' },
+          { status: 404 }
+        );
+      }
+      
+      // Verificar se a solicitação já tem uma transação
+      const existingTransaction = await db.transaction.findFirst({
+        where: { payment_request_id: body.payment_request_id }
+      });
+      
+      if (existingTransaction) {
+        return NextResponse.json({
+          id: existingRequest.id,
+          token: existingRequest.token,
+          amount: existingRequest.amount,
+          service_name: existingRequest.service_name,
+          status: existingRequest.status,
+          customer_name: existingRequest.customer_name,
+          customer_email: existingRequest.customer_email,
+          customer_phone: existingRequest.customer_phone,
+          created_at: existingRequest.created_at,
+          expires_at: existingRequest.expires_at,
+          payment: {
+            id: existingTransaction.id,
+            status: existingTransaction.status,
+            method: existingTransaction.method,
+            pix_code: existingTransaction.pix_code,
+            pix_qrcode: existingTransaction.pix_qrcode,
+            amount: existingTransaction.amount
+          }
+        });
+      }
+      
+      // Gerar chave de idempotência para o Mercado Pago
+      const idempotencyKey = generateIdempotencyKey(existingRequest.id);
+      console.log('[SOLUÇÃO INTEGRADA] Chave de idempotência:', idempotencyKey);
+      
+      // Criar payload para o Mercado Pago
+      const paymentData = {
+        transaction_amount: existingRequest.amount,
+        description: existingRequest.service_name || 'Pagamento Viralizamos',
+        payment_method_id: 'pix',
+        payer: {
+          email: existingRequest.customer_email,
+          first_name: existingRequest.customer_name.split(' ')[0],
+          last_name: existingRequest.customer_name.split(' ').slice(1).join(' ') || 'Sobrenome',
+          identification: {
+            type: 'CPF',
+            number: '00000000000'
+          }
+        },
+        notification_url: `${process.env.WEBHOOK_URL || process.env.NEXT_PUBLIC_BASE_URL}/api/webhooks/mercadopago`
+      };
+      
+      console.log('[SOLUÇÃO INTEGRADA] Enviando dados para Mercado Pago:', JSON.stringify(paymentData).substring(0, 200) + '...');
+      
+      try {
+        // Criar o pagamento no Mercado Pago
+        const mpResponse = await payment.create({ body: paymentData });
+        
+        if (!mpResponse || !mpResponse.id) {
+          throw new Error('Resposta inválida do Mercado Pago');
+        }
+        
+        console.log('[SOLUÇÃO INTEGRADA] Resposta do Mercado Pago:', JSON.stringify(mpResponse).substring(0, 200) + '...');
+        
+        // Criar a transação
+        const transaction = await db.transaction.create({
+          data: {
+            payment_request_id: existingRequest.id,
+            external_id: mpResponse.id.toString(),
+            status: 'pending',
+            method: 'pix',
+            amount: existingRequest.amount,
+            provider: 'mercadopago',
+            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
+            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
+            metadata: JSON.stringify({
+              mercadopago_response: mpResponse,
+              idempotencyKey
+            })
+          }
+        });
+        
+        // Atualizar o status da solicitação
+        await db.paymentRequest.update({
+          where: { id: existingRequest.id },
+          data: { status: 'processing' }
+        });
+        
+        // Retornar a resposta
+        return NextResponse.json({
+          id: existingRequest.id,
+          token: existingRequest.token,
+          amount: existingRequest.amount,
+          service_name: existingRequest.service_name,
+          status: 'processing',
+          customer_name: existingRequest.customer_name,
+          customer_email: existingRequest.customer_email,
+          customer_phone: existingRequest.customer_phone,
+          created_at: existingRequest.created_at,
+          expires_at: existingRequest.expires_at,
+          payment: {
+            id: transaction.id,
+            status: transaction.status,
+            method: transaction.method,
+            pix_code: transaction.pix_code,
+            pix_qrcode: transaction.pix_qrcode,
+            amount: transaction.amount
+          }
+        });
+        
+      } catch (mpError) {
+        console.error('[SOLUÇÃO INTEGRADA] Erro ao criar pagamento no Mercado Pago:', mpError);
+        
+        // Registrar o erro
+        try {
+          await db.paymentProcessingFailure.create({
+            data: {
+              transaction_id: 'error', // Placeholder
+              error_code: 'MP_PAYMENT_CREATION_ERROR',
+              error_message: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
+              stack_trace: mpError instanceof Error ? mpError.stack : undefined,
+              metadata: JSON.stringify({
+                payment_request_id: existingRequest.id,
+                idempotencyKey
+              })
+            }
+          });
+        } catch (logError) {
+          console.error('[SOLUÇÃO INTEGRADA] Erro ao registrar falha:', logError);
+        }
+        
+        return NextResponse.json(
+          { error: 'Erro ao criar pagamento no Mercado Pago' },
+          { status: 500 }
+        );
+      }
+    }
+    
+    // Continuar com o fluxo original para criação de nova solicitação
     // Validar campos obrigatórios
     if (!body.amount || !body.customer_name || !body.customer_email) {
       console.log('[SOLUÇÃO INTEGRADA] Erro: campos obrigatórios ausentes');
