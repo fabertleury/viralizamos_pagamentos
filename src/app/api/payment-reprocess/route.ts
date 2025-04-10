@@ -72,6 +72,21 @@ export async function POST(request: NextRequest) {
       paymentRequest = transaction.payment_request;
     }
     
+    // Verificação de segurança antes de acessar propriedades
+    if (!transaction) {
+      return NextResponse.json(
+        { error: 'Não foi possível obter dados da transação' },
+        { status: 500 }
+      );
+    }
+    
+    if (!paymentRequest) {
+      return NextResponse.json(
+        { error: 'Não foi possível obter dados do pagamento' },
+        { status: 500 }
+      );
+    }
+    
     // Verificar se a transação já foi processada
     if (transaction.processed_at) {
       return NextResponse.json({
