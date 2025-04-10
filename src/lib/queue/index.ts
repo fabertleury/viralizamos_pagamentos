@@ -2,6 +2,18 @@ import Bull, { Queue, JobOptions } from 'bull';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 
+// Interface para dados de post
+interface PostData {
+  id?: string;
+  code?: string;
+  shortcode?: string;
+  url?: string;
+  type?: string;
+  is_reel?: boolean;
+  quantity?: number;
+  calculated_quantity?: number;
+}
+
 const prisma = new PrismaClient();
 
 // Nome das filas
@@ -103,7 +115,7 @@ function setupProcessors() {
     // Obter dados do serviço
     let serviceData = null;
     let serviceId = null;
-    let posts = [];
+    let posts: PostData[] = [];
     let totalQuantity = 0;
     
     // Tentar obter de additional_data
@@ -157,7 +169,7 @@ function setupProcessors() {
       console.log(`📊 [Queue] Processando ${posts.length} posts`);
       
       for (let i = 0; i < posts.length; i++) {
-        const post = posts[i];
+        const post: PostData = posts[i];
         const postQuantity = post.quantity || post.calculated_quantity || Math.floor(totalQuantity / posts.length);
         
         // Extrair informações do post
@@ -172,18 +184,31 @@ function setupProcessors() {
         // Usar um jobId específico para cada post para garantir idempotência
         const postJobId = `${externalId}_${postCode || postId || i}`;
         
+        // Gerar um external_order_id único que será enviado para o provedor
+        const external_order_id = `order_${Date.now()}_${Math.floor(Math.random() * 1000)}_${i}`;
+        
         console.log(`🔄 [Queue] Processando post ${i+1}/${posts.length}: ${postCode || postUrl}, quantidade: ${postQuantity}`);
         
         try {
+          // Obter informações do provider_id se disponível
+          let provider_id = null;
+          if (serviceData && serviceData.provider_id) {
+            provider_id = serviceData.provider_id;
+            console.log(`ℹ️ [Queue] Usando provider_id do serviço: ${provider_id}`);
+          }
+          
           const response = await axios.post(ordersApiUrl, {
             transaction_id: transaction.id,
             service_id: serviceId,
+            provider_id: provider_id, // ID do provedor de serviços
+            external_service_id: serviceData?.external_id || null, // ID externo do serviço (usado pelo provedor)
+            external_order_id: external_order_id, // ID externo do pedido (será enviado ao provedor)
             external_payment_id: postJobId, // ID único para cada post
             external_transaction_id: externalId,
             amount: transaction.amount / posts.length, // Distribuir o valor
             quantity: postQuantity,
             target_username: targetUsername,
-            target_url: postUrl,
+            target_url: postUrl, // URL do post para receber o serviço
             customer_email: paymentRequest.customer_email,
             customer_name: paymentRequest.customer_name,
             post_data: {
@@ -224,13 +249,30 @@ function setupProcessors() {
       console.log(`🔄 [Queue] Processando serviço único (sem posts)`);
       
       try {
+        // Gerar um external_order_id único que será enviado para o provedor
+        const external_order_id = `order_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        
+        // Obter informações do provider_id se disponível
+        let provider_id = null;
+        if (serviceData && serviceData.provider_id) {
+          provider_id = serviceData.provider_id;
+          console.log(`ℹ️ [Queue] Usando provider_id do serviço: ${provider_id}`);
+        }
+        
+        // Construir URL do perfil ou target
+        const targetUrl = `https://instagram.com/${targetUsername}`;
+        
         const response = await axios.post(ordersApiUrl, {
           transaction_id: transaction.id,
           service_id: serviceId,
+          provider_id: provider_id, // ID do provedor de serviços
+          external_service_id: serviceData?.external_id || null, // ID externo do serviço (usado pelo provedor)
+          external_order_id: external_order_id, // ID externo do pedido (será enviado ao provedor)
           external_payment_id: externalId,
           amount: transaction.amount,
           quantity: totalQuantity || serviceData.quantity || 100,
           target_username: targetUsername,
+          target_url: targetUrl, // URL do perfil para receber o serviço
           customer_email: paymentRequest.customer_email,
           customer_name: paymentRequest.customer_name,
           payment_data: {
@@ -287,10 +329,10 @@ function setupProcessors() {
           order_details: createdOrderIds.map((id, index) => ({
             order_id: id,
             post: posts[index] ? {
-              code: posts[index].code || null,
-              url: posts[index].url || null,
-              type: posts[index].type || (posts[index].is_reel ? 'reel' : 'post'),
-              quantity: posts[index].quantity || posts[index].calculated_quantity || Math.floor(totalQuantity / posts.length)
+              code: posts[index]?.code || null,
+              url: posts[index]?.url || null,
+              type: posts[index]?.type || (posts[index]?.is_reel ? 'reel' : 'post'),
+              quantity: posts[index]?.quantity || posts[index]?.calculated_quantity || Math.floor(totalQuantity / posts.length)
             } : null
           }))
         })
@@ -299,16 +341,22 @@ function setupProcessors() {
     
     console.log(`✅ [Queue] ${createdOrderIds.length} pedidos criados com sucesso: ${createdOrderIds.join(', ')}`);
     console.log(`🔍 [Queue] Detalhes: ${createdOrderIds.map((id, idx) => 
-      `Pedido ${idx+1}: ${id} - Post: ${posts[idx]?.code || 'N/A'}`).join(', ')}`);
+      `Pedido ${idx+1}: ${id} - Post: ${idx < posts.length ? posts[idx]?.code || 'N/A' : 'Serviço único'}`).join(', ')}`);
     
     return {
       success: true,
       orderIds: createdOrderIds,
-      details: posts.map((post, idx) => ({
-        order_id: createdOrderIds[idx] || null,
-        post_code: post?.code || null,
-        quantity: post?.quantity || post?.calculated_quantity || Math.floor(totalQuantity / posts.length)
-      }))
+      details: posts.length > 0 ? 
+        posts.map((post: PostData, idx: number) => ({
+          order_id: idx < createdOrderIds.length ? createdOrderIds[idx] : null,
+          post_code: post?.code || null,
+          quantity: post?.quantity || post?.calculated_quantity || Math.floor(totalQuantity / posts.length)
+        })) :
+        [{ 
+          order_id: createdOrderIds[0] || null, 
+          post_code: null,
+          quantity: totalQuantity || serviceData?.quantity || 100
+        }]
     };
   });
   
