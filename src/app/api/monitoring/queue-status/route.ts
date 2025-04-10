@@ -3,6 +3,24 @@ import { getQueue } from '@/lib/queue';
 import { isRedisConnected } from '@/lib/redis';
 import { checkApiKey } from '@/lib/auth';
 
+// Interface para jobs
+interface JobData {
+  id: string;
+  data: any;
+  finishedOn?: number;
+  failedReason?: string;
+  attemptsMade: number;
+}
+
+// Interface para jobs recentes
+interface RecentJob {
+  id: string;
+  status: string;
+  data: any;
+  processedAt: string | null;
+  attempts: number;
+}
+
 // Endpoint para verificar o status das filas (para monitoramento)
 export async function GET(request: NextRequest) {
   try {
@@ -28,7 +46,8 @@ export async function GET(request: NextRequest) {
       delayed: 0,
       paused: 0
     };
-    let recentJobs = [];
+    // Inicializar array vazio com o tipo correto
+    const recentJobs: RecentJob[] = [];
 
     if (paymentQueue) {
       try {
@@ -59,13 +78,19 @@ export async function GET(request: NextRequest) {
         const failedJobs = await paymentQueue.getFailed(0, 3);
         const activeJobs = await paymentQueue.getActive(0, 2);
         
-        recentJobs = [...completedJobs, ...failedJobs, ...activeJobs].map(job => ({
-          id: job.id,
-          status: job.finishedOn ? (job.failedReason ? 'failed' : 'completed') : 'active',
-          data: job.data,
-          processedAt: job.finishedOn ? new Date(job.finishedOn).toISOString() : null,
-          attempts: job.attemptsMade
-        }));
+        // Processar todos os jobs e adicionar ao array com tipagem correta
+        [...completedJobs, ...failedJobs, ...activeJobs].forEach(job => {
+          // Converter o ID para string se for número
+          const jobId = typeof job.id === 'number' ? job.id.toString() : job.id;
+          
+          recentJobs.push({
+            id: jobId,
+            status: job.finishedOn ? (job.failedReason ? 'failed' : 'completed') : 'active',
+            data: job.data,
+            processedAt: job.finishedOn ? new Date(job.finishedOn).toISOString() : null,
+            attempts: job.attemptsMade
+          });
+        });
       } catch (error) {
         console.error('Erro ao obter estatísticas da fila:', error);
         queueStatus = 'error';
