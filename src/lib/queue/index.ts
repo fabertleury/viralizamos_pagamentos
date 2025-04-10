@@ -160,10 +160,19 @@ function setupProcessors() {
         const post = posts[i];
         const postQuantity = post.quantity || post.calculated_quantity || Math.floor(totalQuantity / posts.length);
         
-        // Usar um jobId específico para cada post para garantir idempotência
-        const postJobId = `${externalId}_${post.id || post.code || i}`;
+        // Extrair informações do post
+        const postId = post.id || `post-${i}-${Date.now()}`;
+        const postCode = post.code || post.shortcode || null;
+        const postUrl = post.url || (postCode ? 
+          (post.is_reel || post.type === 'reel' ? 
+            `https://instagram.com/reel/${postCode}/` : 
+            `https://instagram.com/p/${postCode}/`)
+          : null);
         
-        console.log(`🔄 [Queue] Processando post ${i+1}/${posts.length}: ${post.url || post.code}, quantidade: ${postQuantity}`);
+        // Usar um jobId específico para cada post para garantir idempotência
+        const postJobId = `${externalId}_${postCode || postId || i}`;
+        
+        console.log(`🔄 [Queue] Processando post ${i+1}/${posts.length}: ${postCode || postUrl}, quantidade: ${postQuantity}`);
         
         try {
           const response = await axios.post(ordersApiUrl, {
@@ -174,13 +183,14 @@ function setupProcessors() {
             amount: transaction.amount / posts.length, // Distribuir o valor
             quantity: postQuantity,
             target_username: targetUsername,
+            target_url: postUrl,
             customer_email: paymentRequest.customer_email,
             customer_name: paymentRequest.customer_name,
             post_data: {
-              post_id: post.id || post.code,
-              post_url: post.url,
+              post_id: postId,
+              post_url: postUrl,
               post_type: post.type || (post.is_reel ? 'reel' : 'post'),
-              post_code: post.code,
+              post_code: postCode,
               is_reel: post.is_reel || post.type === 'reel'
             },
             payment_data: {
@@ -203,9 +213,9 @@ function setupProcessors() {
           const orderIdFromResponse = response.data.order_id;
           createdOrderIds.push(orderIdFromResponse);
           
-          console.log(`✅ [Queue] Pedido criado para post ${i+1}: ${orderIdFromResponse}`);
+          console.log(`✅ [Queue] Pedido criado para post ${i+1}: ${orderIdFromResponse} (post_code: ${postCode || 'N/A'})`);
         } catch (error) {
-          console.error(`❌ [Queue] Erro ao criar pedido para post ${i+1}:`, error);
+          console.error(`❌ [Queue] Erro ao criar pedido para post ${i+1} (${postCode || postId}):`, error);
           throw error;
         }
       }
@@ -243,9 +253,9 @@ function setupProcessors() {
         const orderIdFromResponse = response.data.order_id;
         createdOrderIds.push(orderIdFromResponse);
         
-        console.log(`✅ [Queue] Pedido criado com sucesso: ${orderIdFromResponse}`);
+        console.log(`✅ [Queue] Pedido único criado com sucesso: ${orderIdFromResponse}`);
       } catch (error) {
-        console.error(`❌ [Queue] Erro ao criar pedido:`, error);
+        console.error(`❌ [Queue] Erro ao criar pedido único:`, error);
         throw error;
       }
     }
@@ -257,7 +267,8 @@ function setupProcessors() {
         processed_at: new Date(),
         metadata: JSON.stringify({
           ...JSON.parse(transaction.metadata || '{}'),
-          processed_orders: createdOrderIds
+          processed_orders: createdOrderIds,
+          processed_at: new Date().toISOString()
         })
       }
     });
@@ -271,16 +282,33 @@ function setupProcessors() {
         processed_payment_id: transaction.id,
         additional_data: JSON.stringify({
           ...JSON.parse(paymentRequest.additional_data || '{}'),
-          processed_orders: createdOrderIds
+          processed_orders: createdOrderIds,
+          processed_at: new Date().toISOString(),
+          order_details: createdOrderIds.map((id, index) => ({
+            order_id: id,
+            post: posts[index] ? {
+              code: posts[index].code || null,
+              url: posts[index].url || null,
+              type: posts[index].type || (posts[index].is_reel ? 'reel' : 'post'),
+              quantity: posts[index].quantity || posts[index].calculated_quantity || Math.floor(totalQuantity / posts.length)
+            } : null
+          }))
         })
       }
     });
     
     console.log(`✅ [Queue] ${createdOrderIds.length} pedidos criados com sucesso: ${createdOrderIds.join(', ')}`);
+    console.log(`🔍 [Queue] Detalhes: ${createdOrderIds.map((id, idx) => 
+      `Pedido ${idx+1}: ${id} - Post: ${posts[idx]?.code || 'N/A'}`).join(', ')}`);
     
     return {
       success: true,
-      orderIds: createdOrderIds
+      orderIds: createdOrderIds,
+      details: posts.map((post, idx) => ({
+        order_id: createdOrderIds[idx] || null,
+        post_code: post?.code || null,
+        quantity: post?.quantity || post?.calculated_quantity || Math.floor(totalQuantity / posts.length)
+      }))
     };
   });
   
