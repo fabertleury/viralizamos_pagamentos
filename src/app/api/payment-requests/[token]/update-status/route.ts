@@ -54,8 +54,7 @@ export async function POST(
     const updatedPaymentRequest = await db.paymentRequest.update({
       where: { token },
       data: { 
-        status,
-        updated_at: new Date()
+        status
       },
     });
 
