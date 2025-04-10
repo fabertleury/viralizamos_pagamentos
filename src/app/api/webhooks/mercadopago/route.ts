@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
+import { queuePaymentProcessing, getQueue } from '@/lib/queue';
 
 export async function POST(request: NextRequest) {
   try {
@@ -97,6 +98,37 @@ export async function POST(request: NextRequest) {
             processed: true
           }
         });
+        
+        // Se o pagamento foi aprovado e a transação não foi processada ainda,
+        // adicionar diretamente à fila Redis para processamento imediato
+        if (status === 'approved' && !transaction.processed_at) {
+          // Buscar a fila de processamento
+          const queue = getQueue('payment-processing');
+          
+          if (queue) {
+            // Gerar jobId usando externalId para garantir idempotência
+            const jobId = `payment_${transaction.external_id}`;
+            
+            // Adicionar à fila com jobId para evitar duplicação
+            await queue.add(
+              'process-payment',
+              {
+                transactionId: transaction.id,
+                paymentRequestId: transaction.payment_request_id,
+                externalId: transaction.external_id
+              },
+              { 
+                jobId, // Bull ignora jobs com mesmo ID
+                attempts: 3,
+                backoff: { type: 'exponential', delay: 5000 }
+              }
+            );
+            
+            console.log(`💰 [Webhook] Transação ${transaction.id} adicionada à fila Redis com jobId ${jobId}`);
+          } else {
+            console.warn(`⚠️ [Webhook] Fila de processamento não está disponível`);
+          }
+        }
       }
       
       // Se o pagamento foi aprovado, atualizar o payment_request
