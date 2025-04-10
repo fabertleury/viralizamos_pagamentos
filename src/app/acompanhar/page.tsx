@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Header } from '@/components/ui/Header';
@@ -33,17 +32,30 @@ import {
 } from '@chakra-ui/react';
 
 // Definir interface para o tipo Order
+interface TransactionData {
+  id: string;
+  status: string;
+  method: string;
+  provider: string;
+  created_at: string;
+  processed_at: string | null;
+}
+
+interface CustomerData {
+  name: string;
+  email: string;
+}
+
 interface Order {
   id: string;
-  external_order_id?: string;
+  token: string;
   status: string;
-  service?: {
-    name?: string;
-  };
-  target_username?: string;
-  quantity?: number;
-  amount?: number;
+  service_name: string;
+  profile_username: string;
+  amount: number;
   created_at: string;
+  transaction: TransactionData | null;
+  customer: CustomerData;
 }
 
 export default function AcompanharPedidoPage() {
@@ -53,6 +65,7 @@ export default function AcompanharPedidoPage() {
   const [searched, setSearched] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [userData, setUserData] = useState<any>(null);
   
   // Função para mapear o status do pagamento para o status do pedido
   const mapPaymentStatusToOrderStatus = (paymentStatus: string): string => {
@@ -127,6 +140,31 @@ export default function AcompanharPedidoPage() {
     });
   };
 
+  // Função para filtrar e ordernar os pedidos
+  const getFilteredOrders = () => {
+    return orders
+      .filter(order => {
+        // Filtrar por status
+        if (filterStatus !== 'all' && order.status.toLowerCase() !== filterStatus) {
+          return false;
+        }
+        
+        // Filtrar por termo de busca
+        if (searchTerm) {
+          const term = searchTerm.toLowerCase();
+          return (
+            order.id.toLowerCase().includes(term) ||
+            order.token.toLowerCase().includes(term) ||
+            order.service_name.toLowerCase().includes(term) ||
+            (order.profile_username && order.profile_username.toLowerCase().includes(term)) ||
+            (order.transaction?.id && order.transaction.id.toLowerCase().includes(term))
+          );
+        }
+        
+        return true;
+      });
+  };
+
   const handleSearchOrders = async (e: React.FormEvent | null = null) => {
     if (e) e.preventDefault();
     
@@ -140,7 +178,7 @@ export default function AcompanharPedidoPage() {
     setSearched(true);
     
     try {
-      // Aqui você fará a chamada à API para buscar os pedidos
+      // Chamar a API para buscar os pedidos
       const response = await fetch('/api/pedidos', {
         method: 'POST',
         headers: {
@@ -154,6 +192,7 @@ export default function AcompanharPedidoPage() {
         
         if (data.orders && Array.isArray(data.orders)) {
           setOrders(data.orders);
+          setUserData(data.user);
           
           if (data.orders.length === 0) {
             toast.info('Nenhum pedido encontrado para este e-mail.');
@@ -162,7 +201,8 @@ export default function AcompanharPedidoPage() {
           }
         }
       } else {
-        toast.error('Erro ao buscar pedidos. Por favor, tente novamente mais tarde.');
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao buscar pedidos. Por favor, tente novamente mais tarde.');
       }
     } catch (error) {
       console.error('Erro ao buscar pedidos:', error);
@@ -174,6 +214,9 @@ export default function AcompanharPedidoPage() {
   
   const bgColor = useColorModeValue('gray.50', 'gray.900');
   const cardBgColor = useColorModeValue('white', 'gray.800');
+  
+  // Obter pedidos filtrados
+  const filteredOrders = getFilteredOrders();
   
   return (
     <Box minH="100vh" display="flex" flexDir="column">
@@ -217,7 +260,18 @@ export default function AcompanharPedidoPage() {
               </CardBody>
             </Card>
             
-            {searched && orders.length > 0 && (
+            {searched && userData && (
+              <Box p={4} bg="blue.50" borderRadius="md" mb={4}>
+                <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" align="center">
+                  <Box>
+                    <Text fontSize="md" fontWeight="bold">Olá, {userData.name}!</Text>
+                    <Text fontSize="sm" color="gray.600">{userData.email}</Text>
+                  </Box>
+                </Flex>
+              </Box>
+            )}
+            
+            {searched && filteredOrders.length > 0 && (
               <Box mt={8}>
                 <Flex 
                   direction={{ base: "column", md: "row" }} 
@@ -250,136 +304,176 @@ export default function AcompanharPedidoPage() {
                       <option value="pending">Pendente</option>
                       <option value="processing">Processando</option>
                       <option value="completed">Concluído</option>
-                      <option value="partial">Parcial</option>
                       <option value="failed">Falhou</option>
                       <option value="canceled">Cancelado</option>
                     </Select>
+                    <Button
+                      leftIcon={<RefreshCw size={16} />}
+                      colorScheme="blue"
+                      variant="outline"
+                      onClick={() => handleSearchOrders()}
+                      isLoading={isSubmitting}
+                    >
+                      Atualizar
+                    </Button>
                   </Stack>
                 </Flex>
                 
-                <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={6}>
-                  {orders
-                    .filter(order => {
-                      // Filtrar por status
-                      if (filterStatus !== 'all' && order.status?.toLowerCase() !== filterStatus) {
-                        return false;
-                      }
-                      
-                      // Filtrar por termo de busca
-                      if (searchTerm) {
-                        const searchLower = searchTerm.toLowerCase();
-                        return (
-                          order.service?.name?.toLowerCase().includes(searchLower) ||
-                          (order.external_order_id || order.id).toLowerCase().includes(searchLower) ||
-                          order.target_username?.toLowerCase().includes(searchLower)
-                        );
-                      }
-                      
-                      return true;
-                    })
-                    .map((order) => (
-                      <Card 
-                        key={order.id} 
-                        bg={cardBgColor}
-                        borderRadius="lg" 
-                        overflow="hidden" 
-                        borderWidth="1px"
-                        borderColor="gray.100"
-                        transition="box-shadow 0.3s"
-                        _hover={{ shadow: "lg" }}
+                <VStack spacing={4} align="stretch">
+                  {filteredOrders.map((order) => (
+                    <Card key={order.id} overflow="hidden" variant="outline">
+                      <CardHeader
+                        bg={useColorModeValue('gray.50', 'gray.700')}
+                        py={3}
+                        px={4}
                       >
-                        <CardHeader bg="gray.50" px={4} py={2} display="flex" justifyContent="space-between" alignItems="center">
-                          <Flex alignItems="center">
-                            <Text fontSize="xs" fontWeight="medium" color="gray.500" mr={2}>
-                              Status do pedido:
+                        <Flex justifyContent="space-between" alignItems="center">
+                          <HStack spacing={2}>
+                            <Text fontWeight="bold" fontSize="sm" color="gray.700">
+                              Pedido: {order.token.substring(0, 16)}...
                             </Text>
-                            <Badge variant={getStatusVariant(order.status || 'pending')}>
-                              {getOrderStatusBadge(order.status || 'pending')}
+                            <Badge
+                              colorScheme={
+                                order.status === 'completed'
+                                  ? 'green'
+                                  : order.status === 'pending'
+                                  ? 'yellow'
+                                  : order.status === 'processing'
+                                  ? 'blue'
+                                  : 'red'
+                              }
+                            >
+                              {getOrderStatusBadge(order.status)}
                             </Badge>
-                          </Flex>
+                          </HStack>
                           <Text fontSize="xs" color="gray.500">
                             {formatDate(order.created_at)}
                           </Text>
-                        </CardHeader>
+                        </Flex>
+                      </CardHeader>
+                      
+                      <CardBody py={4} px={4}>
+                        <Grid
+                          templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
+                          gap={4}
+                        >
+                          <GridItem>
+                            <VStack align="flex-start" spacing={1}>
+                              <Text fontSize="sm" color="gray.500">Serviço</Text>
+                              <Text fontWeight="medium">{order.service_name}</Text>
+                            </VStack>
+                          </GridItem>
+                          
+                          <GridItem>
+                            <VStack align="flex-start" spacing={1}>
+                              <Text fontSize="sm" color="gray.500">Perfil</Text>
+                              <Text fontWeight="medium">{order.profile_username || 'Não especificado'}</Text>
+                            </VStack>
+                          </GridItem>
+                          
+                          <GridItem>
+                            <VStack align="flex-start" spacing={1}>
+                              <Text fontSize="sm" color="gray.500">Valor</Text>
+                              <Text fontWeight="medium">
+                                {new Intl.NumberFormat('pt-BR', {
+                                  style: 'currency',
+                                  currency: 'BRL'
+                                }).format(order.amount)}
+                              </Text>
+                            </VStack>
+                          </GridItem>
+                          
+                          <GridItem>
+                            <VStack align="flex-start" spacing={1}>
+                              <Text fontSize="sm" color="gray.500">Método de pagamento</Text>
+                              <Text fontWeight="medium">
+                                {order.transaction?.method 
+                                  ? order.transaction.method === 'pix' 
+                                    ? 'PIX' 
+                                    : order.transaction.method.charAt(0).toUpperCase() + order.transaction.method.slice(1)
+                                  : 'Não informado'}
+                              </Text>
+                            </VStack>
+                          </GridItem>
+                        </Grid>
                         
-                        <CardBody p={4}>
-                          <VStack align="stretch" spacing={3}>
-                            <Flex justify="space-between">
-                              <Text fontSize="sm" fontWeight="semibold" color="gray.700">ID do Pedido:</Text>
-                              <Text fontSize="sm" color="gray.900">{order.external_order_id || order.id}</Text>
-                            </Flex>
-                            
-                            <Flex justify="space-between">
-                              <Text fontSize="sm" fontWeight="semibold" color="gray.700">Serviço:</Text>
-                              <Text fontSize="sm" color="gray.900">{order.service?.name || 'Não especificado'}</Text>
-                            </Flex>
-                            
-                            {order.target_username && (
-                              <Flex justify="space-between">
-                                <Text fontSize="sm" fontWeight="semibold" color="gray.700">Usuário:</Text>
-                                <Text fontSize="sm" color="gray.900">@{order.target_username}</Text>
-                              </Flex>
-                            )}
-                            
-                            <Flex justify="space-between">
-                              <Text fontSize="sm" fontWeight="semibold" color="gray.700">Quantidade:</Text>
-                              <Text fontSize="sm" color="gray.900">{order.quantity || 'Não especificado'}</Text>
-                            </Flex>
-                            
-                            {order.amount && (
-                              <Flex justify="space-between">
-                                <Text fontSize="sm" fontWeight="semibold" color="gray.700">Valor:</Text>
-                                <Text fontSize="sm" color="gray.900">
-                                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.amount)}
-                                </Text>
-                              </Flex>
-                            )}
-                          </VStack>
-                        </CardBody>
-                      </Card>
-                    ))}
-                </Grid>
+                        {order.transaction && (
+                          <>
+                            <Divider my={4} />
+                            <Text fontSize="sm" fontWeight="medium" mb={2}>
+                              Informações do pagamento
+                            </Text>
+                            <Grid
+                              templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
+                              gap={3}
+                            >
+                              <GridItem>
+                                <HStack>
+                                  <Text fontSize="xs" color="gray.500">Status:</Text>
+                                  <Badge
+                                    colorScheme={
+                                      order.transaction.status === 'approved'
+                                        ? 'green'
+                                        : order.transaction.status === 'pending'
+                                        ? 'yellow'
+                                        : order.transaction.status === 'processing'
+                                        ? 'blue'
+                                        : 'red'
+                                    }
+                                    fontSize="xs"
+                                  >
+                                    {order.transaction.status === 'approved' 
+                                      ? 'Aprovado' 
+                                      : order.transaction.status === 'pending'
+                                      ? 'Pendente'
+                                      : order.transaction.status === 'processing'
+                                      ? 'Processando'
+                                      : order.transaction.status}
+                                  </Badge>
+                                </HStack>
+                              </GridItem>
+                              
+                              <GridItem>
+                                <HStack>
+                                  <Text fontSize="xs" color="gray.500">Processado:</Text>
+                                  <Text fontSize="xs">
+                                    {order.transaction.processed_at 
+                                      ? formatDate(order.transaction.processed_at)
+                                      : 'Não processado'}
+                                  </Text>
+                                </HStack>
+                              </GridItem>
+                            </Grid>
+                          </>
+                        )}
+                        
+                        <Flex justify="flex-end" mt={4}>
+                          <Button
+                            as={Link}
+                            href={`/acompanhar/${order.token}`}
+                            size="sm"
+                            colorScheme="blue"
+                            variant="outline"
+                          >
+                            Ver detalhes
+                          </Button>
+                        </Flex>
+                      </CardBody>
+                    </Card>
+                  ))}
+                </VStack>
               </Box>
             )}
             
-            {searched && orders.length === 0 && !isSubmitting && (
-              <Card bg={cardBgColor} shadow="sm" borderRadius="lg" mb={8} p={6} textAlign="center">
-                <CardBody>
-                  <Text color="gray.700" mb={4}>Nenhum pedido encontrado para este e-mail.</Text>
-                  <Text color="gray.600" fontSize="sm">
-                    Se você realizou uma compra recentemente, verifique se utilizou o mesmo e-mail informado.
-                  </Text>
-                </CardBody>
-              </Card>
-            )}
-            
-            {!searched && (
-              <Card bg={cardBgColor} borderRadius="lg" shadow="md" p={6} w="full" mt={8}>
-                <CardBody>
-                  <Heading as="h2" size="md" color="gray.700" mb={4}>
-                    Não tem o email?
-                  </Heading>
-                  <Text color="gray.600" mb={4}>
-                    Se você não lembra qual e-mail utilizou para compra, entre em contato conosco pelo WhatsApp para obter ajuda.
-                  </Text>
-                  
-                  <Button
-                    as="a"
-                    href="https://wa.me/5562999915390"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    leftIcon={
-                      <Box as="svg" width="20px" height="20px" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M17.6 6.3c-1.4-1.5-3.3-2.3-5.4-2.3-4.2 0-7.6 3.4-7.6 7.6 0 1.3 0.3 2.6 1 3.8l-1.1 4 4.1-1.1c1.1 0.6 2.4 0.9 3.7 0.9 4.2 0 7.6-3.4 7.6-7.6 0-2-0.8-3.9-2.3-5.3zm-5.4 11.7c-1.1 0-2.3-0.3-3.3-0.9l-0.2-0.1-2.4 0.6 0.6-2.3-0.1-0.2c-0.6-1-0.9-2.2-0.9-3.4 0-3.5 2.8-6.3 6.3-6.3 1.7 0 3.3 0.7 4.5 1.9s1.9 2.8 1.9 4.5c0 3.5-2.9 6.2-6.4 6.2zm3.5-4.7c-0.2-0.1-1.1-0.6-1.3-0.6-0.2-0.1-0.3-0.1-0.4 0.1-0.1 0.2-0.5 0.6-0.6 0.8-0.1 0.1-0.2 0.1-0.4 0-0.2-0.1-0.8-0.3-1.5-0.9-0.6-0.5-0.9-1.1-1-1.3-0.1-0.2 0-0.3 0.1-0.4 0.1-0.1 0.2-0.2 0.3-0.3 0.1-0.1 0.1-0.2 0.2-0.3 0.1-0.1 0-0.2 0-0.3 0-0.1-0.4-1.1-0.6-1.4-0.2-0.4-0.3-0.3-0.5-0.3h-0.3c-0.1 0-0.3 0-0.5 0.2-0.2 0.2-0.7 0.7-0.7 1.7s0.7 1.9 0.8 2.1c0.1 0.1 1.4 2.1 3.3 2.9 0.5 0.2 0.8 0.3 1.1 0.4 0.5 0.1 0.9 0.1 1.2 0.1 0.4-0.1 1.1-0.5 1.3-0.9 0.2-0.5 0.2-0.9 0.1-0.9-0.1-0.1-0.2-0.1-0.4-0.2z" />
-                      </Box>
-                    }
-                    colorScheme="green"
-                    size="md"
-                  >
-                    Suporte via WhatsApp
-                  </Button>
-                </CardBody>
-              </Card>
+            {searched && orders.length === 0 && (
+              <Box textAlign="center" py={10}>
+                <Heading as="h3" size="md" mb={3}>
+                  Nenhum pedido encontrado
+                </Heading>
+                <Text color="gray.600">
+                  Não encontramos pedidos associados a este email. Verifique se digitou o email corretamente.
+                </Text>
+              </Box>
             )}
           </VStack>
         </Container>
