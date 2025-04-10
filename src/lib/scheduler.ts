@@ -1,7 +1,19 @@
 import axios from 'axios';
-import cron from 'node-cron';
+// Removida a importação do node-cron, pois não é mais utilizado
 
-let queueProcessingTask: cron.ScheduledTask | null = null;
+/**
+ * AVISO: Este arquivo está completamente depreciado.
+ * O processamento da fila agora é feito diretamente via Redis/Bull através dos webhooks.
+ * Este arquivo é mantido apenas por referência histórica.
+ * 
+ * Para verificar a implementação atual, consulte:
+ * - /src/lib/queue/index.ts (processamento via Bull/Redis)
+ * - /src/app/api/webhooks/payment-approved/route.ts (endpoint que enfileira pagamentos)
+ * - /src/app/api/webhooks/mercadopago/route.ts (webhook do Mercado Pago)
+ */
+
+// Variável mantida apenas para compatibilidade de tipagem
+let queueProcessingTask: any = null;
 let isProcessing = false;
 
 /**
@@ -17,7 +29,8 @@ async function processQueue() {
 }
 
 /**
- * Inicia o agendador de tarefas
+ * Inicia o agendador de tarefas (DEPRECIADO)
+ * Esta função está mantida apenas por compatibilidade
  */
 export function startScheduler() {
   console.log('[Scheduler] AVISO: O processamento periódico da fila foi desativado.');
@@ -30,13 +43,14 @@ export function startScheduler() {
 }
 
 /**
- * Para todas as tarefas agendadas
+ * Para todas as tarefas agendadas (DEPRECIADO)
+ * Esta função está mantida apenas por compatibilidade
  */
 export function stopScheduler() {
   console.log('[Scheduler] Não há tarefas agendadas para parar. O processamento periódico foi desativado.');
   
   if (queueProcessingTask) {
-    queueProcessingTask.stop();
+    // Não faz nada agora, pois queueProcessingTask não é mais um objeto cron
     queueProcessingTask = null;
   }
 } 
