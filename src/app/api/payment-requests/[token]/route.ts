@@ -55,9 +55,8 @@ export async function GET(
       service_name: paymentRequest.service_name,
       profile_username: paymentRequest.profile_username,
       amount: paymentRequest.amount,
-      description: paymentRequest.description || '',
+      additional_data: paymentRequest.additional_data || '',
       created_at: paymentRequest.created_at,
-      updated_at: paymentRequest.updated_at,
       customer_name: paymentRequest.customer_name,
       customer_email: paymentRequest.customer_email,
       transaction: transaction ? {
