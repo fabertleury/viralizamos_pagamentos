@@ -76,6 +76,12 @@ export async function POST(request: NextRequest) {
       
       // Processar cada transação encontrada
       for (const transaction of transactions) {
+        // Verificar se temos o ID da transação
+        if (!transaction.id) {
+          console.error(`Transação sem ID encontrada para pagamento ${mercadoPagoId}. Pulando.`);
+          continue;
+        }
+        
         // Atualizar a transação
         await db.transaction.update({
           where: { id: transaction.id },
@@ -101,21 +107,29 @@ export async function POST(request: NextRequest) {
         
         // Se o pagamento foi aprovado e a transação não foi processada ainda,
         // adicionar diretamente à fila Redis para processamento imediato
-        if (status === 'approved' && !transaction.processed_at) {
+        if (status === 'approved' && !transaction.processed_at && transaction.payment_request_id) {
           // Buscar a fila de processamento
           const queue = getQueue('payment-processing');
           
           if (queue) {
-            // Gerar jobId usando externalId para garantir idempotência
+            // Gerar jobId usando o ID da transação para garantir idempotência
             const jobId = `payment_${transaction.external_id}`;
+            
+            // Verificar e registrar os IDs para debug
+            console.log(`[DEBUG] Adicionando job à fila:`, {
+              transactionId: transaction.id,
+              paymentRequestId: transaction.payment_request_id,
+              externalId: transaction.external_id,
+              jobId
+            });
             
             // Adicionar à fila com jobId para evitar duplicação
             await queue.add(
               'process-payment',
               {
-                transactionId: transaction.id,
-                paymentRequestId: transaction.payment_request_id,
-                externalId: transaction.external_id
+                transaction_id: transaction.id,       // Garantir que não é undefined
+                payment_request_id: transaction.payment_request_id,
+                external_id: transaction.external_id || mercadoPagoId.toString()
               },
               { 
                 jobId, // Bull ignora jobs com mesmo ID
@@ -134,7 +148,7 @@ export async function POST(request: NextRequest) {
       // Se o pagamento foi aprovado, atualizar o payment_request
       // Como várias transações podem compartilhar o mesmo payment_request,
       // precisamos garantir que atualizamos apenas uma vez
-      if (status === 'approved' && transactions.length > 0) {
+      if (status === 'approved' && transactions.length > 0 && transactions[0].payment_request_id) {
         // Extrair o payment_request_id da primeira transação
         const paymentRequestId = transactions[0].payment_request_id;
         
@@ -154,18 +168,20 @@ export async function POST(request: NextRequest) {
       
       // Registrar falha de processamento para cada transação
       for (const transaction of transactions) {
-        await db.paymentProcessingFailure.create({
-          data: {
-            transaction_id: transaction.id,
-            error_code: 'PROCESSING_ERROR',
-            error_message: (error as Error).message,
-            stack_trace: (error as Error).stack,
-            metadata: JSON.stringify({
-              webhook_data: body,
-              error: error
-            })
-          }
-        });
+        if (transaction.id) {
+          await db.paymentProcessingFailure.create({
+            data: {
+              transaction_id: transaction.id,
+              error_code: 'PROCESSING_ERROR',
+              error_message: (error as Error).message,
+              stack_trace: (error as Error).stack,
+              metadata: JSON.stringify({
+                webhook_data: body,
+                error: error
+              })
+            }
+          });
+        }
       }
       
       // Registrar o webhook com erro

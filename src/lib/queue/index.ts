@@ -52,12 +52,31 @@ function setupProcessors() {
     
     console.log(`🔄 [Queue] Processando pagamento: ${transactionId}`);
     
+    // Validar os dados recebidos
+    if (!transactionId) {
+      console.error('❌ [Queue] ID da transação não fornecido no job');
+      throw new Error('ID da transação (transaction_id) não fornecido');
+    }
+    
+    if (!paymentRequestId) {
+      console.error('❌ [Queue] ID do payment request não fornecido no job');
+      throw new Error('ID do payment request (payment_request_id) não fornecido');
+    }
+    
+    // Registrar os dados do job para debug
+    console.log('📋 [Queue] Dados do job:', {
+      transactionId,
+      paymentRequestId,
+      externalId
+    });
+    
     // Buscar informações da transação
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId }
     });
     
     if (!transaction) {
+      console.error(`❌ [Queue] Transação não encontrada: ${transactionId}`);
       throw new Error(`Transação ${transactionId} não encontrada`);
     }
     
@@ -77,6 +96,7 @@ function setupProcessors() {
     });
     
     if (!paymentRequest) {
+      console.error(`❌ [Queue] Payment Request não encontrado: ${paymentRequestId}`);
       throw new Error(`Payment Request ${paymentRequestId} não encontrado`);
     }
     
