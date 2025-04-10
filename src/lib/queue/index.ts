@@ -14,6 +14,13 @@ interface PostData {
   calculated_quantity?: number;
 }
 
+// Interface para capturar respostas do provedor
+interface ProviderResponse {
+  order_id: string;
+  success: boolean;
+  data: any;
+}
+
 const prisma = new PrismaClient();
 
 // Nome das filas
@@ -161,7 +168,8 @@ function setupProcessors() {
     
     console.log(`🔗 [Queue] Enviando para ${ordersApiUrl}`);
     
-    let createdOrderIds = [];
+    let createdOrderIds: string[] = [];
+    let providerResponses: ProviderResponse[] = [];
     
     // Verificar se temos múltiplos posts ou apenas um serviço
     if (posts.length > 0) {
@@ -238,6 +246,31 @@ function setupProcessors() {
           const orderIdFromResponse = response.data.order_id;
           createdOrderIds.push(orderIdFromResponse);
           
+          // Salvar resposta completa para uso posterior
+          providerResponses.push({
+            order_id: orderIdFromResponse,
+            success: true,
+            data: response.data
+          });
+          
+          // Salvar a resposta completa do provedor em um log específico
+          await prisma.providerResponseLog.create({
+            data: {
+              transaction_id: transaction.id,
+              payment_request_id: paymentRequestId,
+              provider_id: provider_id || 'unknown',
+              service_id: serviceId,
+              order_id: orderIdFromResponse,
+              post_id: postId || '',
+              post_code: postCode || '',
+              response_data: JSON.stringify(response.data),
+              status: response.data.success ? 'success' : 'error',
+              created_at: new Date()
+            }
+          }).catch((error: Error) => {
+            console.warn(`⚠️ [Queue] Erro ao salvar log de resposta do provedor: ${error.message}`);
+          });
+          
           console.log(`✅ [Queue] Pedido criado para post ${i+1}: ${orderIdFromResponse} (post_code: ${postCode || 'N/A'})`);
         } catch (error) {
           console.error(`❌ [Queue] Erro ao criar pedido para post ${i+1} (${postCode || postId}):`, error);
@@ -295,6 +328,29 @@ function setupProcessors() {
         const orderIdFromResponse = response.data.order_id;
         createdOrderIds.push(orderIdFromResponse);
         
+        // Salvar resposta completa para uso posterior
+        providerResponses.push({
+          order_id: orderIdFromResponse,
+          success: true,
+          data: response.data
+        });
+        
+        // Salvar a resposta completa do provedor em um log específico
+        await prisma.providerResponseLog.create({
+          data: {
+            transaction_id: transaction.id,
+            payment_request_id: paymentRequestId,
+            provider_id: provider_id || 'unknown',
+            service_id: serviceId,
+            order_id: orderIdFromResponse,
+            response_data: JSON.stringify(response.data),
+            status: response.data.success ? 'success' : 'error',
+            created_at: new Date()
+          }
+        }).catch((error: Error) => {
+          console.warn(`⚠️ [Queue] Erro ao salvar log de resposta do provedor: ${error.message}`);
+        });
+        
         console.log(`✅ [Queue] Pedido único criado com sucesso: ${orderIdFromResponse}`);
       } catch (error) {
         console.error(`❌ [Queue] Erro ao criar pedido único:`, error);
@@ -310,7 +366,14 @@ function setupProcessors() {
         metadata: JSON.stringify({
           ...JSON.parse(transaction.metadata || '{}'),
           processed_orders: createdOrderIds,
-          processed_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
+          provider_responses: posts.length > 0 ? 
+            posts.map((post, idx) => ({
+              order_id: idx < createdOrderIds.length ? createdOrderIds[idx] : null,
+              post_code: post?.code || null,
+              response_data: idx < providerResponses.length ? providerResponses[idx].data : null
+            })) : 
+            [{order_id: createdOrderIds[0], response_data: providerResponses[0]?.data}]
         })
       }
     });
@@ -326,6 +389,13 @@ function setupProcessors() {
           ...JSON.parse(paymentRequest.additional_data || '{}'),
           processed_orders: createdOrderIds,
           processed_at: new Date().toISOString(),
+          provider_responses: posts.length > 0 ? 
+            posts.map((post, idx) => ({
+              order_id: idx < createdOrderIds.length ? createdOrderIds[idx] : null,
+              post_code: post?.code || null,
+              response_data: idx < providerResponses.length ? providerResponses[idx].data : null
+            })) : 
+            [{order_id: createdOrderIds[0], response_data: providerResponses[0]?.data}],
           order_details: createdOrderIds.map((id, index) => ({
             order_id: id,
             post: posts[index] ? {
