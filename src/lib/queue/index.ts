@@ -47,8 +47,8 @@ function setupProcessors() {
   if (!paymentProcessingQueue) return;
   
   // Processador para fila de pagamentos
-  paymentProcessingQueue.process(async (job) => {
-    const { transactionId, paymentRequestId, externalId } = job.data;
+  paymentProcessingQueue.process('process-payment', async (job) => {
+    const { transaction_id: transactionId, payment_request_id: paymentRequestId, external_id: externalId } = job.data;
     
     console.log(`🔄 [Queue] Processando pagamento: ${transactionId}`);
     
