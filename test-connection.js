@@ -1,5 +1,29 @@
 const axios = require('axios');
 const { PrismaClient } = require('@prisma/client');
+const Redis = require('ioredis');
+
+// Função para testar a conexão com o Redis
+async function testRedisConnection(connectionString) {
+  console.log('🔄 Testando conexão com Redis...');
+  console.log(`🔗 Connection string: ${connectionString}`);
+  
+  try {
+    const redis = new Redis(connectionString);
+    
+    redis.on('error', (err) => {
+      console.error('❌ Erro de conexão Redis:', err.message);
+      redis.disconnect();
+    });
+    
+    await redis.ping();
+    console.log('✅ Conexão com Redis bem sucedida!');
+    redis.disconnect();
+    return true;
+  } catch (error) {
+    console.error('❌ Falha na conexão com Redis:', error.message);
+    return false;
+  }
+}
 
 const prisma = new PrismaClient();
 
@@ -163,6 +187,10 @@ async function testQueueProcessing() {
 // Executar os testes
 async function runTests() {
   console.log('🚀 Iniciando testes de conexão entre microserviços...\n');
+  
+  // Testar conexão com Redis
+  const redisConnString = process.argv[2] || 'redis://localhost:6379';
+  await testRedisConnection(redisConnString);
   
   const ordersConnected = await testOrdersConnection();
   
