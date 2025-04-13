@@ -73,6 +73,7 @@ interface OrderDetails {
   customer_name: string;
   customer_email: string;
   transaction: TransactionData | null;
+  order_id?: string; // ID do pedido no sistema de orders, se disponível
 }
 
 // Função para formatar a data
@@ -229,32 +230,46 @@ export default function OrderDetailPage() {
 
   // Atualizar status do pedido
   const handleUpdateStatus = async () => {
-    if (!order || newStatus === order.status) return;
+    if (!order) return;
     
     setUpdatingStatus(true);
     
     try {
-      const response = await fetch(`/api/payment-requests/${params.token}/update-status`, {
+      // Primeiro, verificar se temos o ID do pedido associado a este payment request
+      const orderId = order.order_id || order.id;
+      if (!orderId) {
+        throw new Error('ID do pedido não encontrado');
+      }
+      
+      const response = await fetch(`/api/orders/check-status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          status: newStatus,
+          orderId,
         }),
       });
       
       if (!response.ok) {
-        throw new Error('Não foi possível atualizar o status do pedido');
+        throw new Error('Não foi possível verificar o status do pedido');
       }
       
       const data = await response.json();
       
       if (data.success) {
-        setOrder(prev => prev ? { ...prev, status: newStatus } : null);
+        setOrder(prev => prev ? { 
+          ...prev, 
+          status: data.order.status,
+          transaction: prev.transaction ? {
+            ...prev.transaction,
+            status: data.provider_status || prev.transaction.status
+          } : null
+        } : null);
+        
         toast({
           title: 'Status atualizado',
-          description: 'O status do pedido foi atualizado com sucesso.',
+          description: 'O status do seu pedido foi atualizado com sucesso.',
           status: 'success',
           duration: 5000,
           isClosable: true,
@@ -263,10 +278,10 @@ export default function OrderDetailPage() {
         throw new Error(data.error || 'Erro ao atualizar status');
       }
     } catch (err) {
-      console.error('Erro ao atualizar status:', err);
+      console.error('Erro ao verificar status:', err);
       toast({
         title: 'Erro',
-        description: err instanceof Error ? err.message : 'Erro ao atualizar status do pedido.',
+        description: err instanceof Error ? err.message : 'Erro ao verificar status do pedido.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -505,30 +520,20 @@ export default function OrderDetailPage() {
                   
                   <CardBody>
                     <VStack spacing={4}>
-                      <FormControl>
-                        <FormLabel>Atualizar status</FormLabel>
-                        <Select
-                          value={newStatus}
-                          onChange={(e) => setNewStatus(e.target.value)}
-                        >
-                          <option value="pending">Pendente</option>
-                          <option value="processing">Processando</option>
-                          <option value="completed">Concluído</option>
-                          <option value="cancelled">Cancelado</option>
-                          <option value="failed">Falhou</option>
-                        </Select>
-                      </FormControl>
+                      <Text fontSize="sm" color="gray.600" textAlign="center">
+                        Clique no botão abaixo para verificar o status atual do seu pedido no provedor do serviço.
+                        Esta ação consultará diretamente o sistema do provedor para atualizar o status do seu pedido.
+                      </Text>
                       
                       <Button
                         colorScheme="blue"
                         width="full"
                         leftIcon={<RefreshCw size={16} />}
                         isLoading={updatingStatus}
-                        loadingText="Atualizando..."
+                        loadingText="Verificando..."
                         onClick={handleUpdateStatus}
-                        isDisabled={newStatus === order.status}
                       >
-                        Atualizar Status
+                        Verificar Status do Pedido
                       </Button>
                       
                       <Button
