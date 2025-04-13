@@ -173,109 +173,111 @@ function setupProcessors() {
     
     // Verificar se temos múltiplos posts ou apenas um serviço
     if (posts.length > 0) {
-      // PROCESSAMENTO DE MÚLTIPLOS POSTS
-      console.log(`📊 [Queue] Processando ${posts.length} posts`);
+      // PROCESSAMENTO DE MÚLTIPLOS POSTS EM LOTE
+      console.log(`📊 [Queue] Processando ${posts.length} posts em lote`);
       
-      for (let i = 0; i < posts.length; i++) {
-        const post: PostData = posts[i];
-        const postQuantity = post.quantity || post.calculated_quantity || Math.floor(totalQuantity / posts.length);
-        
-        // Extrair informações do post
-        const postId = post.id || `post-${i}-${Date.now()}`;
-        const postCode = post.code || post.shortcode || null;
-        const postUrl = post.url || (postCode ? 
-          (post.is_reel || post.type === 'reel' ? 
-            `https://instagram.com/reel/${postCode}/` : 
-            `https://instagram.com/p/${postCode}/`)
-          : null);
-        
-        // Usar um jobId específico para cada post para garantir idempotência
-        const postJobId = `${externalId}_${postCode || postId || i}`;
-        
-        // Gerar um external_order_id único que será enviado para o provedor
-        const external_order_id = `order_${Date.now()}_${Math.floor(Math.random() * 1000)}_${i}`;
-        
-        console.log(`🔄 [Queue] Processando post ${i+1}/${posts.length}: ${postCode || postUrl}, quantidade: ${postQuantity}`);
-        
-        try {
-          // Obter informações do provider_id se disponível
-          let provider_id = null;
-          if (serviceData && serviceData.provider_id) {
-            provider_id = serviceData.provider_id;
-            console.log(`ℹ️ [Queue] Usando provider_id do serviço: ${provider_id}`);
-          }
-          
-          const response = await axios.post(ordersApiUrl, {
-            transaction_id: transaction.id,
-            service_id: serviceId,
-            provider_id: provider_id, // ID do provedor de serviços
-            external_service_id: serviceData?.external_id || null, // ID externo do serviço (usado pelo provedor)
-            external_order_id: external_order_id, // ID externo do pedido (será enviado ao provedor)
-            external_payment_id: postJobId, // ID único para cada post
-            external_transaction_id: externalId,
-            amount: transaction.amount / posts.length, // Distribuir o valor
-            quantity: postQuantity,
-            target_username: targetUsername,
-            target_url: postUrl, // URL do post para receber o serviço
-            customer_email: paymentRequest.customer_email,
-            customer_name: paymentRequest.customer_name,
-            post_data: {
-              post_id: postId,
-              post_url: postUrl,
-              post_type: post.type || (post.is_reel ? 'reel' : 'post'),
-              post_code: postCode,
-              is_reel: post.is_reel || post.type === 'reel'
-            },
-            payment_data: {
-              method: transaction.method,
-              status: transaction.status
-            }
-          }, {
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-              'Idempotency-Key': postJobId // Garantir que não haja duplicação
-            }
-          });
-          
-          // Verificar resposta
-          if (!response.data || !response.data.success) {
-            throw new Error(`Falha ao criar pedido para post ${i+1}: ${JSON.stringify(response.data)}`);
-          }
-          
-          const orderIdFromResponse = response.data.order_id;
-          createdOrderIds.push(orderIdFromResponse);
-          
-          // Salvar resposta completa para uso posterior
-          providerResponses.push({
-            order_id: orderIdFromResponse,
-            success: true,
-            data: response.data
-          });
-          
-          // Salvar a resposta completa do provedor em um log específico
-          await prisma.providerResponseLog.create({
-            data: {
-              transaction_id: transaction.id,
-              payment_request_id: paymentRequestId,
-              provider_id: provider_id || 'unknown',
-              service_id: serviceId,
-              order_id: orderIdFromResponse,
-              post_id: postId || '',
-              post_code: postCode || '',
-              response_data: JSON.stringify(response.data),
-              status: response.data.success ? 'success' : 'error',
-              created_at: new Date()
-            }
-          }).catch((error: Error) => {
-            console.warn(`⚠️ [Queue] Erro ao salvar log de resposta do provedor: ${error.message}`);
-          });
-          
-          console.log(`✅ [Queue] Pedido criado para post ${i+1}: ${orderIdFromResponse} (post_code: ${postCode || 'N/A'})`);
-        } catch (error) {
-          console.error(`❌ [Queue] Erro ao criar pedido para post ${i+1} (${postCode || postId}):`, error);
-          throw error;
+      try {
+        // Obter informações do provider_id se disponível
+        let provider_id = null;
+        if (serviceData && serviceData.provider_id) {
+          provider_id = serviceData.provider_id;
+          console.log(`ℹ️ [Queue] Usando provider_id do serviço: ${provider_id}`);
         }
+        
+        // Endpoint atualizado para a rota de batch
+        const batchOrdersApiUrl = process.env.ORDERS_API_URL?.replace(/\/api\/orders\/create$/, '/api/orders/batch') || 
+          'https://orders.viralizamos.com/api/orders/batch';
+        
+        console.log(`🔄 [Queue] Enviando lote para ${batchOrdersApiUrl}`);
+        
+        // Construir um único payload com todos os posts
+        const batchPayload = {
+          transaction_id: transaction.id,
+          service_id: serviceId,
+          provider_id: provider_id,
+          external_service_id: serviceData?.external_id || null,
+          external_payment_id: externalId,
+          external_transaction_id: externalId,
+          amount: transaction.amount,
+          quantity: totalQuantity,
+          total_quantity: totalQuantity,
+          target_username: targetUsername,
+          customer_email: paymentRequest.customer_email,
+          customer_name: paymentRequest.customer_name,
+          payment_data: {
+            method: transaction.method,
+            status: transaction.status
+          },
+          // Incluir todos os posts no mesmo payload
+          posts: posts.map(post => {
+            // Garantir que o postCode e postUrl estão definidos
+            const postCode = post.code || post.shortcode || null;
+            const postUrl = post.url || (postCode ? 
+              (post.is_reel || post.type === 'reel' ? 
+                `https://instagram.com/reel/${postCode}/` : 
+                `https://instagram.com/p/${postCode}/`)
+              : null);
+              
+            return {
+              id: post.id || `post-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+              code: postCode,
+              url: postUrl,
+              type: post.type || (post.is_reel ? 'reel' : 'post'),
+              is_reel: post.is_reel || post.type === 'reel',
+              quantity: post.quantity || post.calculated_quantity || Math.floor(totalQuantity / posts.length)
+            };
+          })
+        };
+        
+        console.log(`📦 [Queue] Enviando payload em lote com ${posts.length} posts:`);
+        console.log(JSON.stringify(batchPayload, null, 2));
+        
+        // Enviar requisição para API em lote
+        const response = await axios.post(batchOrdersApiUrl, batchPayload, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `batch_${transaction.id}_${Date.now()}`
+          }
+        });
+        
+        // Verificar resposta
+        if (!response.data || !response.data.success) {
+          throw new Error(`Falha ao processar lote de pedidos: ${JSON.stringify(response.data)}`);
+        }
+        
+        // Extrair IDs de pedidos criados
+        if (response.data.orders && Array.isArray(response.data.orders)) {
+          createdOrderIds = response.data.orders.map((order: any) => order.id);
+          
+          // Mapear respostas
+          providerResponses = response.data.orders.map((order: any) => ({
+            order_id: order.id,
+            success: true,
+            data: order
+          }));
+        }
+        
+        // Salvar a resposta completa do provedor em um log específico
+        await prisma.providerResponseLog.create({
+          data: {
+            transaction_id: transaction.id,
+            payment_request_id: paymentRequestId,
+            provider_id: provider_id || 'unknown',
+            service_id: serviceId,
+            order_id: createdOrderIds.join(','),
+            response_data: JSON.stringify(response.data),
+            status: response.data.success ? 'success' : 'error',
+            created_at: new Date()
+          }
+        }).catch((error: Error) => {
+          console.warn(`⚠️ [Queue] Erro ao salvar log de resposta do provedor: ${error.message}`);
+        });
+        
+        console.log(`✅ [Queue] ${createdOrderIds.length} pedidos criados em lote com sucesso: ${createdOrderIds.join(', ')}`);
+      } catch (error) {
+        console.error(`❌ [Queue] Erro ao criar pedidos em lote:`, error);
+        throw error;
       }
     } else {
       // PROCESSAMENTO DE SERVIÇO ÚNICO (sem posts)
