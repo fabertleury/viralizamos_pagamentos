@@ -85,6 +85,31 @@ export async function GET(
       ? paymentRequest.transactions[0]
       : null;
 
+    // Processar additional_data para transformar o JSON em algo legível
+    let formattedDescription = '';
+    if (paymentRequest.additional_data) {
+      try {
+        // Tentar fazer parse do JSON
+        const additionalData = JSON.parse(paymentRequest.additional_data);
+        
+        // Se temos posts, formatar de maneira amigável
+        if (additionalData.posts && Array.isArray(additionalData.posts)) {
+          formattedDescription = `${additionalData.posts.length} item(s):\n`;
+          additionalData.posts.forEach((post, index) => {
+            const postType = post.is_reel ? 'Reel' : 'Post';
+            const quantity = post.quantity || 0;
+            formattedDescription += `${index + 1}. ${postType}: ${post.code || post.post_code || 'Sem código'} (${quantity})\n`;
+          });
+        } else {
+          // Caso não tenha posts, mostrar uma versão simplificada do objeto
+          formattedDescription = JSON.stringify(additionalData, null, 2);
+        }
+      } catch (err) {
+        // Se não for um JSON válido, usar como texto simples
+        formattedDescription = paymentRequest.additional_data;
+      }
+    }
+
     const formattedPaymentRequest = {
       id: paymentRequest.id,
       token: paymentRequest.token,
@@ -92,7 +117,7 @@ export async function GET(
       service_name: paymentRequest.service_name || 'Serviço não especificado',
       profile_username: paymentRequest.profile_username || '',
       amount: paymentRequest.amount,
-      description: paymentRequest.additional_data || '',
+      description: formattedDescription || '',
       created_at: paymentRequest.created_at,
       updated_at: paymentRequest.created_at,
       customer_name: paymentRequest.customer_name,

@@ -441,7 +441,16 @@ export default function OrderDetailPage() {
                         <Divider my={4} />
                         <VStack align="flex-start" spacing={1}>
                           <Text fontSize="sm" color="gray.500">Descrição</Text>
-                          <Text>{order.description}</Text>
+                          <Box 
+                            whiteSpace="pre-wrap" 
+                            p={3} 
+                            borderRadius="md" 
+                            bg={useColorModeValue('gray.50', 'gray.700')}
+                            fontSize="sm"
+                            w="100%"
+                          >
+                            {order.description}
+                          </Box>
                         </VStack>
                       </>
                     )}
