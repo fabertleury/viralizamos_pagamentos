@@ -94,7 +94,7 @@ export async function GET(
       amount: paymentRequest.amount,
       description: paymentRequest.additional_data || '',
       created_at: paymentRequest.created_at,
-      updated_at: paymentRequest.updated_at || paymentRequest.created_at,
+      updated_at: paymentRequest.created_at,
       customer_name: paymentRequest.customer_name,
       customer_email: paymentRequest.customer_email,
       transaction: transaction ? {
