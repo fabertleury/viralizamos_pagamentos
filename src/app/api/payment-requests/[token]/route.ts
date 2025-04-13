@@ -95,7 +95,7 @@ export async function GET(
         // Se temos posts, formatar de maneira amigável
         if (additionalData.posts && Array.isArray(additionalData.posts)) {
           formattedDescription = `${additionalData.posts.length} item(s):\n`;
-          additionalData.posts.forEach((post, index) => {
+          additionalData.posts.forEach((post: { is_reel?: boolean; quantity?: number; code?: string; post_code?: string }, index: number) => {
             const postType = post.is_reel ? 'Reel' : 'Post';
             const quantity = post.quantity || 0;
             formattedDescription += `${index + 1}. ${postType}: ${post.code || post.post_code || 'Sem código'} (${quantity})\n`;
