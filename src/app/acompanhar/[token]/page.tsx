@@ -196,26 +196,39 @@ export default function OrderDetailPage() {
       setError(null);
       
       try {
+        console.log(`Buscando detalhes do pedido com token: ${params.token}`);
+        
+        // Validar formato do token
+        if (typeof params.token !== 'string' || params.token.length < 6) {
+          throw new Error('Token de pedido inválido');
+        }
+        
         const response = await fetch(`/api/payment-requests/${params.token}`);
         
-        if (!response.ok) {
+        console.log(`Resposta da API: ${response.status}`);
+        
+        if (response.status === 404) {
+          throw new Error('Pedido não encontrado. Verifique se o link está correto.');
+        } else if (!response.ok) {
           throw new Error('Não foi possível carregar os detalhes do pedido');
         }
         
         const data = await response.json();
+        console.log(`Dados recebidos para o pedido: ${params.token}`, 
+          data.paymentRequest ? 'Dados OK' : 'Dados inválidos');
         
         if (data.paymentRequest) {
           setOrder(data.paymentRequest);
           setNewStatus(data.paymentRequest.status);
         } else {
-          throw new Error('Pedido não encontrado');
+          throw new Error('Estrutura de dados do pedido inválida');
         }
       } catch (err) {
         console.error('Erro ao buscar detalhes do pedido:', err);
         setError(err instanceof Error ? err.message : 'Erro desconhecido');
         toast({
           title: 'Erro',
-          description: 'Não foi possível carregar os detalhes do pedido.',
+          description: err instanceof Error ? err.message : 'Não foi possível carregar os detalhes do pedido.',
           status: 'error',
           duration: 5000,
           isClosable: true,
@@ -325,11 +338,18 @@ export default function OrderDetailPage() {
               {error}
             </Heading>
             <Text mb={6}>
-              Não foi possível carregar os detalhes do pedido. Por favor, tente novamente mais tarde.
+              {error === 'Pedido não encontrado. Verifique se o link está correto.' 
+                ? 'O pedido que você está procurando não foi encontrado no sistema. Verifique se o link está correto ou entre em contato com o suporte.' 
+                : 'Não foi possível carregar os detalhes do pedido. Por favor, tente novamente mais tarde.'}
             </Text>
-            <Button as={Link} href="/acompanhar" colorScheme="blue">
-              Voltar para lista de pedidos
-            </Button>
+            <VStack spacing={4}>
+              <Button as={Link} href="/acompanhar" colorScheme="blue">
+                Voltar para lista de pedidos
+              </Button>
+              <Button as={Link} href="/" variant="outline">
+                Voltar para página inicial
+              </Button>
+            </VStack>
           </Box>
         ) : order ? (
           <VStack spacing={6} align="stretch">
