@@ -575,10 +575,13 @@ export default function OrderDetailPage() {
                       <Button
                         colorScheme="blue"
                         width="full"
-                        leftIcon={<RefreshCw size={16} />}
+                        leftIcon={<RefreshCw size={18} />}
                         isLoading={updatingStatus}
                         loadingText="Verificando..."
                         onClick={handleUpdateStatus}
+                        height="44px"
+                        iconSpacing={2}
+                        fontSize="md"
                       >
                         Verificar Status do Pedido
                       </Button>

@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button, useToast } from '@chakra-ui/react';
+import { Button, useToast, ButtonProps } from '@chakra-ui/react';
 
-interface PixPaymentButtonProps {
+interface PixPaymentButtonProps extends Omit<ButtonProps, 'onClick' | 'isLoading' | 'loadingText' | 'onError'> {
   paymentRequestId: string;
   onSuccess: (paymentData: {
     id: string;
@@ -16,7 +16,15 @@ interface PixPaymentButtonProps {
   onError: (error: string) => void;
 }
 
-const PixPaymentButton: React.FC<PixPaymentButtonProps> = ({ paymentRequestId, onSuccess, onError }) => {
+const PixPaymentButton: React.FC<PixPaymentButtonProps> = ({ 
+  paymentRequestId, 
+  onSuccess, 
+  onError,
+  colorScheme = "pink",
+  size = "lg",
+  width = "100%",
+  ...restProps 
+}) => {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
 
@@ -83,12 +91,13 @@ const PixPaymentButton: React.FC<PixPaymentButtonProps> = ({ paymentRequestId, o
 
   return (
     <Button
-      colorScheme="pink"
-      size="lg"
-      width="100%"
+      colorScheme={colorScheme}
+      size={size}
+      width={width}
       onClick={handleClick}
       isLoading={loading}
       loadingText="Gerando PIX..."
+      {...restProps}
     >
       Pagar com PIX
     </Button>

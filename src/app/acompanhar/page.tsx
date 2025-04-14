@@ -252,6 +252,8 @@ export default function AcompanharPedidoPage() {
                         isLoading={isSubmitting}
                         loadingText="Buscando..."
                         size="lg"
+                        minWidth="110px"
+                        height="46px"
                       >
                         Buscar
                       </Button>
@@ -288,18 +290,25 @@ export default function AcompanharPedidoPage() {
                     </Text>
                   </Box>
                   
-                  <Stack direction={{ base: "column", sm: "row" }} spacing={2}>
+                  <Stack 
+                    direction={{ base: "column", sm: "row" }} 
+                    spacing={3} 
+                    width={{ base: "100%", md: "auto" }}
+                    wrap={{ base: "wrap", md: "nowrap" }}
+                  >
                     <Input
                       placeholder="Buscar pedidos..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       size="md"
                       width={{ base: "full", sm: "auto" }}
+                      minWidth={{ sm: "180px" }}
                     />
                     <Select
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
                       size="md"
+                      minWidth={{ sm: "150px" }}
                     >
                       <option value="all">Todos os status</option>
                       <option value="pending">Pendente</option>
@@ -309,11 +318,16 @@ export default function AcompanharPedidoPage() {
                       <option value="canceled">Cancelado</option>
                     </Select>
                     <Button
-                      leftIcon={<RefreshCw size={16} />}
+                      leftIcon={<RefreshCw size={18} />}
                       colorScheme="blue"
-                      variant="outline"
+                      variant="solid"
                       onClick={() => handleSearchOrders()}
                       isLoading={isSubmitting}
+                      size="md"
+                      px={4}
+                      minWidth="110px"
+                      iconSpacing={2}
+                      height="40px"
                     >
                       Atualizar
                     </Button>
@@ -452,9 +466,12 @@ export default function AcompanharPedidoPage() {
                           <Button
                             as={Link}
                             href={`/acompanhar/${order.token}`}
-                            size="sm"
+                            size="md"
                             colorScheme="blue"
                             variant="outline"
+                            height="38px"
+                            minWidth="110px"
+                            px={4}
                           >
                             Ver detalhes
                           </Button>
