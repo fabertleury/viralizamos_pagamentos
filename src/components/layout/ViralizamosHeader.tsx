@@ -21,27 +21,13 @@ export default function ViralizamosHeader() {
         <Flex justify="space-between" align="center">
           {/* Logo */}
           <Link href="https://viralizamos.com" isExternal display="flex" alignItems="center">
-            {imageError ? (
-              // Fallback para Chakra Image caso o Next Image falhe
-              <ChakraImage
-                src="/logo.webp"
-                alt="Viralizamos"
-                h="40px"
-                fallbackSrc="/logo.svg"
-                fallback={<Text fontSize="xl" fontWeight="bold" color="pink.600">Viralizamos</Text>}
-              />
-            ) : (
-              <Box position="relative" width="150px" height="40px">
-                <NextImage
-                  src="/logo.webp"
-                  alt="Viralizamos"
-                  fill
-                  style={{ objectFit: 'contain' }}
-                  priority
-                  onError={() => setImageError(true)}
-                />
-              </Box>
-            )}
+            <ChakraImage
+              src="/images/viralizamos-color.png"
+              alt="Viralizamos"
+              height="40px"
+              objectFit="contain"
+              fallback={<Text fontSize="xl" fontWeight="bold" color="pink.600">Viralizamos</Text>}
+            />
           </Link>
           
           {/* Links de navegação */}
