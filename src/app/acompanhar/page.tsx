@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { Header } from '@/components/ui/Header';
+import ViralizamosHeader from '@/components/layout/ViralizamosHeader';
+import { ViralizamosFooter } from '@/components/layout/ViralizamosFooter';
 import {
   Box,
   Container,
@@ -220,7 +221,7 @@ export default function AcompanharPedidoPage() {
   
   return (
     <Box minH="100vh" display="flex" flexDir="column">
-      <Header />
+      <ViralizamosHeader />
       
       <Box flex="1" bg={bgColor} py={12}>
         <Container maxW="container.md">
@@ -478,6 +479,8 @@ export default function AcompanharPedidoPage() {
           </VStack>
         </Container>
       </Box>
+      
+      <ViralizamosFooter />
     </Box>
   );
 } 
