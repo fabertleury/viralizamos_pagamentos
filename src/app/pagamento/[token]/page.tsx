@@ -738,7 +738,7 @@ export default function PaymentPage() {
                               </Link>
                               
                               <Badge colorScheme="pink" fontSize="sm" px={2} py={1} borderRadius="md">
-                                {calculatePostQuantity(payment, payment.posts.indexOf(post))} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
+                                {Math.floor(calculatePostQuantity(payment, payment.posts.indexOf(post)))} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
                               </Badge>
                             </Flex>
                           </Box>
