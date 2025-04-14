@@ -366,10 +366,7 @@ export default function PaymentPage() {
     <>
       <ViralizamosHeader />
       
-      <Container maxW="container.xl" py={10}>
-        <Heading as="h1" size="lg" mb={4}>Pagamento</Heading>
-        <Text mb={6}>Complete seu pagamento para confirmar seu pedido</Text>
-        
+      <Container maxW="container.xl" py={6}>
         {loading ? (
           <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
             <GridItem>
@@ -390,14 +387,15 @@ export default function PaymentPage() {
             </CardBody>
           </Card>
         ) : payment ? (
-          <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
-            {/* Coluna esquerda - Detalhes do pedido */}
-            <GridItem>
-              <Card mb={6} variant="elevated" shadow="md">
+          <Grid templateColumns={{ base: "1fr", md: "1fr 400px" }} gap={6}>
+            {/* Reorganizado para mobile: Cards com ordem específica em mobile */}
+            
+            {/* Coluna esquerda - Detalhes do pedido e posts */}
+            <GridItem order={{ base: 2, md: 1 }}>
+              <Card variant="elevated" shadow="md" mb={6}>
                 <CardBody>
-                  <Heading size="md" mb={3}>Detalhes do Pedido</Heading>
-                  
-                  <Stack divider={<Divider />} spacing={4}>
+                  <Heading size="md" mb={4}>Detalhes do Pedido</Heading>
+                  <Stack spacing={4} divider={<Divider />}>
                     <Box>
                       <HStack mb={2}>
                         <Icon as={FaInfoCircle} color="pink.600" />
@@ -448,7 +446,7 @@ export default function PaymentPage() {
                 </CardBody>
               </Card>
               
-              <Card variant="elevated" shadow="md">
+              <Card variant="elevated" shadow="md" order={{ base: 1, md: 2 }}>
                 <CardBody>
                   <Flex justify="space-between" align="center" mb={3}>
                     <Heading size="md">Posts selecionados</Heading>
@@ -566,8 +564,8 @@ export default function PaymentPage() {
               </Card>
             </GridItem>
             
-            {/* Coluna direita - Informações de pagamento */}
-            <GridItem>
+            {/* Coluna direita - Informações de pagamento (reordenada no mobile para aparecer em primeiro) */}
+            <GridItem order={{ base: 1, md: 2 }}>
               <Card mb={6} variant="elevated" shadow="md">
                 <CardBody>
                   <Flex direction="column" align="center">
