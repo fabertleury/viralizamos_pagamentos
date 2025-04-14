@@ -1,8 +1,5 @@
 import { NextRequest } from 'next/server';
-import { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
-import { compare } from "bcrypt";
 
 // Função para verificar a API Key
 export async function checkApiKey(request: NextRequest): Promise<boolean> {
