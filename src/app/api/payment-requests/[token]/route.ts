@@ -87,6 +87,8 @@ export async function GET(
 
     // Processar additional_data para transformar o JSON em algo legível
     let formattedDescription = '';
+    let formattedPosts = [];
+    
     if (paymentRequest.additional_data) {
       try {
         // Tentar fazer parse do JSON
@@ -95,18 +97,78 @@ export async function GET(
         // Se temos posts, formatar de maneira amigável
         if (additionalData.posts && Array.isArray(additionalData.posts)) {
           formattedDescription = `${additionalData.posts.length} item(s):\n`;
+          
+          // Preparar array formatado para display visual na UI
+          formattedPosts = additionalData.posts.map((post: { 
+            is_reel?: boolean; 
+            quantity?: number; 
+            code?: string; 
+            post_code?: string;
+            display_url?: string;
+          }, index: number) => {
+            const postType = post.is_reel ? 'Reel' : 'Post';
+            const postCode = post.code || post.post_code || 'Sem código';
+            const quantity = post.quantity || 0;
+            
+            // Construir URL da imagem do Instagram
+            const imageUrl = post.display_url || 
+              `https://instagram.com/p/${postCode}/media/?size=t`;
+              
+            // Linha de texto para display
+            const textDescription = `${index + 1}. ${postType}: ${postCode} (${quantity})`;
+            
+            return {
+              index: index + 1,
+              type: postType,
+              code: postCode,
+              quantity: quantity,
+              imageUrl: imageUrl,
+              textDescription: textDescription
+            };
+          });
+          
+          // Manter compatibilidade com display de texto
           additionalData.posts.forEach((post: { is_reel?: boolean; quantity?: number; code?: string; post_code?: string }, index: number) => {
             const postType = post.is_reel ? 'Reel' : 'Post';
             const quantity = post.quantity || 0;
             formattedDescription += `${index + 1}. ${postType}: ${post.code || post.post_code || 'Sem código'} (${quantity})\n`;
           });
+        } else if (typeof additionalData === 'object') {
+          // Se for um objeto mas não tiver posts, criar uma descrição formatada com chave: valor
+          formattedDescription = Object.entries(additionalData)
+            .map(([key, value]) => {
+              // Ignorar propriedades vazias ou nulas
+              if (value === null || value === undefined || value === '') return null;
+              
+              // Formatar chaves para exibição amigável
+              const formattedKey = key
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+              
+              // Tratar arrays e objetos
+              let formattedValue = value;
+              if (Array.isArray(value)) {
+                formattedValue = value.join(', ');
+              } else if (typeof value === 'object') {
+                formattedValue = JSON.stringify(value, null, 2);
+              }
+              
+              return `${formattedKey}: ${formattedValue}`;
+            })
+            .filter(Boolean) // Remover itens nulos
+            .join('\n');
         } else {
-          // Caso não tenha posts, mostrar uma versão simplificada do objeto
-          formattedDescription = JSON.stringify(additionalData, null, 2);
+          // Caso não seja um objeto, mostrar a versão string do valor
+          formattedDescription = String(additionalData);
         }
       } catch (err) {
         // Se não for um JSON válido, usar como texto simples
-        formattedDescription = paymentRequest.additional_data;
+        // Tentar detectar se é um código JSON bruto
+        if (paymentRequest.additional_data.includes('{') && paymentRequest.additional_data.includes('}')) {
+          formattedDescription = 'Os dados adicionais estão em formato JSON, mas não puderam ser processados corretamente.';
+        } else {
+          formattedDescription = paymentRequest.additional_data;
+        }
       }
     }
 
@@ -118,6 +180,7 @@ export async function GET(
       profile_username: paymentRequest.profile_username || '',
       amount: paymentRequest.amount,
       description: formattedDescription || '',
+      formatted_posts: formattedPosts,
       created_at: paymentRequest.created_at,
       updated_at: paymentRequest.created_at,
       customer_name: paymentRequest.customer_name,

@@ -20,11 +20,11 @@ export default function ViralizamosHeader() {
           {/* Logo */}
           <Link href="https://viralizamos.com" isExternal>
             <Image
-              src="/logo.webp"
+              src="/images/logo.webp"
               alt="Viralizamos"
               h="40px"
               w="auto"
-              fallbackSrc="/images/viralizamos-color.png"
+              fallbackSrc="/logo-viralizamos.png"
               fallback={<Text fontSize="xl" fontWeight="bold" color="pink.600">Viralizamos</Text>}
             />
           </Link>

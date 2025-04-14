@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Header } from '@/components/ui/Header';
+import ViralizamosHeader from '@/components/layout/ViralizamosHeader';
 import {
   Box,
   Container,
@@ -60,6 +60,15 @@ interface TransactionData {
   processed_at: string | null;
 }
 
+interface FormattedPost {
+  index: number;
+  type: string;
+  code: string;
+  quantity: number;
+  imageUrl: string;
+  textDescription: string;
+}
+
 interface OrderDetails {
   id: string;
   token: string;
@@ -68,6 +77,7 @@ interface OrderDetails {
   profile_username: string;
   amount: number;
   description: string;
+  formatted_posts?: FormattedPost[];
   created_at: string;
   updated_at: string;
   customer_name: string;
@@ -104,6 +114,7 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState('');
+  const [activeStep, setActiveStep] = useState(0);
   
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
@@ -197,49 +208,34 @@ export default function OrderDetailPage() {
       
       try {
         console.log(`Buscando detalhes do pedido com token: ${params.token}`);
-        
-        // Validar formato do token
-        if (typeof params.token !== 'string' || params.token.length < 6) {
-          throw new Error('Token de pedido inválido');
-        }
-        
         const response = await fetch(`/api/payment-requests/${params.token}`);
         
-        console.log(`Resposta da API: ${response.status}`);
-        
-        if (response.status === 404) {
-          throw new Error('Pedido não encontrado. Verifique se o link está correto.');
-        } else if (!response.ok) {
-          throw new Error('Não foi possível carregar os detalhes do pedido');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Erro ao buscar detalhes do pedido');
         }
         
         const data = await response.json();
-        console.log(`Dados recebidos para o pedido: ${params.token}`, 
-          data.paymentRequest ? 'Dados OK' : 'Dados inválidos');
+        console.log('Detalhes do pedido recebidos:', data);
         
         if (data.paymentRequest) {
           setOrder(data.paymentRequest);
-          setNewStatus(data.paymentRequest.status);
+          setNewStatus(data.paymentRequest.status || '');
+          const currentStep = getStepIndex(data.paymentRequest.status);
+          setActiveStep(currentStep);
         } else {
-          throw new Error('Estrutura de dados do pedido inválida');
+          setError('Dados do pedido não encontrados');
         }
       } catch (err) {
         console.error('Erro ao buscar detalhes do pedido:', err);
         setError(err instanceof Error ? err.message : 'Erro desconhecido');
-        toast({
-          title: 'Erro',
-          description: err instanceof Error ? err.message : 'Não foi possível carregar os detalhes do pedido.',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
       } finally {
         setLoading(false);
       }
     };
-
+    
     fetchOrderDetails();
-  }, [params.token, toast]);
+  }, [params.token]);
 
   // Atualizar status do pedido
   const handleUpdateStatus = async () => {
@@ -305,14 +301,14 @@ export default function OrderDetailPage() {
   };
 
   // Índice do passo atual na stepper
-  const { activeStep } = useSteps({
-    index: order ? getStepIndex(order.status) : -1,
+  const { activeStep: stepperActiveStep } = useSteps({
+    index: activeStep,
     count: steps.length,
   });
 
   return (
     <Box minH="100vh" display="flex" flexDir="column" bg={bgColor}>
-      <Header />
+      <ViralizamosHeader />
       
       <Container maxW="container.lg" py={8} flex="1">
         <Button
@@ -370,9 +366,9 @@ export default function OrderDetailPage() {
               </Text>
             </HStack>
 
-            {activeStep >= 0 && (
+            {stepperActiveStep >= 0 && (
               <Box mb={8}>
-                <Stepper index={activeStep} colorScheme="green" size="lg">
+                <Stepper index={stepperActiveStep} colorScheme="green" size="lg">
                   {steps.map((step, index) => (
                     <Step key={index}>
                       <StepIndicator>
@@ -439,18 +435,40 @@ export default function OrderDetailPage() {
                     {order.description && (
                       <>
                         <Divider my={4} />
-                        <VStack align="flex-start" spacing={1}>
+                        <VStack align="flex-start" spacing={3} width="100%">
                           <Text fontSize="sm" color="gray.500">Descrição</Text>
-                          <Box 
-                            whiteSpace="pre-wrap" 
-                            p={3} 
-                            borderRadius="md" 
-                            bg={useColorModeValue('gray.50', 'gray.700')}
-                            fontSize="sm"
-                            w="100%"
-                          >
-                            {order.description}
-                          </Box>
+                          
+                          {/* Exibir posts formatados, se disponíveis */}
+                          {order.formatted_posts && order.formatted_posts.length > 0 ? (
+                            <VStack spacing={3} width="100%" align="stretch">
+                              {order.formatted_posts.map((post) => (
+                                <Box 
+                                  key={post.index}
+                                  p={3} 
+                                  borderRadius="md" 
+                                  bg={useColorModeValue('gray.50', 'gray.700')}
+                                  display="flex"
+                                  alignItems="center"
+                                  gap={3}
+                                >
+                                  <Text fontSize="sm" fontWeight="medium">
+                                    {post.textDescription}
+                                  </Text>
+                                </Box>
+                              ))}
+                            </VStack>
+                          ) : (
+                            <Box 
+                              whiteSpace="pre-wrap" 
+                              p={3} 
+                              borderRadius="md" 
+                              bg={useColorModeValue('gray.50', 'gray.700')}
+                              fontSize="sm"
+                              w="100%"
+                            >
+                              {order.description}
+                            </Box>
+                          )}
                         </VStack>
                       </>
                     )}
