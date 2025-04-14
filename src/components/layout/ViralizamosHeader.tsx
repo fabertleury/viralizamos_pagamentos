@@ -24,6 +24,7 @@ export default function ViralizamosHeader() {
               alt="Viralizamos"
               h="40px"
               w="auto"
+              fallbackSrc="/images/viralizamos-color.png"
               fallback={<Text fontSize="xl" fontWeight="bold" color="pink.600">Viralizamos</Text>}
             />
           </Link>

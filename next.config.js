@@ -47,6 +47,7 @@ const nextConfig = {
     ];
   },
   images: {
+    formats: ['image/avif', 'image/webp', 'image/png'],
     domains: [
       'scontent-lga3-1.cdninstagram.com',
       'scontent-lga3-2.cdninstagram.com',
