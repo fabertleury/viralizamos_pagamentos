@@ -1,35 +1,61 @@
 'use client';
 
 import React from 'react';
-import { Box, Container, Text, Link, Flex, HStack, Divider } from '@chakra-ui/react';
+import { Box, Container, Text, Link, Flex, HStack, Divider, SimpleGrid } from '@chakra-ui/react';
 import { FaInstagram } from 'react-icons/fa';
 
 export function ViralizamosFooter() {
   return (
-    <Box as="footer" bg="gray.800" color="white" py={8}>
+    <Box as="footer" bg="gray.900" color="white" py={6}>
       <Container maxW="container.xl">
-        <Flex direction="column" align="center">
-          <Text color="gray.400" fontSize="sm" mb={4}>
-            Ajudamos influenciadores e marcas a alavancar seu alcance nas redes sociais.
-          </Text>
-          
-          <Link 
-            href="https://www.instagram.com/viralizamos.ia" 
-            color="gray.400" 
-            _hover={{ color: "pink.500" }} 
-            isExternal
-            display="flex"
-            alignItems="center"
-            mb={6}
-          >
-            <FaInstagram size={24} />
-            <Text ml={2} fontWeight="medium">@viralizamos.ia</Text>
-          </Link>
-          
-          <Divider borderColor="gray.700" my={6} />
-          
+        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={8} mb={6}>
+          {/* Coluna 1: Logo e descrição */}
+          <Box>
+            <Text fontSize="xl" fontWeight="bold" color="pink.500" mb={2}>viralizamos</Text>
+            <Text color="gray.400" fontSize="sm" mb={4}>
+              Impulsione sua presença no Instagram com nossos serviços de alta qualidade.
+            </Text>
+            <Link 
+              href="https://www.instagram.com/viralizamos.ia" 
+              color="gray.400" 
+              _hover={{ color: "pink.500" }} 
+              isExternal
+              display="flex"
+              alignItems="center"
+            >
+              <FaInstagram size={20} />
+              <Text ml={2} fontWeight="medium">@viralizamos.ia</Text>
+            </Link>
+          </Box>
+
+          {/* Coluna 2: Menu */}
+          <Box>
+            <Text fontSize="lg" fontWeight="semibold" mb={4}>Menu</Text>
+            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Início</Link>
+            <Link href="/acompanhar-pedido" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Acompanhar Pedido</Link>
+            <Link href="/duvidas" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Dúvidas Frequentes</Link>
+            <Link href="https://wa.me/5511999999999" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2} isExternal>Suporte via WhatsApp</Link>
+          </Box>
+
+          {/* Coluna 3: Serviços */}
+          <Box>
+            <Text fontSize="lg" fontWeight="semibold" mb={4}>Serviços para Instagram</Text>
+            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Turbinar Curtidas</Link>
+            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Turbinar Seguidores</Link>
+            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Visualizações para Vídeos</Link>
+            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Turbinar Comentários</Link>
+          </Box>
+        </SimpleGrid>
+
+        <Divider borderColor="gray.700" my={4} />
+        
+        <Flex justifyContent="space-between" flexDir={{ base: 'column', sm: 'row' }} alignItems={{ base: 'center', sm: 'flex-start' }} pt={2}>
+          <HStack spacing={4} mb={{ base: 3, sm: 0 }}>
+            <Link href="/termos" fontSize="sm" color="gray.400" _hover={{ color: "pink.500" }}>Termos de Uso</Link>
+            <Link href="/privacidade" fontSize="sm" color="gray.400" _hover={{ color: "pink.500" }}>Política de Privacidade</Link>
+          </HStack>
           <Text color="gray.500" fontSize="sm">
-            &copy; {new Date().getFullYear()} Viralizamos. Todos os direitos reservados.
+            © 2025 Viralizamos.com. Todos os direitos reservados. v0.1.0
           </Text>
         </Flex>
       </Container>
