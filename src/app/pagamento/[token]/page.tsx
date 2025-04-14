@@ -12,7 +12,7 @@ import {
   Heading, 
   Text, 
   Card, 
-  CardBody,
+  CardBody, 
   CardHeader, 
   Stack, 
   Divider, 
@@ -108,12 +108,21 @@ const calculatePostQuantity = (payment: PaymentRequest, postIndex: number) => {
   // Se há quantidade específica no post, usa ela
   if (payment.posts[postIndex].quantity) return payment.posts[postIndex].quantity;
   
-  // Senão, divide a quantidade total pelo número de posts (distribui igualmente)
-  const quantityPerPost = Math.floor(payment.quantity / payment.posts.length);
+  // Distribuir a quantidade total entre os posts de forma mais inteligente
+  const totalPosts = payment.posts.length;
+  const totalQuantity = payment.quantity;
   
-  // Distribui o resto para o primeiro post
-  const remainder = payment.quantity % payment.posts.length;
-  return postIndex === 0 ? quantityPerPost + remainder : quantityPerPost;
+  // Para evitar números decimais, calculamos valores inteiros
+  // Damos mais para o primeiro post se houver resto
+  if (postIndex === 0) {
+    // Primeiro post recebe o valor base + o resto da divisão
+    const baseQuantity = Math.floor(totalQuantity / totalPosts);
+    const remainder = totalQuantity % totalPosts;
+    return baseQuantity + remainder;
+  } else {
+    // Outros posts recebem apenas o valor base
+    return Math.floor(totalQuantity / totalPosts);
+  }
 };
 
 export default function PaymentPage() {
@@ -379,28 +388,28 @@ export default function PaymentPage() {
           <Heading as="h1" size="xl" textAlign={{ base: "center", md: "left" }}>
             Finalizar Pagamento
           </Heading>
-          
-          {loading ? (
-            <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
-              <GridItem>
+        
+        {loading ? (
+          <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
+            <GridItem>
                 <Box height="400px" borderRadius="lg" p={6} bg={cardBg} boxShadow="md">
-                  <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
-                </Box>
-              </GridItem>
-              <GridItem>
+                <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
+              </Box>
+            </GridItem>
+            <GridItem>
                 <Box height="400px" borderRadius="lg" p={6} bg={cardBg} boxShadow="md">
-                  <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
-                </Box>
-              </GridItem>
-            </Grid>
-          ) : error ? (
+                <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
+              </Box>
+            </GridItem>
+          </Grid>
+        ) : error ? (
             <Card bg={cardBg} shadow="md">
-              <CardBody>
-                <Text color="red.500">{error}</Text>
-              </CardBody>
-            </Card>
-          ) : payment ? (
-            <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
+            <CardBody>
+              <Text color="red.500">{error}</Text>
+            </CardBody>
+          </Card>
+        ) : payment ? (
+          <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
               {/* COLUNA DE PAGAMENTO - Prioridade no mobile */}
               <GridItem order={{ base: 1, md: 2 }}>
                 <VStack spacing={4} width="100%">
@@ -439,7 +448,7 @@ export default function PaymentPage() {
                       </Heading>
                     </CardHeader>
                     
-                    <CardBody>
+                <CardBody>
                       <VStack spacing={6} align="center">
                         {!payment?.payment && (
                           <Box width="100%" mb={4}>
@@ -586,42 +595,42 @@ export default function PaymentPage() {
                     
                     <CardBody>
                       <Stack spacing={4} divider={<Divider />}>
-                        <Box>
-                          <HStack mb={2}>
-                            <Icon as={FaInfoCircle} color="pink.600" />
-                            <Text fontWeight="semibold">Serviço:</Text>
-                          </HStack>
-                          <Text>{payment.service_name}</Text>
-                          <Text mt={1} fontWeight="medium" color="pink.600">
-                            Total: {payment.quantity || 0} 
-                            {payment.posts && payment.posts.length > 0 && payment.posts[0]?.media_type === 'VIDEO' 
+                    <Box>
+                      <HStack mb={2}>
+                        <Icon as={FaInfoCircle} color="pink.600" />
+                        <Text fontWeight="semibold">Serviço:</Text>
+                      </HStack>
+                      <Text>{payment.service_name}</Text>
+                      <Text mt={1} fontWeight="medium" color="pink.600">
+                        Total: {payment.quantity || 0} 
+                        {payment.posts && payment.posts.length > 0 && payment.posts[0]?.media_type === 'VIDEO' 
                               ? ' visualizações' 
                               : ' curtidas'
-                            }
-                          </Text>
-                        </Box>
-                        
-                        <Box>
-                          <HStack mb={2}>
+                        }
+                      </Text>
+                    </Box>
+                    
+                    <Box>
+                      <HStack mb={2}>
                             <Icon as={FaInstagram} color="pink.600" />
-                            <Text fontWeight="semibold">Instagram:</Text>
-                          </HStack>
-                          <HStack spacing={3}>
-                            <Text>@{payment.instagram_username}</Text>
-                          </HStack>
-                        </Box>
-                        
-                        <Box>
-                          <HStack mb={2}>
-                            <Icon as={FaInfoCircle} color="pink.600" />
-                            <Text fontWeight="semibold">Informações de Contato:</Text>
-                          </HStack>
-                          <Text>Nome: {payment.customer_name}</Text>
-                          <Text>Email: {payment.customer_email}</Text>
-                          {payment.customer_phone && (
-                            <Text>Telefone: {payment.customer_phone}</Text>
-                          )}
-                        </Box>
+                        <Text fontWeight="semibold">Instagram:</Text>
+                      </HStack>
+                      <HStack spacing={3}>
+                        <Text>@{payment.instagram_username}</Text>
+                      </HStack>
+                    </Box>
+                    
+                    <Box>
+                      <HStack mb={2}>
+                        <Icon as={FaInfoCircle} color="pink.600" />
+                        <Text fontWeight="semibold">Informações de Contato:</Text>
+                      </HStack>
+                      <Text>Nome: {payment.customer_name}</Text>
+                      <Text>Email: {payment.customer_email}</Text>
+                      {payment.customer_phone && (
+                        <Text>Telefone: {payment.customer_phone}</Text>
+                      )}
+                    </Box>
                         
                         <Stack spacing={2}>
                           <Flex justify="space-between">
@@ -641,108 +650,108 @@ export default function PaymentPage() {
                             <Text color="pink.600">R$ {payment.amount.toFixed(2)}</Text>
                           </Flex>
                         </Stack>
-                      </Stack>
-                    </CardBody>
-                  </Card>
-                  
+                  </Stack>
+                </CardBody>
+              </Card>
+              
                   {/* Posts selecionados */}
                   {payment.posts && payment.posts.length > 0 && (
                     <Card variant="elevated" shadow="md" width="100%" bg={cardBg} borderColor={borderColor}>
                       <CardHeader pb={0}>
                         <Flex justify="space-between" align="center">
-                          <Heading size="md">Posts selecionados</Heading>
-                          <Badge colorScheme="pink" fontSize="sm" px={2} py={1}>
+                    <Heading size="md">Posts selecionados</Heading>
+                    <Badge colorScheme="pink" fontSize="sm" px={2} py={1}>
                             {payment.quantity || 0}
                             {payment.posts[0]?.media_type === 'VIDEO' 
-                              ? ' visualizações' 
-                              : ' curtidas'
-                            }
-                          </Badge>
-                        </Flex>
+                        ? ' visualizações' 
+                        : ' curtidas'
+                      }
+                    </Badge>
+                  </Flex>
                       </CardHeader>
-                      
+                  
                       <CardBody>
-                        <VStack spacing={4} align="stretch">
-                          {payment.posts.map((post) => (
-                            <Flex 
-                              key={post.id} 
-                              borderWidth="1px" 
-                              borderRadius="md" 
-                              p={3} 
-                              align="center"
-                            >
-                              <Box 
-                                width="60px" 
-                                height="60px" 
-                                bg="gray.100" 
-                                borderRadius="md" 
-                                overflow="hidden" 
-                                mr={4}
-                              >
-                                {post.image_url || post.thumbnail_url ? (
-                                  <Box position="relative" width="100%" height="100%">
-                                    <NextImage 
-                                      src={getProxyImageUrl(post.image_url || post.thumbnail_url) || '/placeholder-post.png'} 
-                                      alt="Thumbnail" 
-                                      fill
-                                      style={{ objectFit: 'cover' }}
-                                      unoptimized={true}
-                                    />
-                                    <Flex 
-                                      position="absolute"
-                                      top="0"
-                                      left="0"
-                                      bg="rgba(0,0,0,0.4)"
-                                      color="white"
-                                      fontSize="xs"
-                                      px={1}
-                                      borderBottomRightRadius="sm"
-                                    >
-                                      {post.media_type === 'VIDEO' ? 'Vídeo' : 'Foto'}
-                                    </Flex>
-                                  </Box>
-                                ) : (
-                                  <Flex 
-                                    align="center" 
-                                    justify="center" 
-                                    height="100%" 
-                                    bg="gray.200"
-                                  >
-                                    <Icon as={FaInstagram} color="gray.400" boxSize={5} />
-                                  </Flex>
-                                )}
-                              </Box>
-                              
-                              <Box flex={1}>
-                                <Text fontSize="sm" fontWeight="medium" mb={1} noOfLines={1}>
-                                  {post.caption || 'Post do Instagram'}
-                                </Text>
-                                
-                                <Flex justify="space-between" align="center">
-                                  <Link 
-                                    href={post.url} 
-                                    color="pink.600" 
-                                    fontSize="xs" 
-                                    isExternal
-                                  >
-                                    Ver post original
-                                  </Link>
-                                  
-                                  <Badge colorScheme="pink" fontSize="sm" px={2} py={1} borderRadius="md">
-                                    {calculatePostQuantity(payment, payment.posts.indexOf(post))} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
-                                  </Badge>
+                    <VStack spacing={4} align="stretch">
+                      {payment.posts.map((post) => (
+                        <Flex 
+                          key={post.id} 
+                          borderWidth="1px" 
+                          borderRadius="md" 
+                          p={3} 
+                          align="center"
+                        >
+                          <Box 
+                            width="60px" 
+                            height="60px" 
+                            bg="gray.100" 
+                            borderRadius="md" 
+                            overflow="hidden" 
+                            mr={4}
+                          >
+                            {post.image_url || post.thumbnail_url ? (
+                              <Box position="relative" width="100%" height="100%">
+                                <NextImage 
+                                  src={getProxyImageUrl(post.image_url || post.thumbnail_url) || '/placeholder-post.png'} 
+                                  alt="Thumbnail" 
+                                  fill
+                                  style={{ objectFit: 'cover' }}
+                                  unoptimized={true}
+                                />
+                                <Flex 
+                                  position="absolute"
+                                  top="0"
+                                  left="0"
+                                  bg="rgba(0,0,0,0.4)"
+                                  color="white"
+                                  fontSize="xs"
+                                  px={1}
+                                  borderBottomRightRadius="sm"
+                                >
+                                  {post.media_type === 'VIDEO' ? 'Vídeo' : 'Foto'}
                                 </Flex>
                               </Box>
+                            ) : (
+                              <Flex 
+                                align="center" 
+                                justify="center" 
+                                height="100%" 
+                                bg="gray.200"
+                              >
+                                <Icon as={FaInstagram} color="gray.400" boxSize={5} />
+                              </Flex>
+                            )}
+                          </Box>
+                          
+                          <Box flex={1}>
+                            <Text fontSize="sm" fontWeight="medium" mb={1} noOfLines={1}>
+                              {post.caption || 'Post do Instagram'}
+                            </Text>
+                            
+                            <Flex justify="space-between" align="center">
+                              <Link 
+                                href={post.url} 
+                                color="pink.600" 
+                                fontSize="xs" 
+                                isExternal
+                              >
+                                Ver post original
+                              </Link>
+                              
+                              <Badge colorScheme="pink" fontSize="sm" px={2} py={1} borderRadius="md">
+                                {calculatePostQuantity(payment, payment.posts.indexOf(post))} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
+                              </Badge>
                             </Flex>
-                          ))}
-                        </VStack>
+                          </Box>
+                        </Flex>
+                      ))}
+                    </VStack>
                       </CardBody>
                     </Card>
                   )}
-                </VStack>
-              </GridItem>
-            </Grid>
-          ) : null}
+                  </VStack>
+            </GridItem>
+          </Grid>
+        ) : null}
         </VStack>
       </Container>
       
