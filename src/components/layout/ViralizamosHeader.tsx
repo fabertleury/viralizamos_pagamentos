@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
-import { Box, Container, Flex, Link, HStack, Image, Text, Button } from '@chakra-ui/react';
+import React, { useState } from 'react';
+import { Box, Container, Flex, Link, HStack, Image as ChakraImage, Text, Button } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
+import NextImage from 'next/image';
 
 export default function ViralizamosHeader() {
   const pathname = usePathname();
+  const [imageError, setImageError] = useState(false);
   
   // Verifica se a página atual é a que corresponde ao link
   const isActive = (path: string) => {
@@ -18,15 +20,28 @@ export default function ViralizamosHeader() {
       <Container maxW="container.xl" py={4}>
         <Flex justify="space-between" align="center">
           {/* Logo */}
-          <Link href="https://viralizamos.com" isExternal>
-            <Image
-              src="/images/logo.webp"
-              alt="Viralizamos"
-              h="40px"
-              w="auto"
-              fallbackSrc="/logo-viralizamos.png"
-              fallback={<Text fontSize="xl" fontWeight="bold" color="pink.600">Viralizamos</Text>}
-            />
+          <Link href="https://viralizamos.com" isExternal display="flex" alignItems="center">
+            {imageError ? (
+              // Fallback para Chakra Image caso o Next Image falhe
+              <ChakraImage
+                src="/logo.webp"
+                alt="Viralizamos"
+                h="40px"
+                fallbackSrc="/logo.svg"
+                fallback={<Text fontSize="xl" fontWeight="bold" color="pink.600">Viralizamos</Text>}
+              />
+            ) : (
+              <Box position="relative" width="150px" height="40px">
+                <NextImage
+                  src="/logo.webp"
+                  alt="Viralizamos"
+                  fill
+                  style={{ objectFit: 'contain' }}
+                  priority
+                  onError={() => setImageError(true)}
+                />
+              </Box>
+            )}
           </Link>
           
           {/* Links de navegação */}
