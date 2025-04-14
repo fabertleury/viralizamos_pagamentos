@@ -19,7 +19,6 @@ export function ViralizamosFooter() {
               href="https://www.instagram.com/viralizamos.ia" 
               color="gray.400" 
               _hover={{ color: "pink.500" }} 
-              isExternal
               display="flex"
               alignItems="center"
             >
@@ -31,19 +30,19 @@ export function ViralizamosFooter() {
           {/* Coluna 2: Menu */}
           <Box>
             <Text fontSize="lg" fontWeight="semibold" mb={4}>Menu</Text>
-            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Início</Link>
-            <Link href="/acompanhar-pedido" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Acompanhar Pedido</Link>
-            <Link href="/duvidas" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Dúvidas Frequentes</Link>
-            <Link href="https://wa.me/5511999999999" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2} isExternal>Suporte via WhatsApp</Link>
+            <Link href="https://viralizamos.com" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Início</Link>
+            <Link href="https://pagamentos.viralizamos.com/acompanhar-pedido" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Acompanhar Pedido</Link>
+            <Link href="https://viralizamos.com/faq" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Dúvidas Frequentes</Link>
+            <Link href="https://wa.me/5562999915390" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Suporte via WhatsApp</Link>
           </Box>
 
           {/* Coluna 3: Serviços */}
           <Box>
             <Text fontSize="lg" fontWeight="semibold" mb={4}>Serviços para Instagram</Text>
-            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Turbinar Curtidas</Link>
-            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Turbinar Seguidores</Link>
-            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Visualizações para Vídeos</Link>
-            <Link href="/" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Turbinar Comentários</Link>
+            <Link href="https://viralizamos.com/instagram/curtidas" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Turbinar Curtidas</Link>
+            <Link href="https://viralizamos.com/instagram/seguidores" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Turbinar Seguidores</Link>
+            <Link href="https://viralizamos.com/instagram/visualizacoes" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Visualizações para Vídeos</Link>
+            <Link href="https://viralizamos.com/instagram/comentarios" color="gray.400" _hover={{ color: "pink.500" }} display="block" mb={2}>Turbinar Comentários</Link>
           </Box>
         </SimpleGrid>
 
@@ -51,8 +50,8 @@ export function ViralizamosFooter() {
         
         <Flex justifyContent="space-between" flexDir={{ base: 'column', sm: 'row' }} alignItems={{ base: 'center', sm: 'flex-start' }} pt={2}>
           <HStack spacing={4} mb={{ base: 3, sm: 0 }}>
-            <Link href="/termos" fontSize="sm" color="gray.400" _hover={{ color: "pink.500" }}>Termos de Uso</Link>
-            <Link href="/privacidade" fontSize="sm" color="gray.400" _hover={{ color: "pink.500" }}>Política de Privacidade</Link>
+            <Link href="https://viralizamos.com/termos-de-uso" fontSize="sm" color="gray.400" _hover={{ color: "pink.500" }}>Termos de Uso</Link>
+            <Link href="https://viralizamos.com/politica-de-privacidade" fontSize="sm" color="gray.400" _hover={{ color: "pink.500" }}>Política de Privacidade</Link>
           </HStack>
           <Text color="gray.500" fontSize="sm">
             © 2025 Viralizamos.com. Todos os direitos reservados. v0.1.0
