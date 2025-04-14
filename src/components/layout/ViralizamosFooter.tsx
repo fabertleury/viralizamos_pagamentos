@@ -39,48 +39,28 @@ export function ViralizamosFooter() {
                   Home
                 </Link>
               </NextLink>
-              <NextLink href="https://viralizamos.com/sobre" passHref legacyBehavior>
-                <Link color="gray.400" _hover={{ color: "white" }} fontSize="sm">
-                  Sobre Nós
-                </Link>
-              </NextLink>
-              <NextLink href="https://viralizamos.com/servicos" passHref legacyBehavior>
-                <Link color="gray.400" _hover={{ color: "white" }} fontSize="sm">
-                  Serviços
-                </Link>
-              </NextLink>
-              <NextLink href="https://viralizamos.com/precos" passHref legacyBehavior>
-                <Link color="gray.400" _hover={{ color: "white" }} fontSize="sm">
-                  Preços
-                </Link>
-              </NextLink>
-              <NextLink href="https://viralizamos.com/contato" passHref legacyBehavior>
-                <Link color="gray.400" _hover={{ color: "white" }} fontSize="sm">
-                  Contato
-                </Link>
-              </NextLink>
             </VStack>
           </GridItem>
           
           <GridItem>
             <Heading size="md" mb={4}>Serviços</Heading>
             <VStack align="flex-start" spacing={2}>
-              <NextLink href="https://viralizamos.com/servicos/curtidas" passHref legacyBehavior>
+              <NextLink href="https://viralizamos.com/instagram/curtidas" passHref legacyBehavior>
                 <Link color="gray.400" _hover={{ color: "white" }} fontSize="sm">
                   Curtidas no Instagram
                 </Link>
               </NextLink>
-              <NextLink href="https://viralizamos.com/servicos/seguidores" passHref legacyBehavior>
+              <NextLink href="https://viralizamos.com/instagram/seguidores" passHref legacyBehavior>
                 <Link color="gray.400" _hover={{ color: "white" }} fontSize="sm">
                   Seguidores no Instagram
                 </Link>
               </NextLink>
-              <NextLink href="https://viralizamos.com/servicos/visualizacoes" passHref legacyBehavior>
+              <NextLink href="https://viralizamos.com/instagram/visualizacoes" passHref legacyBehavior>
                 <Link color="gray.400" _hover={{ color: "white" }} fontSize="sm">
-                  Visualizações de Vídeo
+                  Visualizações
                 </Link>
               </NextLink>
-              <NextLink href="https://viralizamos.com/servicos/comentarios" passHref legacyBehavior>
+              <NextLink href="https://viralizamos.com/instagram/comentarios" passHref legacyBehavior>
                 <Link color="gray.400" _hover={{ color: "white" }} fontSize="sm">
                   Comentários no Instagram
                 </Link>

@@ -64,8 +64,12 @@ export default function ViralizamosHeader() {
               href="https://viralizamos.com/analisar-perfil" 
               isExternal
               fontWeight="medium"
-              color={isActive('/analisar-perfil') ? "pink.600" : "gray.600"}
-              _hover={{ color: "pink.600" }}
+              bg="pink.500"
+              color="white"
+              px={4}
+              py={2}
+              borderRadius="md"
+              _hover={{ bg: "pink.600" }}
             >
               Analisar Perfil
             </Link>
@@ -74,8 +78,12 @@ export default function ViralizamosHeader() {
               href="/acompanhar"
               as={NextLink}
               fontWeight="medium"
-              color={isActive('/acompanhar') ? "pink.600" : "gray.600"}
-              _hover={{ color: "pink.600" }}
+              bg="pink.500"
+              color="white"
+              px={4}
+              py={2}
+              borderRadius="md"
+              _hover={{ bg: "pink.600" }}
             >
               Acompanhar Pedido
             </Link>
