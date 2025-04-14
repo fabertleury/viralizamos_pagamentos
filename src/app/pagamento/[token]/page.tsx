@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import NextImage from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
@@ -12,7 +12,8 @@ import {
   Heading, 
   Text, 
   Card, 
-  CardBody, 
+  CardBody,
+  CardHeader, 
   Stack, 
   Divider, 
   Button, 
@@ -38,8 +39,9 @@ import {
   AlertDialogContent,
   AlertDialogOverlay,
   useDisclosure,
+  useColorModeValue,
 } from '@chakra-ui/react';
-import { FaHeart, FaCopy, FaInfoCircle, FaTag, FaInstagram, FaCheck } from 'react-icons/fa';
+import { FaHeart, FaCopy, FaInfoCircle, FaTag, FaInstagram, FaCheck, FaQrcode, FaClock } from 'react-icons/fa';
 import ViralizamosHeader from '@/components/layout/ViralizamosHeader';
 import { ViralizamosFooter } from '@/components/layout/ViralizamosFooter';
 import PixPaymentButton from '@/components/PixPaymentButton';
@@ -133,6 +135,11 @@ export default function PaymentPage() {
   
   const pixCode = payment?.payment?.pix_code || '';
   const { hasCopied, onCopy } = useClipboard(pixCode);
+  
+  // Novas variáveis para estilo
+  const bgColor = useColorModeValue('gray.50', 'gray.900');
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
   
   // Formatar o tempo restante
   const formatTimeRemaining = (seconds: number): string => {
@@ -363,369 +370,380 @@ export default function PaymentPage() {
   };
   
   return (
-    <>
+    <Box minH="100vh" display="flex" flexDir="column" bg={bgColor}>
       <ViralizamosHeader />
       
-      <Container maxW="container.xl" py={6}>
-        {loading ? (
-          <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
-            <GridItem>
-              <Box height="400px" borderRadius="lg" p={6} bg="white" boxShadow="md">
-                <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
-              </Box>
-            </GridItem>
-            <GridItem>
-              <Box height="400px" borderRadius="lg" p={6} bg="white" boxShadow="md">
-                <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
-              </Box>
-            </GridItem>
-          </Grid>
-        ) : error ? (
-          <Card>
-            <CardBody>
-              <Text color="red.500">{error}</Text>
-            </CardBody>
-          </Card>
-        ) : payment ? (
-          <Grid templateColumns={{ base: "1fr", md: "1fr 400px" }} gap={6}>
-            {/* Reorganizado para mobile: Cards com ordem específica em mobile */}
-            
-            {/* Coluna esquerda - Detalhes do pedido e posts */}
-            <GridItem order={{ base: 2, md: 1 }}>
-              <Card variant="elevated" shadow="md" mb={6}>
-                <CardBody>
-                  <Heading size="md" mb={4}>Detalhes do Pedido</Heading>
-                  <Stack spacing={4} divider={<Divider />}>
-                    <Box>
-                      <HStack mb={2}>
-                        <Icon as={FaInfoCircle} color="pink.600" />
-                        <Text fontWeight="semibold">Serviço:</Text>
-                      </HStack>
-                      <Text>{payment.service_name}</Text>
-                      <Text mt={1} fontWeight="medium" color="pink.600">
-                        Total: {payment.quantity || 0} 
-                        {payment.posts && payment.posts.length > 0 && payment.posts[0]?.media_type === 'VIDEO' 
-                          ? 'visualizações' 
-                          : 'curtidas'
-                        }
-                      </Text>
-                    </Box>
-                    
-                    <Box>
-                      <HStack mb={2}>
-                        <Icon as={FaInfoCircle} color="pink.600" />
-                        <Text fontWeight="semibold">Instagram:</Text>
-                      </HStack>
-                      <HStack spacing={3}>
-                        <Flex
-                          width="32px"
-                          height="32px"
-                          borderRadius="full"
-                          bg="pink.50"
-                          justify="center"
-                          align="center"
-                        >
-                          <Icon as={FaInstagram} color="pink.500" boxSize={4} />
+      <Container maxW="container.xl" py={8} px={{ base: 4, md: 8 }} flex="1">
+        
+        <VStack spacing={6} align="stretch" width="100%">
+          <Heading as="h1" size="xl" textAlign={{ base: "center", md: "left" }}>
+            Finalizar Pagamento
+          </Heading>
+          
+          {loading ? (
+            <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
+              <GridItem>
+                <Box height="400px" borderRadius="lg" p={6} bg={cardBg} boxShadow="md">
+                  <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
+                </Box>
+              </GridItem>
+              <GridItem>
+                <Box height="400px" borderRadius="lg" p={6} bg={cardBg} boxShadow="md">
+                  <SkeletonText mt="4" noOfLines={10} spacing="4" skeletonHeight="4" />
+                </Box>
+              </GridItem>
+            </Grid>
+          ) : error ? (
+            <Card bg={cardBg} shadow="md">
+              <CardBody>
+                <Text color="red.500">{error}</Text>
+              </CardBody>
+            </Card>
+          ) : payment ? (
+            <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={6}>
+              {/* COLUNA DE PAGAMENTO - Prioridade no mobile */}
+              <GridItem order={{ base: 1, md: 2 }}>
+                <VStack spacing={4} width="100%">
+                  {/* Timer Card */}
+                  <Card variant="elevated" shadow="md" width="100%" bg={cardBg} borderColor={borderColor}>
+                    <CardBody>
+                      <VStack spacing={3}>
+                        <Flex width="100%" justify="center" align="center" gap={2}>
+                          <Icon as={FaClock} color="pink.500" />
+                          <Text fontWeight="bold" fontSize="2xl" color="pink.600">
+                            {formattedTime}
+                          </Text>
                         </Flex>
-                        <Text>@{payment.instagram_username}</Text>
-                      </HStack>
-                    </Box>
+                        <Text fontSize="sm" color="gray.600" textAlign="center">
+                          Este QR Code expira em breve
+                        </Text>
+                        <Progress
+                          value={timePercentage}
+                          size="sm"
+                          colorScheme="pink"
+                          width="100%"
+                          borderRadius="full"
+                        />
+                      </VStack>
+                    </CardBody>
+                  </Card>
+
+                  {/* Payment Card */}
+                  <Card variant="elevated" shadow="md" width="100%" bg={cardBg} borderColor={borderColor}>
+                    <CardHeader pb={0}>
+                      <Heading size="md" textAlign="center">
+                        <Flex justify="center" align="center" gap={2}>
+                          <Icon as={FaQrcode} color="pink.500" />
+                          <Text>Pague com PIX</Text>
+                        </Flex>
+                      </Heading>
+                    </CardHeader>
                     
-                    <Box>
-                      <HStack mb={2}>
-                        <Icon as={FaInfoCircle} color="pink.600" />
-                        <Text fontWeight="semibold">Informações de Contato:</Text>
-                      </HStack>
-                      <Text>Nome: {payment.customer_name}</Text>
-                      <Text>Email: {payment.customer_email}</Text>
-                      {payment.customer_phone && (
-                        <Text>Telefone: {payment.customer_phone}</Text>
-                      )}
-                    </Box>
-                  </Stack>
-                </CardBody>
-              </Card>
-              
-              <Card variant="elevated" shadow="md" order={{ base: 1, md: 2 }}>
-                <CardBody>
-                  <Flex justify="space-between" align="center" mb={3}>
-                    <Heading size="md">Posts selecionados</Heading>
-                    <Badge colorScheme="pink" fontSize="sm" px={2} py={1}>
-                      Total: {payment.quantity || 0}
-                      {payment.posts && payment.posts.length > 0 && payment.posts[0]?.media_type === 'VIDEO' 
-                        ? ' visualizações' 
-                        : ' curtidas'
-                      }
-                    </Badge>
-                  </Flex>
-                  
-                  {payment.posts && payment.posts.length > 0 ? (
-                    <VStack spacing={4} align="stretch">
-                      {payment.posts.map((post) => (
-                        <Flex 
-                          key={post.id} 
-                          borderWidth="1px" 
-                          borderRadius="md" 
-                          p={3} 
-                          align="center"
-                        >
+                    <CardBody>
+                      <VStack spacing={6} align="center">
+                        {!payment?.payment && (
+                          <Box width="100%" mb={4}>
+                            <PixPaymentButton 
+                              paymentRequestId={payment?.id || ''}
+                              onSuccess={handlePixPaymentSuccess}
+                              onError={handlePixPaymentError}
+                              style={{ width: '100%' }}
+                            />
+                            <Text mt={2} fontSize="sm" color="gray.600" textAlign="center">
+                              Clique no botão acima para gerar o código PIX
+                            </Text>
+                          </Box>
+                        )}
+                        
+                        {/* QR Code */}
+                        {payment?.payment?.pix_qrcode || payment?.payment?.pix_code ? (
                           <Box 
-                            width="60px" 
-                            height="60px" 
-                            bg="gray.100" 
-                            borderRadius="md" 
-                            overflow="hidden" 
-                            mr={4}
+                            p={4} 
+                            borderWidth="2px" 
+                            borderColor="pink.100" 
+                            borderRadius="md"
+                            bg="white"
+                            boxShadow="sm"
                           >
-                            {post.image_url || post.thumbnail_url ? (
-                              <Box position="relative" width="100%" height="100%">
-                                <NextImage 
-                                  src={getProxyImageUrl(post.image_url || post.thumbnail_url) || '/placeholder-post.png'} 
-                                  alt="Thumbnail" 
-                                  fill
-                                  style={{ objectFit: 'cover' }}
-                                  unoptimized={true}
-                                />
-                                <Flex 
-                                  position="absolute"
-                                  top="0"
-                                  left="0"
-                                  bg="rgba(0,0,0,0.4)"
-                                  color="white"
-                                  fontSize="xs"
-                                  px={1}
-                                  borderBottomRightRadius="sm"
-                                >
-                                  {post.media_type === 'VIDEO' ? 'Vídeo' : 'Foto'}
-                                </Flex>
-                              </Box>
+                            {payment?.payment?.pix_qrcode ? (
+                              <ChakraImage 
+                                src={`data:image/png;base64,${payment.payment.pix_qrcode}`} 
+                                alt="QR Code PIX" 
+                                width="200px" 
+                                height="200px"
+                              />
                             ) : (
-                              <Flex 
-                                align="center" 
-                                justify="center" 
-                                height="100%" 
-                                bg="gray.200"
-                              >
-                                <Icon as={FaInstagram} color="gray.400" boxSize={5} />
-                              </Flex>
+                              <QRCodeSVG 
+                                value={payment.payment.pix_code} 
+                                size={200}
+                                includeMargin={true}
+                                bgColor="#FFFFFF"
+                                fgColor="#000000"
+                                level="M"
+                              />
                             )}
                           </Box>
-                          
-                          <Box flex={1}>
-                            <Text fontSize="sm" fontWeight="medium" mb={1} noOfLines={1}>
-                              {post.caption || 'Post do Instagram'}
-                            </Text>
-                            
-                            <Flex justify="space-between" align="center">
-                              <Link 
-                                href={post.url} 
-                                color="pink.600" 
-                                fontSize="xs" 
-                                isExternal
-                              >
-                                Ver post original
-                              </Link>
-                              
-                              <Badge colorScheme="pink" fontSize="sm" px={2} py={1} borderRadius="md">
-                                {calculatePostQuantity(payment, payment.posts.indexOf(post))} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
-                              </Badge>
-                            </Flex>
+                        ) : (
+                          <Box 
+                            p={4} 
+                            borderWidth="2px" 
+                            borderColor="gray.200" 
+                            borderRadius="md"
+                            bg="white"
+                            width="200px" 
+                            height="200px"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                          >
+                            <Text color="gray.500">QR Code não disponível</Text>
                           </Box>
-                        </Flex>
-                      ))}
-                    </VStack>
-                  ) : (
-                    <Box py={4} textAlign="center">
-                      <Text color="gray.500">Não há posts selecionados.</Text>
-                    </Box>
-                  )}
-                  
-                  <Divider my={4} />
-                  
-                  <Stack spacing={2}>
-                    <Flex justify="space-between">
-                      <Text>Subtotal</Text>
-                      <Text>R$ {(payment.amount * 0.9).toFixed(2)}</Text>
-                    </Flex>
-                    
-                    <Flex justify="space-between">
-                      <Text>Taxa de processamento</Text>
-                      <Text>R$ {(payment.amount * 0.1).toFixed(2)}</Text>
-                    </Flex>
-                    
-                    <Divider />
-                    
-                    <Flex justify="space-between" fontWeight="bold">
-                      <Text>Total</Text>
-                      <Text color="pink.600">R$ {payment.amount.toFixed(2)}</Text>
-                    </Flex>
-                  </Stack>
-                </CardBody>
-              </Card>
-            </GridItem>
-            
-            {/* Coluna direita - Informações de pagamento (reordenada no mobile para aparecer em primeiro) */}
-            <GridItem order={{ base: 1, md: 2 }}>
-              <Card mb={6} variant="elevated" shadow="md">
-                <CardBody>
-                  <Flex direction="column" align="center">
-                    <Text fontWeight="bold" fontSize="xl" mb={1}>{formattedTime}</Text>
-                    <Text fontSize="sm" color="gray.500" mb={4}>
-                      Este QR Code expira em {formattedTime}
-                    </Text>
-                    
-                    <Progress
-                      value={timePercentage}
-                      size="sm"
-                      colorScheme="pink"
-                      width="100%"
-                      borderRadius="full"
-                      mb={4}
-                    />
-                  </Flex>
-                </CardBody>
-              </Card>
-              
-              <Card variant="elevated" shadow="md">
-                <CardBody>
-                  <Heading size="md" textAlign="center" mb={6}>Pague com PIX</Heading>
-                  
-                  <VStack spacing={6} align="center">
-                    {!payment?.payment && (
-                      <Box width="100%" mb={4}>
-                        <PixPaymentButton 
-                          paymentRequestId={payment?.id || ''}
-                          onSuccess={handlePixPaymentSuccess}
-                          onError={handlePixPaymentError}
-                        />
-                        <Text mt={2} fontSize="sm" color="gray.600" textAlign="center">
-                          Clique no botão acima para gerar o código PIX para pagamento
-                        </Text>
-                      </Box>
-                    )}
-                    
-                    {payment?.payment?.pix_qrcode ? (
-                      <Box 
-                        p={4} 
-                        borderWidth="2px" 
-                        borderColor="gray.200" 
-                        borderRadius="md"
-                        bg="white"
-                      >
-                        <ChakraImage 
-                          src={`data:image/png;base64,${payment.payment.pix_qrcode}`} 
-                          alt="QR Code PIX" 
-                          width="200px" 
-                          height="200px"
-                        />
-                      </Box>
-                    ) : payment?.payment?.pix_code ? (
-                      <Box 
-                        p={4} 
-                        borderWidth="2px" 
-                        borderColor="gray.200" 
-                        borderRadius="md"
-                        bg="white"
-                      >
-                        <QRCodeSVG 
-                          value={payment.payment.pix_code} 
-                          size={200}
-                          includeMargin={true}
-                          bgColor="#FFFFFF"
-                          fgColor="#000000"
-                          level="M"
-                        />
-                      </Box>
-                    ) : (
-                      <Box 
-                        p={4} 
-                        borderWidth="2px" 
-                        borderColor="gray.200" 
-                        borderRadius="md"
-                        bg="white"
-                        width="200px" 
-                        height="200px"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                      >
-                        <Text color="gray.500">QR Code não disponível</Text>
-                      </Box>
-                    )}
-                    
-                    {payment?.payment && (
-                      <Text color="gray.600" fontSize="sm">
-                        Escaneie este QR Code com o app do seu banco ou copie o código PIX abaixo
-                      </Text>
-                    )}
-                    
-                    {payment?.payment?.pix_code && (
-                      <Box width="100%">
-                        <FormControl>
-                          <FormLabel fontSize="sm" fontWeight="medium">
-                            <HStack>
-                              <Icon as={FaTag} color="pink.600" />
-                              <Text>Código PIX</Text>
-                            </HStack>
-                          </FormLabel>
-                          <Flex>
-                            <Input 
-                              value={payment.payment.pix_code}
-                              isReadOnly
-                              pr="4.5rem"
-                              fontFamily="mono"
-                              fontSize="xs"
-                              bg="gray.50"
-                            />
+                        )}
+                        
+                        {payment?.payment && (
+                          <Text color="gray.600" fontSize="sm" textAlign="center">
+                            Escaneie este QR Code com o app do seu banco para pagar
+                          </Text>
+                        )}
+                        
+                        {/* Código PIX */}
+                        {payment?.payment?.pix_code && (
+                          <Box width="100%">
+                            <FormControl>
+                              <FormLabel fontSize="sm" fontWeight="medium">
+                                <HStack>
+                                  <Icon as={FaTag} color="pink.600" />
+                                  <Text>Código PIX</Text>
+                                </HStack>
+                              </FormLabel>
+                              <Flex>
+                                <Input 
+                                  value={payment.payment.pix_code}
+                                  isReadOnly
+                                  pr="4.5rem"
+                                  fontFamily="mono"
+                                  fontSize="xs"
+                                  bg="gray.50"
+                                />
+                                <Button
+                                  ml={2}
+                                  colorScheme="pink"
+                                  onClick={handleCopyPixCode}
+                                  leftIcon={<Icon as={hasCopied ? FaCheck : FaCopy} />}
+                                >
+                                  {hasCopied ? "Copiado" : "Copiar"}
+                                </Button>
+                              </Flex>
+                            </FormControl>
+                          </Box>
+                        )}
+                        
+                        {/* Botão "Já paguei" */}
+                        {payment && payment.payment && (
+                          <Box width="100%" mt={4}>
                             <Button
-                              ml={2}
-                              colorScheme="pink"
-                              onClick={handleCopyPixCode}
-                              leftIcon={<Icon as={FaCopy} />}
+                              colorScheme="green"
+                              size="lg"
+                              width="100%"
+                              leftIcon={<FaCheck />}
+                              onClick={handleManualCheck}
+                              isLoading={verifyingPayment}
+                              loadingText="Verificando..."
                             >
-                              {hasCopied ? "Copiado" : "Copiar"}
+                              Já paguei {checkCountdown < 30 ? `(${checkCountdown}s)` : ""}
                             </Button>
-                          </Flex>
-                        </FormControl>
-                      </Box>
-                    )}
-                    
-                    {payment && payment.payment && (
-                      <Box width="100%" mt={4}>
-                        <Button
-                          colorScheme="green"
-                          size="lg"
-                          width="100%"
-                          leftIcon={<FaCheck />}
-                          onClick={handleManualCheck}
-                          isLoading={verifyingPayment}
-                          loadingText="Verificando..."
+                            <Text mt={2} fontSize="sm" color="gray.600" textAlign="center">
+                              Clique no botão acima após realizar o pagamento
+                            </Text>
+                          </Box>
+                        )}
+                        
+                        <Box 
+                          bg="gray.50" 
+                          p={4} 
+                          borderRadius="md" 
+                          width="100%" 
+                          mt={2}
                         >
-                          Já paguei {checkCountdown < 30 ? `(verificando em ${checkCountdown}s)` : ""}
-                        </Button>
-                        <Text mt={2} fontSize="sm" color="gray.600" textAlign="center">
-                          Clique no botão acima após realizar o pagamento para verificar se foi confirmado
-                        </Text>
-                      </Box>
-                    )}
+                          <Text fontSize="sm" color="gray.600" textAlign="center">
+                            Você será redirecionado automaticamente após a confirmação do pagamento.
+                          </Text>
+                        </Box>
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                </VStack>
+              </GridItem>
+              
+              {/* COLUNA DE DETALHES DO PEDIDO */}
+              <GridItem order={{ base: 2, md: 1 }}>
+                <VStack spacing={4} width="100%">
+                  {/* Detalhes do Pedido */}
+                  <Card variant="elevated" shadow="md" width="100%" bg={cardBg} borderColor={borderColor}>
+                    <CardHeader pb={0}>
+                      <Heading size="md">Detalhes do Pedido</Heading>
+                    </CardHeader>
                     
-                    <Box 
-                      bg="gray.50" 
-                      p={4} 
-                      borderRadius="md" 
-                      width="100%" 
-                      mt={2}
-                    >
-                      <Text fontSize="sm" color="gray.600" textAlign="center">
-                        Você será redirecionado após o pagamento, o sistema irá processar automaticamente seu pedido.
-                      </Text>
-                    </Box>
-                  </VStack>
-                </CardBody>
-              </Card>
-            </GridItem>
-          </Grid>
-        ) : null}
+                    <CardBody>
+                      <Stack spacing={4} divider={<Divider />}>
+                        <Box>
+                          <HStack mb={2}>
+                            <Icon as={FaInfoCircle} color="pink.600" />
+                            <Text fontWeight="semibold">Serviço:</Text>
+                          </HStack>
+                          <Text>{payment.service_name}</Text>
+                          <Text mt={1} fontWeight="medium" color="pink.600">
+                            Total: {payment.quantity || 0} 
+                            {payment.posts && payment.posts.length > 0 && payment.posts[0]?.media_type === 'VIDEO' 
+                              ? ' visualizações' 
+                              : ' curtidas'
+                            }
+                          </Text>
+                        </Box>
+                        
+                        <Box>
+                          <HStack mb={2}>
+                            <Icon as={FaInstagram} color="pink.600" />
+                            <Text fontWeight="semibold">Instagram:</Text>
+                          </HStack>
+                          <HStack spacing={3}>
+                            <Text>@{payment.instagram_username}</Text>
+                          </HStack>
+                        </Box>
+                        
+                        <Box>
+                          <HStack mb={2}>
+                            <Icon as={FaInfoCircle} color="pink.600" />
+                            <Text fontWeight="semibold">Informações de Contato:</Text>
+                          </HStack>
+                          <Text>Nome: {payment.customer_name}</Text>
+                          <Text>Email: {payment.customer_email}</Text>
+                          {payment.customer_phone && (
+                            <Text>Telefone: {payment.customer_phone}</Text>
+                          )}
+                        </Box>
+                        
+                        <Stack spacing={2}>
+                          <Flex justify="space-between">
+                            <Text>Subtotal</Text>
+                            <Text>R$ {(payment.amount * 0.9).toFixed(2)}</Text>
+                          </Flex>
+                          
+                          <Flex justify="space-between">
+                            <Text>Taxa de processamento</Text>
+                            <Text>R$ {(payment.amount * 0.1).toFixed(2)}</Text>
+                          </Flex>
+                          
+                          <Divider />
+                          
+                          <Flex justify="space-between" fontWeight="bold">
+                            <Text>Total</Text>
+                            <Text color="pink.600">R$ {payment.amount.toFixed(2)}</Text>
+                          </Flex>
+                        </Stack>
+                      </Stack>
+                    </CardBody>
+                  </Card>
+                  
+                  {/* Posts selecionados */}
+                  {payment.posts && payment.posts.length > 0 && (
+                    <Card variant="elevated" shadow="md" width="100%" bg={cardBg} borderColor={borderColor}>
+                      <CardHeader pb={0}>
+                        <Flex justify="space-between" align="center">
+                          <Heading size="md">Posts selecionados</Heading>
+                          <Badge colorScheme="pink" fontSize="sm" px={2} py={1}>
+                            {payment.quantity || 0}
+                            {payment.posts[0]?.media_type === 'VIDEO' 
+                              ? ' visualizações' 
+                              : ' curtidas'
+                            }
+                          </Badge>
+                        </Flex>
+                      </CardHeader>
+                      
+                      <CardBody>
+                        <VStack spacing={4} align="stretch">
+                          {payment.posts.map((post) => (
+                            <Flex 
+                              key={post.id} 
+                              borderWidth="1px" 
+                              borderRadius="md" 
+                              p={3} 
+                              align="center"
+                            >
+                              <Box 
+                                width="60px" 
+                                height="60px" 
+                                bg="gray.100" 
+                                borderRadius="md" 
+                                overflow="hidden" 
+                                mr={4}
+                              >
+                                {post.image_url || post.thumbnail_url ? (
+                                  <Box position="relative" width="100%" height="100%">
+                                    <NextImage 
+                                      src={getProxyImageUrl(post.image_url || post.thumbnail_url) || '/placeholder-post.png'} 
+                                      alt="Thumbnail" 
+                                      fill
+                                      style={{ objectFit: 'cover' }}
+                                      unoptimized={true}
+                                    />
+                                    <Flex 
+                                      position="absolute"
+                                      top="0"
+                                      left="0"
+                                      bg="rgba(0,0,0,0.4)"
+                                      color="white"
+                                      fontSize="xs"
+                                      px={1}
+                                      borderBottomRightRadius="sm"
+                                    >
+                                      {post.media_type === 'VIDEO' ? 'Vídeo' : 'Foto'}
+                                    </Flex>
+                                  </Box>
+                                ) : (
+                                  <Flex 
+                                    align="center" 
+                                    justify="center" 
+                                    height="100%" 
+                                    bg="gray.200"
+                                  >
+                                    <Icon as={FaInstagram} color="gray.400" boxSize={5} />
+                                  </Flex>
+                                )}
+                              </Box>
+                              
+                              <Box flex={1}>
+                                <Text fontSize="sm" fontWeight="medium" mb={1} noOfLines={1}>
+                                  {post.caption || 'Post do Instagram'}
+                                </Text>
+                                
+                                <Flex justify="space-between" align="center">
+                                  <Link 
+                                    href={post.url} 
+                                    color="pink.600" 
+                                    fontSize="xs" 
+                                    isExternal
+                                  >
+                                    Ver post original
+                                  </Link>
+                                  
+                                  <Badge colorScheme="pink" fontSize="sm" px={2} py={1} borderRadius="md">
+                                    {calculatePostQuantity(payment, payment.posts.indexOf(post))} {post.media_type === 'VIDEO' ? 'visualizações' : 'curtidas'}
+                                  </Badge>
+                                </Flex>
+                              </Box>
+                            </Flex>
+                          ))}
+                        </VStack>
+                      </CardBody>
+                    </Card>
+                  )}
+                </VStack>
+              </GridItem>
+            </Grid>
+          ) : null}
+        </VStack>
       </Container>
       
       <ViralizamosFooter />
@@ -749,6 +767,6 @@ export default function PaymentPage() {
           </AlertDialogContent>
         </AlertDialogOverlay>
       </AlertDialog>
-    </>
+    </Box>
   );
 } 
