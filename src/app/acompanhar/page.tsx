@@ -31,8 +31,6 @@ import {
   Stack,
   useColorModeValue
 } from '@chakra-ui/react';
-import { Icon } from '@chakra-ui/react';
-import { WhatsAppIcon } from 'lucide-react';
 
 // Definir interface para o tipo Order
 interface TransactionData {
