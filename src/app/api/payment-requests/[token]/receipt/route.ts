@@ -46,6 +46,15 @@ export async function GET(
     const receiptData = {
       id: paymentRequest.token.substring(0, 8),
       date: new Date(paymentRequest.created_at).toLocaleDateString('pt-BR'),
+      payment_date: transaction && transaction.processed_at 
+        ? new Date(transaction.processed_at).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) 
+        : 'N/A',
       customer: {
         name: paymentRequest.customer_name,
         email: paymentRequest.customer_email
@@ -165,6 +174,10 @@ function generateReceiptHTML(data: any): string {
       padding-bottom: 20px;
       border-bottom: 1px solid #eee;
     }
+    .receipt-logo {
+      max-width: 180px;
+      margin-bottom: 15px;
+    }
     .receipt-header h1 {
       color: #2c5282;
       margin-bottom: 5px;
@@ -233,6 +246,10 @@ function generateReceiptHTML(data: any): string {
       background-color: #e2e8f0;
       color: #4a5568;
     }
+    .status-approved {
+      background-color: #c6f6d5;
+      color: #22543d;
+    }
     .print-button {
       display: block;
       margin: 20px auto;
@@ -263,6 +280,7 @@ function generateReceiptHTML(data: any): string {
   
   <div class="receipt">
     <div class="receipt-header">
+      <img src="/images/viralizamos-color.png" alt="Viralizamos" class="receipt-logo">
       <h1>Recibo de Pagamento</h1>
       <p><strong>Pedido #${data.id}</strong> | <strong>Data:</strong> ${data.date}</p>
     </div>
@@ -302,6 +320,10 @@ function generateReceiptHTML(data: any): string {
             <span class="status-badge status-${data.order.status.toLowerCase().replace(' ', '-')}">${data.order.status}</span>
           </span>
         </div>
+        <div class="receipt-row">
+          <span class="receipt-label">Data do Pagamento:</span>
+          <span class="receipt-value">${data.payment_date}</span>
+        </div>
       </div>
       
       ${data.payment ? `
@@ -316,10 +338,6 @@ function generateReceiptHTML(data: any): string {
           <span class="receipt-value">
             <span class="status-badge status-${data.payment.status.toLowerCase().replace(' ', '-')}">${data.payment.status}</span>
           </span>
-        </div>
-        <div class="receipt-row">
-          <span class="receipt-label">Data do Pagamento:</span>
-          <span class="receipt-value">${data.payment.date}</span>
         </div>
       </div>
       ` : ''}
