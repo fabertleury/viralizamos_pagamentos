@@ -715,6 +715,7 @@ export default function OrderDetailPage() {
                         height="44px"
                         iconSpacing={2}
                         fontSize="md"
+                        mb={2}
                       >
                         Verificar Status do Pedido
                       </Button>
@@ -727,12 +728,15 @@ export default function OrderDetailPage() {
                           colorScheme="green"
                           variant="outline"
                           width="full"
+                          mb={2}
                         >
                           Gerar Recibo
                         </Button>
                       )}
                       
                       {order.status === 'completed' && isWithin30Days(order.created_at) && (
+                        !reprocessRequests.some(r => r.status === 'pending' || r.status === 'processing')
+                      ) && (
                         <Button
                           colorScheme="purple"
                           variant="outline"

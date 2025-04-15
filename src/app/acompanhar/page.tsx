@@ -632,7 +632,12 @@ export default function AcompanharPedidoPage() {
                           </>
                         )}
                         
-                        <Flex justify="flex-end" mt={4}>
+                        <Flex 
+                          justify="flex-end" 
+                          mt={4} 
+                          flexWrap={{ base: "wrap", md: "nowrap" }}
+                          gap={2}
+                        >
                           <Button
                             as={Link}
                             href={`/acompanhar/${order.token}`}
@@ -640,8 +645,10 @@ export default function AcompanharPedidoPage() {
                             colorScheme="blue"
                             variant="outline"
                             height="38px"
-                            minWidth="110px"
+                            minWidth={{ base: "100%", sm: "110px" }}
+                            flexGrow={{ base: 1, sm: 0 }}
                             px={4}
+                            mb={{ base: 2, sm: 0 }}
                           >
                             Ver detalhes
                           </Button>
@@ -651,12 +658,14 @@ export default function AcompanharPedidoPage() {
                               as={Link}
                               href={`/api/payment-requests/${order.token}/receipt`}
                               target="_blank"
-                              ml={2}
                               size="md"
                               colorScheme="green"
                               variant="outline"
                               height="38px"
                               px={4}
+                              minWidth={{ base: "100%", sm: "auto" }}
+                              flexGrow={{ base: 1, sm: 0 }}
+                              mb={{ base: 2, sm: 0 }}
                             >
                               Recibo
                             </Button>
@@ -667,7 +676,6 @@ export default function AcompanharPedidoPage() {
                               {/* Botão para buscar status de reposição, apenas se houver reposições e ainda não foram buscadas */}
                               {order.reprocessRequests && order.reprocessRequests.length > 0 && !loadingReprocessStatus[order.id] && (
                                 <Button
-                                  ml={2}
                                   size="sm"
                                   colorScheme="gray"
                                   variant="ghost"
@@ -676,6 +684,9 @@ export default function AcompanharPedidoPage() {
                                     e.preventDefault();
                                     fetchReprocessStatus(order.id);
                                   }}
+                                  minWidth={{ base: "100%", sm: "auto" }}
+                                  flexGrow={{ base: 1, sm: 0 }}
+                                  mb={{ base: 2, sm: 0 }}
                                 >
                                   Ver reposições
                                 </Button>
@@ -687,12 +698,12 @@ export default function AcompanharPedidoPage() {
                                 !order.reprocessRequests.some(r => r.status === 'pending' || r.status === 'processing')
                               ) && (
                                 <Button
-                                  ml={2}
                                   size="md"
                                   colorScheme="purple"
                                   variant="outline"
                                   height="38px"
-                                  minWidth="110px"
+                                  minWidth={{ base: "100%", sm: "110px" }}
+                                  flexGrow={{ base: 1, sm: 0 }}
                                   px={4}
                                   isLoading={processingOrders[order.id] || false}
                                   loadingText="Enviando..."
