@@ -327,9 +327,7 @@ function generateReceiptHTML(data: any): string {
     
     <div class="receipt-footer">
       <p>
-        <strong>${data.company.name}</strong><br>
-        CNPJ: ${data.company.cnpj}<br>
-        ${data.company.address}
+        <strong>${data.company.name}</strong>
       </p>
       <p>Este recibo é um comprovante legal de pagamento. Obrigado por sua compra.</p>
     </div>

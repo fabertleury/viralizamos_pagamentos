@@ -88,6 +88,15 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+// Verificar se o pedido foi concluído há menos de 30 dias
+const isWithin30Days = (dateString: string): boolean => {
+  const orderDate = new Date(dateString);
+  const today = new Date();
+  const diffTime = Math.abs(today.getTime() - orderDate.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  return diffDays <= 30;
+};
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -96,7 +105,10 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [requestingReprocess, setRequestingReprocess] = useState(false);
   const [newStatus, setNewStatus] = useState('');
+  const [reprocessRequests, setReprocessRequests] = useState<any[]>([]);
+  const [loadingReprocessStatus, setLoadingReprocessStatus] = useState(false);
   
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
@@ -163,6 +175,35 @@ export default function OrderDetailPage() {
     }
   };
 
+  // Buscar status das reposições
+  const fetchReprocessStatus = async () => {
+    if (!order) return;
+    
+    setLoadingReprocessStatus(true);
+    
+    try {
+      const response = await fetch(`/api/payment-reprocess?paymentRequestId=${order.id}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao carregar status das reposições');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setReprocessRequests(data.reprocessRequests || []);
+      } else {
+        throw new Error(data.error || 'Erro ao carregar status das reposições');
+      }
+    } catch (err) {
+      console.error('Erro ao buscar status das reposições:', err);
+      // Não exibir toast para não incomodar o usuário com erro não crítico
+    } finally {
+      setLoadingReprocessStatus(false);
+    }
+  };
+
   // Buscar detalhes do pedido
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -186,6 +227,13 @@ export default function OrderDetailPage() {
         if (data.paymentRequest) {
           setOrder(data.paymentRequest);
           setNewStatus(data.paymentRequest.status || '');
+          
+          // Buscar status das reposições após carregar o pedido
+          if (data.paymentRequest.id) {
+            setTimeout(() => {
+              fetchReprocessStatus();
+            }, 300);
+          }
         } else {
           setError('Dados do pedido não encontrados');
         }
@@ -199,6 +247,38 @@ export default function OrderDetailPage() {
     
     fetchOrderDetails();
   }, [params.token]);
+
+  // Formatador de status de reposição
+  const formatReprocessStatus = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Pendente';
+      case 'processing':
+        return 'Em processamento';
+      case 'completed':
+        return 'Concluída';
+      case 'failed':
+        return 'Falhou';
+      default:
+        return status || 'Desconhecido';
+    }
+  };
+
+  // Obter cor do badge para status de reposição
+  const getReprocessStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'blue';
+      case 'processing':
+        return 'purple';
+      case 'completed':
+        return 'green';
+      case 'failed':
+        return 'red';
+      default:
+        return 'gray';
+    }
+  };
 
   // Atualizar status do pedido
   const handleUpdateStatus = async () => {
@@ -260,6 +340,61 @@ export default function OrderDetailPage() {
       });
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  // Função para solicitar reposição de um pedido
+  const handleRequestReprocess = async () => {
+    if (!order) return;
+    
+    setRequestingReprocess(true);
+    
+    try {
+      const response = await fetch(`/api/payment-reprocess`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentRequestId: order.id,
+          reason: 'Solicitação de reposição pelo cliente'
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Não foi possível solicitar a reposição');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast({
+          title: 'Solicitação enviada',
+          description: 'Sua solicitação de reposição foi enviada com sucesso e será analisada em breve.',
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+        
+        // Atualizar a lista de reposições
+        setTimeout(() => {
+          fetchReprocessStatus();
+        }, 500);
+      } else {
+        throw new Error(data.error || 'Erro ao solicitar reposição');
+      }
+    } catch (err) {
+      console.error('Erro ao solicitar reposição:', err);
+      toast({
+        title: 'Erro',
+        description: err instanceof Error ? err.message : 'Erro ao solicitar reposição.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setRequestingReprocess(false);
     }
   };
 
@@ -494,6 +629,54 @@ export default function OrderDetailPage() {
                   </CardBody>
                 </Card>
                 
+                {/* Seção de reposições */}
+                {reprocessRequests.length > 0 && (
+                  <Card bg={cardBg} shadow="md" borderRadius="lg" borderColor={borderColor} mb={6}>
+                    <CardHeader pb={2}>
+                      <Heading size="md">Reposições Solicitadas</Heading>
+                    </CardHeader>
+                    
+                    <CardBody>
+                      <VStack spacing={3} align="stretch">
+                        {reprocessRequests.map((request, index) => (
+                          <Box 
+                            key={request.id} 
+                            p={3} 
+                            borderRadius="md" 
+                            bg={useColorModeValue('gray.50', 'gray.700')}
+                          >
+                            <Flex justify="space-between" align="center" mb={1}>
+                              <HStack>
+                                <Text fontSize="sm" fontWeight="medium">
+                                  Reposição #{index + 1}
+                                </Text>
+                                <Badge colorScheme={getReprocessStatusColor(request.status)}>
+                                  {formatReprocessStatus(request.status)}
+                                </Badge>
+                              </HStack>
+                              <Text fontSize="xs" color="gray.500">
+                                {formatDate(request.created_at)}
+                              </Text>
+                            </Flex>
+                            
+                            {request.metadata && request.metadata.reason && (
+                              <Text fontSize="sm" color="gray.600" mt={1}>
+                                Motivo: {request.metadata.reason}
+                              </Text>
+                            )}
+                            
+                            {request.processed_at && (
+                              <Text fontSize="xs" color="gray.500" mt={1}>
+                                Processado em: {formatDate(request.processed_at)}
+                              </Text>
+                            )}
+                          </Box>
+                        ))}
+                      </VStack>
+                    </CardBody>
+                  </Card>
+                )}
+                
                 <Card bg={cardBg} shadow="md" borderRadius="lg" borderColor={borderColor}>
                   <CardHeader pb={2}>
                     <Heading size="md">Ações</Heading>
@@ -530,6 +713,20 @@ export default function OrderDetailPage() {
                       >
                         Gerar Recibo
                       </Button>
+                      
+                      {order.status === 'completed' && isWithin30Days(order.created_at) && (
+                        <Button
+                          colorScheme="purple"
+                          variant="outline"
+                          width="full"
+                          leftIcon={<RefreshCw size={18} />}
+                          isLoading={requestingReprocess}
+                          loadingText="Enviando..."
+                          onClick={handleRequestReprocess}
+                        >
+                          Solicitar Reposição
+                        </Button>
+                      )}
                     </VStack>
                   </CardBody>
                 </Card>

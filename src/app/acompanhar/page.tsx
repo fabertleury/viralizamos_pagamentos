@@ -57,6 +57,12 @@ interface Order {
   created_at: string;
   transaction: TransactionData | null;
   customer: CustomerData;
+  reprocessRequests?: {
+    id: string;
+    status: string;
+    created_at: string;
+    processed_at?: string;
+  }[];
 }
 
 export default function AcompanharPedidoPage() {
@@ -67,6 +73,8 @@ export default function AcompanharPedidoPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [userData, setUserData] = useState<any>(null);
+  const [processingOrders, setProcessingOrders] = useState<{[key: string]: boolean}>({});
+  const [loadingReprocessStatus, setLoadingReprocessStatus] = useState<{[key: string]: boolean}>({});
   
   // Função para mapear o status do pagamento para o status do pedido
   const mapPaymentStatusToOrderStatus = (paymentStatus: string): string => {
@@ -218,6 +226,128 @@ export default function AcompanharPedidoPage() {
   
   // Obter pedidos filtrados
   const filteredOrders = getFilteredOrders();
+  
+  // Função para buscar status das reposições para um pedido
+  const fetchReprocessStatus = async (orderId: string) => {
+    // Evitar buscar novamente se já estiver carregando
+    if (loadingReprocessStatus[orderId]) return;
+    
+    // Atualizar estado de carregamento
+    setLoadingReprocessStatus(prev => ({ ...prev, [orderId]: true }));
+    
+    try {
+      const response = await fetch(`/api/payment-reprocess?paymentRequestId=${orderId}`);
+      
+      if (!response.ok) {
+        throw new Error('Erro ao carregar status das reposições');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Atualizar o pedido com as informações de reposição
+        setOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.id === orderId 
+              ? { ...order, reprocessRequests: data.reprocessRequests || [] }
+              : order
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Erro ao buscar status das reposições:', error);
+    } finally {
+      // Resetar estado de carregamento
+      setLoadingReprocessStatus(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+  
+  // Formatar status de reposição
+  const formatReprocessStatus = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Pendente';
+      case 'processing':
+        return 'Em processamento';
+      case 'completed':
+        return 'Concluída';
+      case 'failed':
+        return 'Falhou';
+      default:
+        return status || 'Desconhecido';
+    }
+  };
+  
+  // Obter cor para status de reposição
+  const getReprocessStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'blue';
+      case 'processing':
+        return 'purple';
+      case 'completed':
+        return 'green';
+      case 'failed':
+        return 'red';
+      default:
+        return 'gray';
+    }
+  };
+
+  // Função para solicitar reposição de um pedido
+  const handleRequestReprocess = async (orderId: string) => {
+    // Evitar múltiplas requisições simultâneas
+    if (processingOrders[orderId]) return;
+    
+    // Atualizar estado de processamento
+    setProcessingOrders(prev => ({ ...prev, [orderId]: true }));
+    
+    try {
+      const response = await fetch(`/api/payment-reprocess`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentRequestId: orderId,
+          reason: 'Solicitação de reposição pelo cliente'
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Não foi possível solicitar a reposição');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('Sua solicitação de reposição foi enviada com sucesso e será analisada em breve.');
+        
+        // Buscar status das reposições após enviar a solicitação
+        setTimeout(() => {
+          fetchReprocessStatus(orderId);
+        }, 500);
+      } else {
+        throw new Error(data.error || 'Erro ao solicitar reposição');
+      }
+    } catch (error) {
+      console.error('Erro ao solicitar reposição:', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao solicitar reposição.');
+    } finally {
+      // Resetar estado de processamento
+      setProcessingOrders(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
+  
+  // Verificar se o pedido foi concluído há menos de 30 dias
+  const isWithin30Days = (dateString: string): boolean => {
+    const orderDate = new Date(dateString);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - orderDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    return diffDays <= 30;
+  };
   
   return (
     <Box minH="100vh" display="flex" flexDir="column">
@@ -412,6 +542,33 @@ export default function AcompanharPedidoPage() {
                           </GridItem>
                         </Grid>
                         
+                        {/* Exibir status de reposição se houver */}
+                        {order.reprocessRequests && order.reprocessRequests.length > 0 && (
+                          <Box mt={4} p={3} bg="gray.50" borderRadius="md">
+                            <Text fontSize="sm" fontWeight="medium" mb={2}>
+                              Reposições solicitadas: {order.reprocessRequests.length}
+                            </Text>
+                            <HStack spacing={2} flexWrap="wrap">
+                              {order.reprocessRequests.slice(0, 3).map((request, index) => (
+                                <Badge 
+                                  key={request.id} 
+                                  colorScheme={getReprocessStatusColor(request.status)}
+                                  variant="subtle"
+                                  py={1}
+                                  px={2}
+                                >
+                                  #{index + 1}: {formatReprocessStatus(request.status)}
+                                </Badge>
+                              ))}
+                              {order.reprocessRequests.length > 3 && (
+                                <Badge colorScheme="gray">
+                                  +{order.reprocessRequests.length - 3} mais
+                                </Badge>
+                              )}
+                            </HStack>
+                          </Box>
+                        )}
+                        
                         {order.transaction && (
                           <>
                             <Divider my={4} />
@@ -475,6 +632,52 @@ export default function AcompanharPedidoPage() {
                           >
                             Ver detalhes
                           </Button>
+                          
+                          {order.status === 'completed' && (
+                            <>
+                              {/* Botão para buscar status de reposição, se ainda não foi buscado */}
+                              {!order.reprocessRequests && (
+                                <Button
+                                  ml={2}
+                                  size="sm"
+                                  colorScheme="gray"
+                                  variant="ghost"
+                                  height="38px"
+                                  isLoading={loadingReprocessStatus[order.id] || false}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    fetchReprocessStatus(order.id);
+                                  }}
+                                >
+                                  Ver reposições
+                                </Button>
+                              )}
+                              
+                              {/* Botão de solicitar reposição (apenas se dentro de 30 dias e não há reposição pendente) */}
+                              {isWithin30Days(order.created_at) && (
+                                !order.reprocessRequests || 
+                                !order.reprocessRequests.some(r => r.status === 'pending' || r.status === 'processing')
+                              ) && (
+                                <Button
+                                  ml={2}
+                                  size="md"
+                                  colorScheme="purple"
+                                  variant="outline"
+                                  height="38px"
+                                  minWidth="110px"
+                                  px={4}
+                                  isLoading={processingOrders[order.id] || false}
+                                  loadingText="Enviando..."
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    handleRequestReprocess(order.id);
+                                  }}
+                                >
+                                  Solicitar Reposição
+                                </Button>
+                              )}
+                            </>
+                          )}
                         </Flex>
                       </CardBody>
                     </Card>
