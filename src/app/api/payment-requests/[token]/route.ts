@@ -135,7 +135,7 @@ export async function GET(
               `https://instagram.com/p/${postCode}/media/?size=t`;
               
             // Linha de texto para display
-            const textDescription = `${index + 1}. ${postType}: ${postCode} (${quantity})`;
+            const textDescription = `${index + 1}. ${postType} do Instagram - ${quantity} ${postType === 'Reel' ? 'visualizações' : 'curtidas'}`;
             
             return {
               index: index + 1,
@@ -159,7 +159,7 @@ export async function GET(
               remainingForText--;
             }
             
-            formattedDescription += `${index + 1}. ${postType}: ${post.code || post.post_code || 'Sem código'} (${quantity})\n`;
+            formattedDescription += `${index + 1}. ${postType} do Instagram - ${quantity} ${postType === 'Reel' ? 'visualizações' : 'curtidas'}\n`;
           });
         } else if (typeof additionalData === 'object') {
           // Se for um objeto mas não tiver posts, criar uma descrição formatada com chave: valor
