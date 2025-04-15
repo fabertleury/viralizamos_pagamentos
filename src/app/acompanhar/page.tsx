@@ -88,6 +88,8 @@ export default function AcompanharPedidoPage() {
       case 'cancelled':
       case 'refunded':
         return 'cancelled';
+      case 'unpaid':
+        return 'unpaid';
       default:
         return paymentStatus?.toLowerCase() || 'unknown';
     }
@@ -129,6 +131,7 @@ export default function AcompanharPedidoPage() {
       case 'canceled':
         return 'Erro';
       case 'payment not approved':
+      case 'unpaid':
         return 'Não Pago';
       default:
         return status;
