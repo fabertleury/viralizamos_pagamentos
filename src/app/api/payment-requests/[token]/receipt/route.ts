@@ -41,6 +41,15 @@ export async function GET(
     const transaction = paymentRequest.transactions.length > 0 
       ? paymentRequest.transactions[0]
       : null;
+    
+    // Verificar se o pagamento foi aprovado
+    if (!transaction || transaction.status !== 'approved') {
+      console.log(`[API] Recibo não disponível: pagamento não aprovado para o token ${token}`);
+      return NextResponse.json(
+        { error: 'Recibo disponível apenas para pagamentos aprovados' },
+        { status: 403 }
+      );
+    }
 
     // Formatar dados para o recibo
     const receiptData = {
