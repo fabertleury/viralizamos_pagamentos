@@ -170,6 +170,10 @@ export default function OrderDetailPage() {
         return 'Rejeitado';
       case 'cancelled':
         return 'Cancelado';
+      case 'unpaid':
+        return 'Não Pago';
+      case 'payment not approved':
+        return 'Pagamento não Aprovado';
       default:
         return status || 'Desconhecido';
     }
@@ -703,16 +707,18 @@ export default function OrderDetailPage() {
                         Verificar Status do Pedido
                       </Button>
                       
-                      <Button
-                        as={Link}
-                        href={`/api/payment-requests/${order.token}/receipt`}
-                        target="_blank"
-                        colorScheme="green"
-                        variant="outline"
-                        width="full"
-                      >
-                        Gerar Recibo
-                      </Button>
+                      {order.transaction && order.transaction.status === 'approved' && (
+                        <Button
+                          as={Link}
+                          href={`/api/payment-requests/${order.token}/receipt`}
+                          target="_blank"
+                          colorScheme="green"
+                          variant="outline"
+                          width="full"
+                        >
+                          Gerar Recibo
+                        </Button>
+                      )}
                       
                       {order.status === 'completed' && isWithin30Days(order.created_at) && (
                         <Button

@@ -115,26 +115,27 @@ export default function AcompanharPedidoPage() {
 
   // Função para obter o texto do badge de status
   const getOrderStatusBadge = (status = 'pending') => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-      case 'success':
-        return 'Concluído';
-      case 'pending':
-        return 'Pendente';
-      case 'processing':
-      case 'in progress':
-        return 'Processando';
-      case 'failed':
-        return 'Falhou';
-      case 'rejected':
-        return 'Rejeitado';
-      case 'canceled':
-        return 'Cancelado';
-      case 'partial':
-        return 'Parcial';
-      default:
-        return status || 'Desconhecido';
-    }
+    const statusText = (() => {
+      switch (status.toLowerCase()) {
+        case 'pending':
+          return 'Pendente';
+        case 'processing':
+          return 'Processando';
+        case 'completed':
+          return 'Concluído';
+        case 'failed':
+          return 'Falhou';
+        case 'cancelled':
+          return 'Cancelado';
+        case 'unpaid':
+          return 'Não Pago';
+        case 'payment not approved':
+          return 'Pagamento não Aprovado';
+        default:
+          return status;
+      }
+    })();
+    return statusText;
   };
 
   // Função para formatar a data
@@ -632,6 +633,22 @@ export default function AcompanharPedidoPage() {
                           >
                             Ver detalhes
                           </Button>
+                          
+                          {order.transaction && order.transaction.status === 'approved' && (
+                            <Button
+                              as={Link}
+                              href={`/api/payment-requests/${order.token}/receipt`}
+                              target="_blank"
+                              ml={2}
+                              size="md"
+                              colorScheme="green"
+                              variant="outline"
+                              height="38px"
+                              px={4}
+                            >
+                              Recibo
+                            </Button>
+                          )}
                           
                           {order.status === 'completed' && (
                             <>
