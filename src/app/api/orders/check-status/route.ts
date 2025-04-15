@@ -86,21 +86,44 @@ export async function POST(request: NextRequest) {
     if (!isPaymentApproved) {
       console.log(`[API] Pedido ${orderId} com pagamento não aprovado ou inexistente.`);
       
+      // Atualizar o status do pedido para "não pago" se ainda não estiver
+      if (paymentRequest.status !== 'unpaid') {
+        await prisma.paymentRequest.update({
+          where: { id: orderId },
+          data: { status: 'unpaid' }
+        });
+        console.log(`[API] Status do pedido ${orderId} atualizado para "não pago"`);
+      }
+      
+      // Retornar status sem verificar o provedor
       return NextResponse.json({
         success: true,
         order: {
           id: orderId,
-          status: paymentRequest.status,
+          status: 'unpaid',
           metadata: {
-            payment_status: latestTransaction?.status || 'unknown',
-            message: 'Pagamento não foi aprovado ainda'
+            payment_status: latestTransaction?.status || 'pending',
+            message: 'Pagamento não foi aprovado ainda. É necessário realizar o pagamento para prosseguir.'
           }
         },
-        provider_status: 'No provider data - Payment not approved',
+        provider_status: 'Payment not approved',
         charge: '0',
         start_count: '0',
         remains: '0'
       });
+    }
+    
+    // Se chegou aqui, o pagamento foi aprovado
+    
+    // Verificar se o pedido ainda está com status "não pago" e atualizar para "pendente" 
+    // para começar o processamento no provedor
+    if (paymentRequest.status === 'unpaid') {
+      await prisma.paymentRequest.update({
+        where: { id: orderId },
+        data: { status: 'pending' }
+      });
+      console.log(`[API] Pagamento aprovado: Status do pedido ${orderId} atualizado de "não pago" para "pendente"`);
+      paymentRequest.status = 'pending'; // Atualizar o objeto local também
     }
     
     // Verificar se o pedido já está marcado como concluído
