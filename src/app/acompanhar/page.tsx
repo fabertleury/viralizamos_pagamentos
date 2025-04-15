@@ -652,15 +652,14 @@ export default function AcompanharPedidoPage() {
                           
                           {order.status === 'completed' && (
                             <>
-                              {/* Botão para buscar status de reposição, se ainda não foi buscado */}
-                              {!order.reprocessRequests && (
+                              {/* Botão para buscar status de reposição, apenas se houver reposições e ainda não foram buscadas */}
+                              {order.reprocessRequests && order.reprocessRequests.length > 0 && !loadingReprocessStatus[order.id] && (
                                 <Button
                                   ml={2}
                                   size="sm"
                                   colorScheme="gray"
                                   variant="ghost"
                                   height="38px"
-                                  isLoading={loadingReprocessStatus[order.id] || false}
                                   onClick={(e) => {
                                     e.preventDefault();
                                     fetchReprocessStatus(order.id);

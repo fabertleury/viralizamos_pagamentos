@@ -503,6 +503,18 @@ export default function OrderDetailPage() {
                           <Text fontWeight="semibold">{formatDate(order.created_at)}</Text>
                         </VStack>
                       </GridItem>
+                      
+                      {/* Campo para quantidade total */}
+                      <GridItem>
+                        <VStack align="flex-start" spacing={1}>
+                          <Text fontSize="sm" color="gray.500">Quantidade Total</Text>
+                          <Text fontWeight="semibold">
+                            {order.formatted_posts && order.formatted_posts.length > 0 
+                              ? order.formatted_posts.reduce((total, post) => total + (post.quantity || 0), 0)
+                              : "Não especificado"}
+                          </Text>
+                        </VStack>
+                      </GridItem>
                     </Grid>
                     
                     {order.description && (
