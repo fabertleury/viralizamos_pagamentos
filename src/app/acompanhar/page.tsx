@@ -63,6 +63,7 @@ interface Order {
     created_at: string;
     processed_at?: string;
   }[];
+  formatted_posts?: { quantity: number }[];
 }
 
 export default function AcompanharPedidoPage() {
@@ -114,28 +115,24 @@ export default function AcompanharPedidoPage() {
   };
 
   // Função para obter o texto do badge de status
-  const getOrderStatusBadge = (status = 'pending') => {
-    const statusText = (() => {
-      switch (status.toLowerCase()) {
-        case 'pending':
-          return 'Pendente';
-        case 'processing':
-          return 'Processando';
-        case 'completed':
-          return 'Concluído';
-        case 'failed':
-          return 'Falhou';
-        case 'cancelled':
-          return 'Cancelado';
-        case 'unpaid':
-          return 'Não Pago';
-        case 'payment not approved':
-          return 'Pagamento não Aprovado';
-        default:
-          return status;
-      }
-    })();
-    return statusText;
+  const getOrderStatusBadge = (status: string): string => {
+    switch (status?.toLowerCase()) {
+      case 'completed':
+        return 'Concluído';
+      case 'pending':
+        return 'Pendente';
+      case 'processing':
+        return 'Processando';
+      case 'failed':
+        return 'Falhou';
+      case 'cancelled':
+      case 'canceled':
+        return 'Cancelado';
+      case 'payment not approved':
+        return 'Pagamento não Aprovado';
+      default:
+        return status;
+    }
   };
 
   // Função para formatar a data
@@ -541,6 +538,17 @@ export default function AcompanharPedidoPage() {
                               </Text>
                             </VStack>
                           </GridItem>
+                          
+                          <GridItem>
+                            <VStack align="flex-start" spacing={1}>
+                              <Text fontSize="sm" color="gray.500">Detalhes</Text>
+                              <Text fontWeight="medium">
+                                {order.formatted_posts 
+                                  ? `${order.formatted_posts.length} ${order.formatted_posts.length === 1 ? 'post' : 'posts'} com total de ${order.formatted_posts.reduce((total, post) => total + (post.quantity || 0), 0)} ${order.service_name.toLowerCase().includes('curtida') ? 'curtidas' : 'visualizações'}`
+                                  : 'Não disponível'}
+                              </Text>
+                            </VStack>
+                          </GridItem>
                         </Grid>
                         
                         {/* Exibir status de reposição se houver */}
@@ -601,6 +609,10 @@ export default function AcompanharPedidoPage() {
                                       ? 'Pendente'
                                       : order.transaction.status === 'processing'
                                       ? 'Processando'
+                                      : order.transaction.status === 'payment not approved'
+                                      ? 'Pagamento não Aprovado'
+                                      : order.transaction.status === 'cancelled'
+                                      ? 'Cancelado'
                                       : order.transaction.status}
                                   </Badge>
                                 </HStack>
