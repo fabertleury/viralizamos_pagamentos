@@ -315,7 +315,7 @@ export default function OrderDetailPage() {
                 {formatStatus(order.status)}
               </Badge>
               <Text fontSize="sm" color="gray.500">
-                Pedido #{order.token.substring(0, 8)}
+                Pedido #VP-{order.token.substring(0, 8)}
               </Text>
               <Spacer />
               <Text fontSize="sm" color="gray.500">

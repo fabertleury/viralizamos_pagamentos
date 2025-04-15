@@ -345,7 +345,7 @@ export default function AcompanharPedidoPage() {
                         <Flex justifyContent="space-between" alignItems="center">
                           <HStack spacing={2}>
                             <Text fontWeight="bold" fontSize="sm" color="gray.700">
-                              Pedido: {order.token.substring(0, 16)}...
+                              Pedido: #VP-{order.token.substring(0, 8)}
                             </Text>
                             <Badge
                               colorScheme={
