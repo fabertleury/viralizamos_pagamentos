@@ -720,7 +720,7 @@ export default function AcompanharPedidoPage() {
                             </>
                           )}
                           
-                          {order.transaction && order.transaction.status === 'cancelled' && (
+                          {order.transaction && (order.transaction.status === 'cancelled' || order.transaction.status === 'canceled') && (
                             <Button
                               as="a"
                               href="https://wa.me/5562999915390"

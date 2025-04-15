@@ -169,6 +169,7 @@ export default function OrderDetailPage() {
       case 'rejected':
         return 'Rejeitado';
       case 'cancelled':
+      case 'canceled':
         return 'Erro';
       case 'unpaid':
         return 'Não Pago';
@@ -734,7 +735,7 @@ export default function OrderDetailPage() {
                         </Button>
                       )}
                       
-                      {order.transaction && order.transaction.status === 'cancelled' && (
+                      {order.transaction && (order.transaction.status === 'cancelled' || order.transaction.status === 'canceled') && (
                         <Button
                           as="a"
                           href="https://wa.me/5562999915390"
