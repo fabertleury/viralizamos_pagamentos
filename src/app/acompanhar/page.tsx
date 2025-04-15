@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import ViralizamosHeader from '@/components/layout/ViralizamosHeader';
 import { ViralizamosFooter } from '@/components/layout/ViralizamosFooter';
@@ -31,6 +31,8 @@ import {
   Stack,
   useColorModeValue
 } from '@chakra-ui/react';
+import { Icon } from '@chakra-ui/react';
+import { WhatsAppIcon } from 'lucide-react';
 
 // Definir interface para o tipo Order
 interface TransactionData {
@@ -127,7 +129,7 @@ export default function AcompanharPedidoPage() {
         return 'Falhou';
       case 'cancelled':
       case 'canceled':
-        return 'Cancelado';
+        return 'Erro';
       case 'payment not approved':
         return 'Pagamento não Aprovado';
       default:
@@ -612,7 +614,7 @@ export default function AcompanharPedidoPage() {
                                       : order.transaction.status === 'payment not approved'
                                       ? 'Pagamento não Aprovado'
                                       : order.transaction.status === 'cancelled'
-                                      ? 'Cancelado'
+                                      ? 'Erro'
                                       : order.transaction.status}
                                   </Badge>
                                 </HStack>
@@ -716,6 +718,25 @@ export default function AcompanharPedidoPage() {
                                 </Button>
                               )}
                             </>
+                          )}
+                          
+                          {order.transaction && order.transaction.status === 'cancelled' && (
+                            <Button
+                              as="a"
+                              href="https://wa.me/5562999915390"
+                              target="_blank"
+                              size="md"
+                              colorScheme="green"
+                              variant="solid"
+                              height="38px"
+                              px={4}
+                              minWidth={{ base: "100%", sm: "auto" }}
+                              flexGrow={{ base: 1, sm: 0 }}
+                              mb={{ base: 2, sm: 0 }}
+                              leftIcon={<MessageCircle size={18} />}
+                            >
+                              Pedir Ajuda
+                            </Button>
                           )}
                         </Flex>
                       </CardBody>

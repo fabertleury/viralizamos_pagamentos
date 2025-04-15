@@ -35,7 +35,7 @@ import {
   Spacer,
   Skeleton
 } from '@chakra-ui/react';
-import { ArrowLeft, RefreshCw, CheckCircle, Clock, XCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, RefreshCw, CheckCircle, Clock, XCircle, AlertTriangle, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 
 // Definir interfaces
@@ -169,7 +169,7 @@ export default function OrderDetailPage() {
       case 'rejected':
         return 'Rejeitado';
       case 'cancelled':
-        return 'Cancelado';
+        return 'Erro';
       case 'unpaid':
         return 'Não Pago';
       case 'payment not approved':
@@ -731,6 +731,21 @@ export default function OrderDetailPage() {
                           mb={2}
                         >
                           Gerar Recibo
+                        </Button>
+                      )}
+                      
+                      {order.transaction && order.transaction.status === 'cancelled' && (
+                        <Button
+                          as="a"
+                          href="https://wa.me/5562999915390"
+                          target="_blank"
+                          colorScheme="green"
+                          variant="solid"
+                          width="full"
+                          mb={2}
+                          leftIcon={<MessageCircle size={18} />}
+                        >
+                          Pedir Ajuda
                         </Button>
                       )}
                       
