@@ -174,7 +174,7 @@ export default function OrderDetailPage() {
       case 'unpaid':
         return 'Não Pago';
       case 'payment not approved':
-        return 'Pagamento não Aprovado';
+        return 'Não Pago';
       default:
         return status || 'Desconhecido';
     }

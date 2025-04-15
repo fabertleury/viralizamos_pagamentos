@@ -131,7 +131,7 @@ export default function AcompanharPedidoPage() {
       case 'canceled':
         return 'Erro';
       case 'payment not approved':
-        return 'Pagamento não Aprovado';
+        return 'Não Pago';
       default:
         return status;
     }
@@ -612,7 +612,7 @@ export default function AcompanharPedidoPage() {
                                       : order.transaction.status === 'processing'
                                       ? 'Processando'
                                       : order.transaction.status === 'payment not approved'
-                                      ? 'Pagamento não Aprovado'
+                                      ? 'Não Pago'
                                       : order.transaction.status === 'cancelled'
                                       ? 'Erro'
                                       : order.transaction.status}
