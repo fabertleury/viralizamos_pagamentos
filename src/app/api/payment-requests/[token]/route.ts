@@ -98,6 +98,20 @@ export async function GET(
         if (additionalData.posts && Array.isArray(additionalData.posts)) {
           formattedDescription = `${additionalData.posts.length} item(s):\n`;
           
+          // Calcular o total de visualizações e distribuir igualmente
+          let totalQuantity = 0;
+          additionalData.posts.forEach((post: { quantity?: number }) => {
+            totalQuantity += post.quantity || 0;
+          });
+          
+          // Arredondar para inteiro
+          const totalIntQuantity = Math.floor(totalQuantity);
+          
+          // Distribuir as visualizações entre os posts
+          const itemCount = additionalData.posts.length;
+          const baseQuantityPerItem = Math.floor(totalIntQuantity / itemCount);
+          let remainingQuantity = totalIntQuantity - (baseQuantityPerItem * itemCount);
+          
           // Preparar array formatado para display visual na UI
           formattedPosts = additionalData.posts.map((post: { 
             is_reel?: boolean; 
@@ -108,7 +122,13 @@ export async function GET(
           }, index: number) => {
             const postType = post.is_reel ? 'Reel' : 'Post';
             const postCode = post.code || post.post_code || 'Sem código';
-            const quantity = post.quantity || 0;
+            
+            // Distribuir a quantidade com o restante para os primeiros itens
+            let quantity = baseQuantityPerItem;
+            if (remainingQuantity > 0) {
+              quantity += 1;
+              remainingQuantity--;
+            }
             
             // Construir URL da imagem do Instagram
             const imageUrl = post.display_url || 
@@ -128,9 +148,17 @@ export async function GET(
           });
           
           // Manter compatibilidade com display de texto
+          let remainingForText = remainingQuantity;
           additionalData.posts.forEach((post: { is_reel?: boolean; quantity?: number; code?: string; post_code?: string }, index: number) => {
             const postType = post.is_reel ? 'Reel' : 'Post';
-            const quantity = post.quantity || 0;
+            
+            // Distribuir a quantidade com o restante para os primeiros itens
+            let quantity = baseQuantityPerItem;
+            if (remainingForText > 0) {
+              quantity += 1;
+              remainingForText--;
+            }
+            
             formattedDescription += `${index + 1}. ${postType}: ${post.code || post.post_code || 'Sem código'} (${quantity})\n`;
           });
         } else if (typeof additionalData === 'object') {

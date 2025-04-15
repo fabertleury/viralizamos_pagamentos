@@ -93,7 +93,7 @@ export default function Header() {
                   pathname === '/acompanhar' ? 'text-pink-600 font-semibold' : ''
                 }`}
               >
-                Acompanhar pedido
+                🔎 Acompanhar pedido
               </Link>
               <Link 
                 href="/termos" 
@@ -140,7 +140,7 @@ export default function Header() {
                     className="text-gray-700 hover:text-pink-600 py-2 border-b"
                     onClick={() => setIsOpen(false)}
                   >
-                    Acompanhar pedido
+                    🔎 Acompanhar pedido
                   </Link>
                   
                   <Link 

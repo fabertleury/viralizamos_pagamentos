@@ -167,8 +167,7 @@ export default function AgradecimentoPage() {
                     <Heading size="md" mb={4}>O que acontece agora?</Heading>
                     <VStack spacing={4} align="stretch">
                       <Text>1. Nossa equipe iniciará o processamento do seu pedido em breve.</Text>
-                      <Text>2. Você receberá atualizações por e-mail sobre o status do seu pedido.</Text>
-                      <Text>3. Você pode acompanhar seu pedido a qualquer momento através do link abaixo.</Text>
+                      <Text>2. Você pode acompanhar seu pedido a qualquer momento através do link abaixo.</Text>
                     </VStack>
                   </Box>
                   
@@ -180,7 +179,7 @@ export default function AgradecimentoPage() {
                       size="lg"
                       width={{ base: "full", md: "auto" }}
                     >
-                      Acompanhar meu pedido
+                      🔎 Acompanhar meu pedido
                     </Button>
                   </Box>
                 </VStack>
@@ -189,9 +188,9 @@ export default function AgradecimentoPage() {
             
             <Box textAlign="center">
               <Text fontSize="sm" color="gray.500">
-                Caso tenha alguma dúvida, entre em contato com nosso suporte através do e-mail{' '}
-                <Link href="mailto:suporte@viralizamos.com" style={{ color: '#3182CE' }}>
-                  suporte@viralizamos.com
+                Caso tenha alguma dúvida, entre em contato com nosso suporte pelo{' '}
+                <Link href="https://wa.me/5562999915390" target="_blank" style={{ color: '#3182CE' }}>
+                  WhatsApp
                 </Link>
               </Text>
             </Box>

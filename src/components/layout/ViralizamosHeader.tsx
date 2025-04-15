@@ -73,21 +73,21 @@ export default function ViralizamosHeader() {
               borderRadius="md"
               _hover={{ bg: "pink.600" }}
             >
-              Analisar Perfil
+              🤖 Analisar Perfil
             </Link>
             
             <Link 
               href="/acompanhar"
               as={NextLink}
               fontWeight="medium"
-              bg="pink.500"
+              bg="pink.400"
               color="white"
               px={4}
               py={2}
               borderRadius="md"
-              _hover={{ bg: "pink.600" }}
+              _hover={{ bg: "pink.500" }}
             >
-              Acompanhar Pedido
+              🔎 Acompanhar Pedido
             </Link>
           </HStack>
           

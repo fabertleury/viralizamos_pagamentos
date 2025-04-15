@@ -27,16 +27,6 @@ import {
   StatHelpText,
   Icon,
   Spinner,
-  Step,
-  StepDescription,
-  StepIcon,
-  StepIndicator,
-  StepNumber,
-  StepSeparator,
-  StepStatus,
-  StepTitle,
-  Stepper,
-  useSteps,
   Select,
   FormControl,
   FormLabel,
@@ -98,13 +88,6 @@ const formatDate = (dateString: string): string => {
   });
 };
 
-// Definir os passos do pedido
-const steps = [
-  { title: 'Pagamento Confirmado', description: 'O pagamento foi recebido' },
-  { title: 'Processando', description: 'Seu pedido está sendo processado' },
-  { title: 'Concluído', description: 'Serviço entregue com sucesso' },
-];
-
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -114,28 +97,10 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState('');
-  const [activeStep, setActiveStep] = useState(0);
   
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const bgColor = useColorModeValue('gray.50', 'gray.900');
-
-  // Obter índice do passo atual baseado no status do pedido
-  const getStepIndex = (status: string): number => {
-    switch (status?.toLowerCase()) {
-      case 'completed':
-      case 'success':
-        return 2;
-      case 'processing':
-      case 'in progress':
-        return 1;
-      case 'approved':
-      case 'paid':
-        return 0;
-      default:
-        return -1;
-    }
-  };
 
   // Determinar o ícone do status de pagamento
   const getPaymentStatusIcon = (status: string) => {
@@ -221,8 +186,6 @@ export default function OrderDetailPage() {
         if (data.paymentRequest) {
           setOrder(data.paymentRequest);
           setNewStatus(data.paymentRequest.status || '');
-          const currentStep = getStepIndex(data.paymentRequest.status);
-          setActiveStep(currentStep);
         } else {
           setError('Dados do pedido não encontrados');
         }
@@ -300,12 +263,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  // Índice do passo atual na stepper
-  const { activeStep: stepperActiveStep } = useSteps({
-    index: activeStep,
-    count: steps.length,
-  });
-
   return (
     <Box minH="100vh" display="flex" flexDir="column" bg={bgColor}>
       <ViralizamosHeader />
@@ -365,29 +322,6 @@ export default function OrderDetailPage() {
                 {formatDate(order.created_at)}
               </Text>
             </HStack>
-
-            {stepperActiveStep >= 0 && (
-              <Box mb={8}>
-                <Stepper index={stepperActiveStep} colorScheme="green" size="lg">
-                  {steps.map((step, index) => (
-                    <Step key={index}>
-                      <StepIndicator>
-                        <StepStatus
-                          complete={<StepIcon />}
-                          incomplete={<StepNumber />}
-                          active={<StepNumber />}
-                        />
-                      </StepIndicator>
-                      <Box flexShrink="0">
-                        <StepTitle>{step.title}</StepTitle>
-                        <StepDescription>{step.description}</StepDescription>
-                      </Box>
-                      <StepSeparator />
-                    </Step>
-                  ))}
-                </Stepper>
-              </Box>
-            )}
 
             <Grid templateColumns={{ base: "1fr", md: "2fr 1fr" }} gap={6}>
               <GridItem>
