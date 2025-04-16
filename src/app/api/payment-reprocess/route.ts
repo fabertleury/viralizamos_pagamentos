@@ -120,6 +120,57 @@ export async function POST(request: NextRequest) {
           const order = ordersResponse.data.order;
           console.log(`[API] Pedido encontrado no microserviço de orders: ${order.id}`);
           
+          // Verificar se o pedido tem external_service_id
+          if (!order.external_service_id) {
+            console.warn(`[API] Aviso: Pedido ${order.id} não possui external_service_id para reposição`);
+            
+            // Tentar extrair external_service_id do paymentRequest.additional_data
+            let externalServiceId = null;
+            
+            if (paymentRequest.additional_data) {
+              try {
+                const additionalData = JSON.parse(paymentRequest.additional_data);
+                
+                // Verificar várias possíveis localizações do external_service_id
+                if (additionalData.external_service_id) {
+                  externalServiceId = additionalData.external_service_id;
+                  console.log(`[API] Encontrado external_service_id em additional_data: ${externalServiceId}`);
+                } 
+                else if (additionalData.metadata && additionalData.metadata.external_service_id) {
+                  externalServiceId = additionalData.metadata.external_service_id;
+                  console.log(`[API] Encontrado external_service_id em metadata: ${externalServiceId}`);
+                }
+                else if (additionalData.service_id) {
+                  externalServiceId = additionalData.service_id;
+                  console.log(`[API] Usando service_id como external_service_id: ${externalServiceId}`);
+                }
+              } catch (parseError) {
+                console.error('[API] Erro ao processar additional_data:', parseError);
+              }
+            }
+            
+            // Se encontramos um external_service_id, atualizar o pedido no orders
+            if (externalServiceId) {
+              try {
+                await axios.patch(`${ORDERS_API_URL}/orders/${order.id}`, {
+                  external_service_id: externalServiceId
+                }, {
+                  headers: {
+                    'Authorization': `Bearer ${ORDERS_API_KEY}`,
+                    'Content-Type': 'application/json'
+                  }
+                });
+                
+                console.log(`[API] Atualizado external_service_id do pedido ${order.id} para: ${externalServiceId}`);
+                
+                // Atualizar o objeto order com o novo external_service_id
+                order.external_service_id = externalServiceId;
+              } catch (updateError) {
+                console.error('[API] Erro ao atualizar external_service_id no orders:', updateError);
+              }
+            }
+          }
+          
           // Criar a solicitação de reposição no microserviço de orders
           console.log(`[API] Criando reposição no microserviço de orders para o pedido: ${order.id}`);
           
@@ -168,12 +219,34 @@ export async function POST(request: NextRequest) {
           if (existingPayments.length > 0) {
             console.log(`[API] Pedido encontrado localmente para a transação: ${latestTransaction.id}`);
             
+            // Extrair external_service_id do pagamento
+            let externalServiceId = null;
+            if (paymentRequest.additional_data) {
+              try {
+                const additionalData = JSON.parse(paymentRequest.additional_data);
+                
+                if (additionalData.external_service_id) {
+                  externalServiceId = additionalData.external_service_id;
+                  console.log(`[API] Encontrado external_service_id em additional_data: ${externalServiceId}`);
+                } else if (additionalData.metadata && additionalData.metadata.external_service_id) {
+                  externalServiceId = additionalData.metadata.external_service_id;
+                  console.log(`[API] Encontrado external_service_id em metadata: ${externalServiceId}`);
+                } else if (additionalData.service_id) {
+                  externalServiceId = additionalData.service_id;
+                  console.log(`[API] Usando service_id como external_service_id: ${externalServiceId}`);
+                }
+              } catch (parseError) {
+                console.error('[API] Erro ao processar additional_data:', parseError);
+              }
+            }
+            
             // Tentar a criação da reposição diretamente, sem o order_id
             try {
               const reposicaoResponse = await axios.post(`${ORDERS_API_URL}/reposicoes/create-by-transaction`, {
                 transaction_id: latestTransaction.id,
                 motivo: reason || 'Solicitação manual do cliente',
-                observacoes: `Solicitação via API de pagamentos. PaymentRequestID: ${paymentRequestId}`
+                observacoes: `Solicitação via API de pagamentos. PaymentRequestID: ${paymentRequestId}`,
+                external_service_id: externalServiceId // Adicionar external_service_id ao payload
               }, {
                 headers: {
                   'Authorization': `Bearer ${ORDERS_API_KEY}`,
