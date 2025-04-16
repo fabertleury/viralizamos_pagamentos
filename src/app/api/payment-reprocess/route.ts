@@ -101,6 +101,94 @@ export async function POST(request: NextRequest) {
       if (latestTransaction?.id) {
         console.log(`[API] Buscando pedido no orders com transaction_id: ${latestTransaction.id}`);
         
+        // Primeiro, tentar sincronizar o pedido para garantir que ele existe no orders
+        try {
+          // Extrair informações do pedido para sincronização
+          const syncData = {
+            transaction_id: latestTransaction.id,
+            target_username: '', // Preenchido abaixo
+            external_service_id: null, // Preenchido abaixo
+            status: 'completed' // Presumimos que está completo para permitir reposição
+          };
+          
+          // Extrair username e external_service_id do pedido
+          if (paymentRequest.additional_data) {
+            try {
+              const additionalData = JSON.parse(paymentRequest.additional_data);
+              
+              // Extrair username/target
+              if (additionalData.username) {
+                syncData.target_username = additionalData.username;
+              } else if (additionalData.target) {
+                syncData.target_username = additionalData.target;
+              } else if (additionalData.link) {
+                // Tentar extrair username do link (ex: instagram.com/username)
+                const matches = additionalData.link.match(/instagram\.com\/([^\/\?]+)/);
+                if (matches && matches[1]) {
+                  syncData.target_username = matches[1];
+                } else {
+                  syncData.target_username = additionalData.link;
+                }
+              }
+              
+              // Extrair external_service_id
+              if (additionalData.external_service_id) {
+                syncData.external_service_id = additionalData.external_service_id;
+              } else if (additionalData.metadata && additionalData.metadata.external_service_id) {
+                syncData.external_service_id = additionalData.metadata.external_service_id;
+              } else if (additionalData.service_id) {
+                syncData.external_service_id = additionalData.service_id;
+              }
+            } catch (parseError) {
+              console.error('[API] Erro ao processar additional_data:', parseError);
+            }
+          }
+          
+          // Se não conseguiu extrair um username, usar um valor padrão
+          if (!syncData.target_username) {
+            syncData.target_username = `user_${latestTransaction.id}`;
+          }
+          
+          console.log(`[API] Sincronizando pedido com orders:`, syncData);
+          
+          // Enviar dados para o endpoint de sincronização
+          const syncResponse = await axios.post(`${ORDERS_API_URL}/orders/sync`, syncData, {
+            headers: {
+              'Authorization': `Bearer ${ORDERS_API_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          console.log(`[API] Resposta da sincronização: ${syncResponse.status}`);
+          console.log(`[API] Ação: ${syncResponse.data.action}, Pedido: ${syncResponse.data.order.id}`);
+          
+          // Atualizar metadados com informação da sincronização
+          await db.processingQueue.update({
+            where: { id: processingQueue.id },
+            data: {
+              metadata: JSON.stringify({
+                ...JSON.parse(processingQueue.metadata || '{}'),
+                syncResult: {
+                  action: syncResponse.data.action,
+                  orderId: syncResponse.data.order.id,
+                  timestamp: new Date().toISOString()
+                }
+              })
+            }
+          });
+          
+          // Se chegou aqui, a sincronização foi bem-sucedida, então agora podemos buscar o pedido
+        } catch (syncError) {
+          console.error('[API] Erro ao sincronizar pedido com orders:', syncError);
+          
+          // Registrar o erro de sincronização, mas continuar com a tentativa normal
+          if (syncError.response) {
+            console.error(`[API] Status: ${syncError.response.status}`);
+            console.error(`[API] Dados: ${JSON.stringify(syncError.response.data)}`);
+          }
+        }
+        
+        // Continuar com a busca normal do pedido
         const ordersEndpoint = `${ORDERS_API_URL}/orders/find`;
         console.log(`[API] Fazendo requisição para: ${ordersEndpoint}`);
         
