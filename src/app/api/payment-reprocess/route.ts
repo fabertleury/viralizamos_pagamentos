@@ -3,7 +3,11 @@ import { db } from '@/lib/prisma';
 import axios from 'axios';
 
 // URL do microserviço de orders
-const ORDERS_API_URL = process.env.ORDERS_API_URL || 'http://localhost:3001';
+// Ajuste para garantir que não haja duplicação de /api/ no caminho
+const ORDERS_API_URL = process.env.ORDERS_API_URL?.endsWith('/api') 
+  ? process.env.ORDERS_API_URL 
+  : (process.env.ORDERS_API_URL || 'http://localhost:3001/api');
+
 const ORDERS_API_KEY = process.env.ORDERS_API_KEY || 'default-key';
 
 // Interfaces para tipagem
@@ -93,7 +97,7 @@ export async function POST(request: NextRequest) {
       const latestTransaction = paymentRequest.transactions[0];
       
       if (latestTransaction?.id) {
-        const ordersResponse = await axios.get(`${ORDERS_API_URL}/api/orders/find`, {
+        const ordersResponse = await axios.get(`${ORDERS_API_URL}/orders/find`, {
           params: {
             transaction_id: latestTransaction.id
           },
@@ -106,7 +110,7 @@ export async function POST(request: NextRequest) {
           const order = ordersResponse.data.order;
           
           // Criar a solicitação de reposição no microserviço de orders
-          const reposicaoResponse = await axios.post(`${ORDERS_API_URL}/api/reposicoes`, {
+          const reposicaoResponse = await axios.post(`${ORDERS_API_URL}/reposicoes`, {
             order_id: order.id,
             motivo: reason || 'Solicitação manual do cliente',
             observacoes: `Solicitação via API de pagamentos. PaymentRequestID: ${paymentRequestId}`
@@ -217,7 +221,7 @@ export async function GET(request: NextRequest) {
       const latestTransaction = paymentRequest.transactions[0];
       
       if (latestTransaction?.id) {
-        const ordersResponse = await axios.get(`${ORDERS_API_URL}/api/orders/find`, {
+        const ordersResponse = await axios.get(`${ORDERS_API_URL}/orders/find`, {
           params: {
             transaction_id: latestTransaction.id
           },
@@ -230,7 +234,7 @@ export async function GET(request: NextRequest) {
           const orderId = ordersResponse.data.order.id;
           
           // Buscar reposições no microserviço de orders
-          const reposicoesResponse = await axios.get(`${ORDERS_API_URL}/api/reposicoes`, {
+          const reposicoesResponse = await axios.get(`${ORDERS_API_URL}/reposicoes`, {
             params: {
               orderId
             },
