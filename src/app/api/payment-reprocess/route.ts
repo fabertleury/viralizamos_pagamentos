@@ -195,21 +195,118 @@ export async function POST(request: NextRequest) {
                   }
                 });
               }
-            } catch (alternativeError) {
-              console.error('[API] Erro ao criar reposição pelo endpoint alternativo:', alternativeError);
+            } catch (alternativeError: unknown) {
+              console.error('[API] Erro ao criar reposição pelo endpoint alternativo:');
+              
+              // Verificar o tipo do erro para tratamento adequado
+              if (alternativeError && typeof alternativeError === 'object' && 'response' in alternativeError) {
+                const errorResponse = (alternativeError as any).response;
+                console.error(`[API] Status: ${errorResponse?.status || 'desconhecido'}`);
+                console.error(`[API] Dados: ${JSON.stringify(errorResponse?.data || {})}`);
+                
+                // Registrar o erro nos metadados
+                await db.processingQueue.update({
+                  where: { id: processingQueue.id },
+                  data: {
+                    metadata: JSON.stringify({
+                      ...JSON.parse(processingQueue.metadata || '{}'),
+                      alternative_endpoint_error: errorResponse?.data?.error || "Erro na resposta da API",
+                      error_status: errorResponse?.status,
+                      error_timestamp: new Date().toISOString()
+                    })
+                  }
+                });
+              } else if (alternativeError instanceof Error) {
+                console.error(`[API] Mensagem: ${alternativeError.message}`);
+                
+                // Registrar o erro nos metadados
+                await db.processingQueue.update({
+                  where: { id: processingQueue.id },
+                  data: {
+                    metadata: JSON.stringify({
+                      ...JSON.parse(processingQueue.metadata || '{}'),
+                      alternative_endpoint_error: alternativeError.message,
+                      error_timestamp: new Date().toISOString()
+                    })
+                  }
+                });
+              } else {
+                console.error('[API] Erro desconhecido ao usar endpoint alternativo');
+                
+                // Registrar erro genérico
+                await db.processingQueue.update({
+                  where: { id: processingQueue.id },
+                  data: {
+                    metadata: JSON.stringify({
+                      ...JSON.parse(processingQueue.metadata || '{}'),
+                      alternative_endpoint_error: "Erro desconhecido",
+                      error_timestamp: new Date().toISOString()
+                    })
+                  }
+                });
+              }
             }
           }
         }
       } else {
         console.warn(`[API] Nenhuma transação encontrada para o pedido: ${paymentRequestId}`);
       }
-    } catch (ordersError) {
-      // Apenas logar o erro, mas não falhar a requisição principal
-      console.error('[API] Erro ao criar reposição no microserviço de orders:', ordersError);
+    } catch (ordersError: unknown) {
+      // Melhorar o tratamento de erro com tipagem adequada
+      console.error('[API] Erro ao criar reposição no microserviço de orders:');
       
-      if (ordersError.response) {
-        console.error(`[API] Status: ${ordersError.response.status}`);
-        console.error(`[API] Dados: ${JSON.stringify(ordersError.response.data)}`);
+      // Verificar se é um erro de resposta do Axios
+      if (ordersError && typeof ordersError === 'object' && 'response' in ordersError) {
+        const errorResponse = (ordersError as any).response;
+        console.error(`[API] Status: ${errorResponse?.status || 'desconhecido'}`);
+        console.error(`[API] Dados: ${JSON.stringify(errorResponse?.data || {})}`);
+        
+        // Registrar a causa específica do erro para debugging
+        if (errorResponse?.data?.error === "Pedido não encontrado") {
+          console.error('[API] Problema específico: O pedido não foi encontrado no microserviço de orders');
+          
+          // Fazer o registro do erro específico nos metadados da fila
+          await db.processingQueue.update({
+            where: { id: processingQueue.id },
+            data: {
+              metadata: JSON.stringify({
+                ...JSON.parse(processingQueue.metadata || '{}'),
+                orders_error: "Pedido não encontrado no microserviço de orders",
+                error_timestamp: new Date().toISOString()
+              })
+            }
+          });
+        }
+      } else if (ordersError instanceof Error) {
+        // Se for um erro padrão do JavaScript
+        console.error(`[API] Mensagem de erro: ${ordersError.message}`);
+        
+        // Fazer o registro do erro nos metadados da fila
+        await db.processingQueue.update({
+          where: { id: processingQueue.id },
+          data: {
+            metadata: JSON.stringify({
+              ...JSON.parse(processingQueue.metadata || '{}'),
+              orders_error: ordersError.message,
+              error_timestamp: new Date().toISOString()
+            })
+          }
+        });
+      } else {
+        // Se for algum outro tipo de erro
+        console.error(`[API] Erro desconhecido:`, ordersError);
+        
+        // Fazer o registro do erro genérico nos metadados da fila
+        await db.processingQueue.update({
+          where: { id: processingQueue.id },
+          data: {
+            metadata: JSON.stringify({
+              ...JSON.parse(processingQueue.metadata || '{}'),
+              orders_error: "Erro desconhecido ao comunicar com o microserviço de orders",
+              error_timestamp: new Date().toISOString()
+            })
+          }
+        });
       }
     }
     
@@ -219,13 +316,27 @@ export async function POST(request: NextRequest) {
       reprocessRequestId: processingQueue.id
     });
     
-  } catch (error) {
-    console.error('[API] Erro ao processar solicitação de reposição:', error);
+  } catch (error: unknown) {
+    console.error('[API] Erro ao processar solicitação de reposição:');
+    
+    let errorMessage = 'Erro interno do servidor';
+    let errorDetails = 'Não foi possível processar a solicitação de reposição';
+    
+    if (error instanceof Error) {
+      console.error(`[API] Mensagem: ${error.message}`);
+      console.error(`[API] Stack: ${error.stack}`);
+      errorMessage = error.message;
+    } else if (error && typeof error === 'object') {
+      console.error('[API] Objeto de erro:', error);
+      errorMessage = 'Erro ao processar solicitação';
+    } else {
+      console.error('[API] Erro desconhecido:', error);
+    }
     
     return NextResponse.json(
       { 
-        error: error instanceof Error ? error.message : 'Erro interno do servidor',
-        details: 'Não foi possível processar a solicitação de reposição'
+        error: errorMessage,
+        details: errorDetails
       },
       { status: 500 }
     );
@@ -341,13 +452,26 @@ export async function GET(request: NextRequest) {
           console.warn(`[API] Pedido não encontrado no microserviço de orders para transaction_id: ${latestTransaction.id}`);
         }
       }
-    } catch (ordersError) {
-      // Apenas logar o erro, mas não falhar a requisição principal
-      console.error('[API] Erro ao buscar reposições no microserviço de orders:', ordersError);
+    } catch (ordersError: unknown) {
+      // Melhorar o tratamento de erro com tipagem adequada
+      console.error('[API] Erro ao buscar reposições no microserviço de orders:');
       
-      if (ordersError.response) {
-        console.error(`[API] Status: ${ordersError.response.status}`);
-        console.error(`[API] Dados: ${JSON.stringify(ordersError.response.data)}`);
+      // Verificar se é um erro de resposta do Axios
+      if (ordersError && typeof ordersError === 'object' && 'response' in ordersError) {
+        const errorResponse = (ordersError as any).response;
+        console.error(`[API] Status: ${errorResponse?.status || 'desconhecido'}`);
+        console.error(`[API] Dados: ${JSON.stringify(errorResponse?.data || {})}`);
+        
+        // Registrar mensagens específicas para debugging
+        if (errorResponse?.data?.error === "Pedido não encontrado") {
+          console.error('[API] O pedido não foi encontrado no microserviço de orders');
+        }
+      } else if (ordersError instanceof Error) {
+        // Se for um erro padrão do JavaScript
+        console.error(`[API] Mensagem de erro: ${ordersError.message}`);
+      } else {
+        // Se for algum outro tipo de erro
+        console.error(`[API] Erro desconhecido:`, ordersError);
       }
     }
     
@@ -366,12 +490,25 @@ export async function GET(request: NextRequest) {
       reprocessRequests: allRequests
     });
     
-  } catch (error) {
-    console.error('[API] Erro ao buscar status de reposições:', error);
+  } catch (error: unknown) {
+    console.error('[API] Erro ao buscar status de reposições:');
+    
+    let errorMessage = 'Erro interno do servidor';
+    
+    if (error instanceof Error) {
+      console.error(`[API] Mensagem: ${error.message}`);
+      console.error(`[API] Stack: ${error.stack}`);
+      errorMessage = error.message;
+    } else if (error && typeof error === 'object') {
+      console.error('[API] Objeto de erro:', error);
+      errorMessage = 'Erro ao buscar status de reposições';
+    } else {
+      console.error('[API] Erro desconhecido:', error);
+    }
     
     return NextResponse.json(
       { 
-        error: error instanceof Error ? error.message : 'Erro interno do servidor',
+        error: errorMessage,
         details: 'Não foi possível buscar o status das reposições'
       },
       { status: 500 }
