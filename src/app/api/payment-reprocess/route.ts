@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
+import axios from 'axios';
+
+// URL do microserviço de orders
+const ORDERS_API_URL = process.env.ORDERS_API_URL || 'http://localhost:3001';
+const ORDERS_API_KEY = process.env.ORDERS_API_KEY || 'default-key';
 
 /**
  * Endpoint para solicitar reprocessamento/reposição de um pedido
  * Este endpoint cria uma entrada na fila de processamento para ser tratada posteriormente
+ * e também envia a solicitação para o microserviço de orders
  */
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +27,10 @@ export async function POST(request: NextRequest) {
     
     // Verificar se o pedido existe
     const paymentRequest = await db.paymentRequest.findUnique({
-      where: { id: paymentRequestId }
+      where: { id: paymentRequestId },
+      include: {
+        transaction: true // Incluir dados da transação para obter o transaction_id
+      }
     });
     
     if (!paymentRequest) {
@@ -66,6 +75,54 @@ export async function POST(request: NextRequest) {
     
     console.log(`[API] Solicitação de reposição criada com sucesso: ${processingQueue.id}`);
     
+    // Buscar o order_id no microserviço de orders usando o transaction_id
+    try {
+      if (paymentRequest.transaction?.id) {
+        const ordersResponse = await axios.get(`${ORDERS_API_URL}/api/orders/find`, {
+          params: {
+            transaction_id: paymentRequest.transaction.id
+          },
+          headers: {
+            'Authorization': `Bearer ${ORDERS_API_KEY}`
+          }
+        });
+        
+        if (ordersResponse.data && ordersResponse.data.order) {
+          const order = ordersResponse.data.order;
+          
+          // Criar a solicitação de reposição no microserviço de orders
+          const reposicaoResponse = await axios.post(`${ORDERS_API_URL}/api/reposicoes`, {
+            order_id: order.id,
+            motivo: reason || 'Solicitação manual do cliente',
+            observacoes: `Solicitação via API de pagamentos. PaymentRequestID: ${paymentRequestId}`
+          }, {
+            headers: {
+              'Authorization': `Bearer ${ORDERS_API_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (reposicaoResponse.data && reposicaoResponse.data.success) {
+            console.log(`[API] Reposição também criada no microserviço de orders: ${reposicaoResponse.data.reposicao.id}`);
+            
+            // Atualizar os metadados da fila de processamento com o ID da reposição no orders
+            await db.processingQueue.update({
+              where: { id: processingQueue.id },
+              data: {
+                metadata: JSON.stringify({
+                  ...JSON.parse(processingQueue.metadata || '{}'),
+                  orders_reposicao_id: reposicaoResponse.data.reposicao.id
+                })
+              }
+            });
+          }
+        }
+      }
+    } catch (ordersError) {
+      // Apenas logar o erro, mas não falhar a requisição principal
+      console.error('[API] Erro ao criar reposição no microserviço de orders:', ordersError);
+    }
+    
     return NextResponse.json({
       success: true,
       message: 'Solicitação de reposição criada com sucesso',
@@ -103,6 +160,21 @@ export async function GET(request: NextRequest) {
     
     console.log(`[API] Verificando status de reposições para o pedido: ${paymentRequestId}`);
     
+    // Buscar o pedido para obter o transaction_id
+    const paymentRequest = await db.paymentRequest.findUnique({
+      where: { id: paymentRequestId },
+      include: {
+        transaction: true
+      }
+    });
+    
+    if (!paymentRequest) {
+      return NextResponse.json(
+        { error: 'Pedido não encontrado' },
+        { status: 404 }
+      );
+    }
+    
     // Buscar todas as solicitações de reposição para o pedido
     const reprocessRequests = await db.processingQueue.findMany({
       where: {
@@ -124,11 +196,68 @@ export async function GET(request: NextRequest) {
       metadata: request.metadata ? JSON.parse(request.metadata) : {}
     }));
     
+    // Se tiver transaction_id, buscar também as reposições no microserviço de orders
+    let ordersReposicoes = [];
+    try {
+      if (paymentRequest.transaction?.id) {
+        const ordersResponse = await axios.get(`${ORDERS_API_URL}/api/orders/find`, {
+          params: {
+            transaction_id: paymentRequest.transaction.id
+          },
+          headers: {
+            'Authorization': `Bearer ${ORDERS_API_KEY}`
+          }
+        });
+        
+        if (ordersResponse.data && ordersResponse.data.order) {
+          const orderId = ordersResponse.data.order.id;
+          
+          // Buscar reposições no microserviço de orders
+          const reposicoesResponse = await axios.get(`${ORDERS_API_URL}/api/reposicoes`, {
+            params: {
+              orderId
+            },
+            headers: {
+              'Authorization': `Bearer ${ORDERS_API_KEY}`
+            }
+          });
+          
+          if (reposicoesResponse.data && reposicoesResponse.data.reposicoes) {
+            // Mapear as reposições do microserviço de orders para o mesmo formato
+            ordersReposicoes = reposicoesResponse.data.reposicoes.map(reposicao => ({
+              id: reposicao.id,
+              status: reposicao.status,
+              created_at: reposicao.data_solicitacao,
+              processed_at: reposicao.data_processamento,
+              attempts: reposicao.tentativas,
+              metadata: {
+                orders_reposicao: true,
+                motivo: reposicao.motivo,
+                observacoes: reposicao.observacoes,
+                resposta: reposicao.resposta
+              }
+            }));
+          }
+        }
+      }
+    } catch (ordersError) {
+      // Apenas logar o erro, mas não falhar a requisição principal
+      console.error('[API] Erro ao buscar reposições no microserviço de orders:', ordersError);
+    }
+    
+    // Combinar as reposições dos dois sistemas
+    const allRequests = [...formattedRequests, ...ordersReposicoes];
+    
+    // Ordenar por data de criação (mais recente primeiro)
+    allRequests.sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    
     return NextResponse.json({
       success: true,
-      reprocessRequests: formattedRequests,
-      total: formattedRequests.length,
-      hasActive: formattedRequests.some(r => r.status === 'pending' || r.status === 'processing')
+      reprocessRequests: allRequests,
+      total: allRequests.length,
+      hasActive: allRequests.some(r => r.status === 'pending' || r.status === 'processing')
     });
     
   } catch (error) {

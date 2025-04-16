@@ -97,6 +97,15 @@ const isWithin30Days = (dateString: string): boolean => {
   return diffDays <= 30;
 };
 
+// Verificar se já se passaram 12 horas desde a compra
+const isPast12Hours = (dateString: string): boolean => {
+  const orderDate = new Date(dateString);
+  const today = new Date();
+  const diffTime = Math.abs(today.getTime() - orderDate.getTime());
+  const diffHours = diffTime / (1000 * 60 * 60); 
+  return diffHours >= 12;
+};
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -750,7 +759,8 @@ export default function OrderDetailPage() {
                         </Button>
                       )}
                       
-                      {order.status === 'completed' && isWithin30Days(order.created_at) && (
+                      {/* Botão de solicitar reposição (apenas se dentro de 30 dias, após 12 horas da compra e não há reposição pendente) */}
+                      {order.status === 'completed' && isWithin30Days(order.created_at) && isPast12Hours(order.created_at) && (
                         !reprocessRequests.some(r => r.status === 'pending' || r.status === 'processing')
                       ) && (
                         <Button
