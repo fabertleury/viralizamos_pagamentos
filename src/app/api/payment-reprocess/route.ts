@@ -6,6 +6,18 @@ import axios from 'axios';
 const ORDERS_API_URL = process.env.ORDERS_API_URL || 'http://localhost:3001';
 const ORDERS_API_KEY = process.env.ORDERS_API_KEY || 'default-key';
 
+// Interfaces para tipagem
+interface ReposicaoOrders {
+  id: string;
+  status: string;
+  data_solicitacao: string;
+  data_processamento: string | null;
+  tentativas: number;
+  motivo: string;
+  observacoes: string;
+  resposta: string | null;
+}
+
 /**
  * Endpoint para solicitar reprocessamento/reposição de um pedido
  * Este endpoint cria uma entrada na fila de processamento para ser tratada posteriormente
@@ -229,7 +241,7 @@ export async function GET(request: NextRequest) {
           
           if (reposicoesResponse.data && reposicoesResponse.data.reposicoes) {
             // Mapear as reposições do microserviço de orders para o mesmo formato
-            ordersReposicoes = reposicoesResponse.data.reposicoes.map(reposicao => ({
+            ordersReposicoes = reposicoesResponse.data.reposicoes.map((reposicao: ReposicaoOrders) => ({
               id: reposicao.id,
               status: reposicao.status,
               created_at: reposicao.data_solicitacao,
