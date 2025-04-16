@@ -10,6 +10,8 @@ const ORDERS_API_URL = process.env.ORDERS_API_URL?.endsWith('/api')
 
 const ORDERS_API_KEY = process.env.ORDERS_API_KEY || 'default-key';
 
+console.log(`[CONFIG] ORDERS_API_URL definido como: ${ORDERS_API_URL}`);
+
 // Interfaces para tipagem
 interface ReposicaoOrders {
   id: string;
@@ -97,7 +99,12 @@ export async function POST(request: NextRequest) {
       const latestTransaction = paymentRequest.transactions[0];
       
       if (latestTransaction?.id) {
-        const ordersResponse = await axios.get(`${ORDERS_API_URL}/orders/find`, {
+        console.log(`[API] Buscando pedido no orders com transaction_id: ${latestTransaction.id}`);
+        
+        const ordersEndpoint = `${ORDERS_API_URL}/orders/find`;
+        console.log(`[API] Fazendo requisição para: ${ordersEndpoint}`);
+        
+        const ordersResponse = await axios.get(ordersEndpoint, {
           params: {
             transaction_id: latestTransaction.id
           },
@@ -106,10 +113,16 @@ export async function POST(request: NextRequest) {
           }
         });
         
+        console.log(`[API] Resposta do orders: ${ordersResponse.status}`);
+        console.log(`[API] Resposta do orders: ${JSON.stringify(ordersResponse.data)}`);
+        
         if (ordersResponse.data && ordersResponse.data.order) {
           const order = ordersResponse.data.order;
+          console.log(`[API] Pedido encontrado no microserviço de orders: ${order.id}`);
           
           // Criar a solicitação de reposição no microserviço de orders
+          console.log(`[API] Criando reposição no microserviço de orders para o pedido: ${order.id}`);
+          
           const reposicaoResponse = await axios.post(`${ORDERS_API_URL}/reposicoes`, {
             order_id: order.id,
             motivo: reason || 'Solicitação manual do cliente',
@@ -135,11 +148,69 @@ export async function POST(request: NextRequest) {
               }
             });
           }
+        } else {
+          console.error(`[API] Pedido não encontrado no microserviço de orders para transaction_id: ${latestTransaction.id}`);
+          
+          // Verificar se o pedido existe no banco de dados local
+          const existingPayments = await db.paymentRequest.findMany({
+            where: {
+              transactions: {
+                some: {
+                  id: latestTransaction.id
+                }
+              }
+            },
+            include: {
+              transactions: true
+            }
+          });
+          
+          if (existingPayments.length > 0) {
+            console.log(`[API] Pedido encontrado localmente para a transação: ${latestTransaction.id}`);
+            
+            // Tentar a criação da reposição diretamente, sem o order_id
+            try {
+              const reposicaoResponse = await axios.post(`${ORDERS_API_URL}/reposicoes/create-by-transaction`, {
+                transaction_id: latestTransaction.id,
+                motivo: reason || 'Solicitação manual do cliente',
+                observacoes: `Solicitação via API de pagamentos. PaymentRequestID: ${paymentRequestId}`
+              }, {
+                headers: {
+                  'Authorization': `Bearer ${ORDERS_API_KEY}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (reposicaoResponse.data && reposicaoResponse.data.success) {
+                console.log(`[API] Reposição criada no microserviço de orders via transaction_id: ${reposicaoResponse.data.reposicao.id}`);
+                
+                // Atualizar os metadados da fila de processamento com o ID da reposição no orders
+                await db.processingQueue.update({
+                  where: { id: processingQueue.id },
+                  data: {
+                    metadata: JSON.stringify({
+                      ...JSON.parse(processingQueue.metadata || '{}'),
+                      orders_reposicao_id: reposicaoResponse.data.reposicao.id
+                    })
+                  }
+                });
+              }
+            } catch (alternativeError) {
+              console.error('[API] Erro ao criar reposição pelo endpoint alternativo:', alternativeError);
+            }
+          }
         }
+      } else {
+        console.warn(`[API] Nenhuma transação encontrada para o pedido: ${paymentRequestId}`);
       }
     } catch (ordersError) {
       // Apenas logar o erro, mas não falhar a requisição principal
       console.error('[API] Erro ao criar reposição no microserviço de orders:', ordersError);
+      
+      if (ordersError.response) {
+        console.error(`[API] Status: ${ordersError.response.status}`);
+        console.error(`[API] Dados: ${JSON.stringify(ordersError.response.data)}`);
+      }
     }
     
     return NextResponse.json({
@@ -221,6 +292,8 @@ export async function GET(request: NextRequest) {
       const latestTransaction = paymentRequest.transactions[0];
       
       if (latestTransaction?.id) {
+        console.log(`[API] Buscando pedido no orders com transaction_id: ${latestTransaction.id}`);
+        
         const ordersResponse = await axios.get(`${ORDERS_API_URL}/orders/find`, {
           params: {
             transaction_id: latestTransaction.id
@@ -232,8 +305,11 @@ export async function GET(request: NextRequest) {
         
         if (ordersResponse.data && ordersResponse.data.order) {
           const orderId = ordersResponse.data.order.id;
+          console.log(`[API] Pedido encontrado no microserviço de orders: ${orderId}`);
           
           // Buscar reposições no microserviço de orders
+          console.log(`[API] Buscando reposições para o pedido: ${orderId}`);
+          
           const reposicoesResponse = await axios.get(`${ORDERS_API_URL}/reposicoes`, {
             params: {
               orderId
@@ -244,6 +320,8 @@ export async function GET(request: NextRequest) {
           });
           
           if (reposicoesResponse.data && reposicoesResponse.data.reposicoes) {
+            console.log(`[API] Encontradas ${reposicoesResponse.data.reposicoes.length} reposições no microserviço de orders`);
+            
             // Mapear as reposições do microserviço de orders para o mesmo formato
             ordersReposicoes = reposicoesResponse.data.reposicoes.map((reposicao: ReposicaoOrders) => ({
               id: reposicao.id,
@@ -259,11 +337,18 @@ export async function GET(request: NextRequest) {
               }
             }));
           }
+        } else {
+          console.warn(`[API] Pedido não encontrado no microserviço de orders para transaction_id: ${latestTransaction.id}`);
         }
       }
     } catch (ordersError) {
       // Apenas logar o erro, mas não falhar a requisição principal
       console.error('[API] Erro ao buscar reposições no microserviço de orders:', ordersError);
+      
+      if (ordersError.response) {
+        console.error(`[API] Status: ${ordersError.response.status}`);
+        console.error(`[API] Dados: ${JSON.stringify(ordersError.response.data)}`);
+      }
     }
     
     // Combinar as reposições dos dois sistemas
