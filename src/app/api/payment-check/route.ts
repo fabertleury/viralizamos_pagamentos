@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
         transactions: true
       },
       orderBy: {
-        createdAt: 'desc'
+        created_at: 'desc'
       },
       take: limit
     });
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
         type: 'payment_reprocess'
       },
       orderBy: {
-        createdAt: 'desc'
+        created_at: 'desc'
       },
       take: 10
     });
