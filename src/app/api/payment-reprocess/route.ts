@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 // URL do microserviço de orders
 // Ajuste para garantir que não haja duplicação de /api/ no caminho
@@ -178,7 +178,8 @@ export async function POST(request: NextRequest) {
           });
           
           // Se chegou aqui, a sincronização foi bem-sucedida, então agora podemos buscar o pedido
-        } catch (syncError) {
+        } catch (error) {
+          const syncError = error as AxiosError;
           console.error('[API] Erro ao sincronizar pedido com orders:', syncError);
           
           // Registrar o erro de sincronização, mas continuar com a tentativa normal
