@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const paymentRequest = await db.paymentRequest.findUnique({
       where: { id: paymentRequestId },
       include: {
-        transaction: true // Incluir dados da transação para obter o transaction_id
+        transactions: true // Incluir dados das transações
       }
     });
     
@@ -77,10 +77,13 @@ export async function POST(request: NextRequest) {
     
     // Buscar o order_id no microserviço de orders usando o transaction_id
     try {
-      if (paymentRequest.transaction?.id) {
+      // Buscar a transação mais recente (se houver)
+      const latestTransaction = paymentRequest.transactions[0];
+      
+      if (latestTransaction?.id) {
         const ordersResponse = await axios.get(`${ORDERS_API_URL}/api/orders/find`, {
           params: {
-            transaction_id: paymentRequest.transaction.id
+            transaction_id: latestTransaction.id
           },
           headers: {
             'Authorization': `Bearer ${ORDERS_API_KEY}`
@@ -164,7 +167,7 @@ export async function GET(request: NextRequest) {
     const paymentRequest = await db.paymentRequest.findUnique({
       where: { id: paymentRequestId },
       include: {
-        transaction: true
+        transactions: true
       }
     });
     
@@ -199,10 +202,12 @@ export async function GET(request: NextRequest) {
     // Se tiver transaction_id, buscar também as reposições no microserviço de orders
     let ordersReposicoes = [];
     try {
-      if (paymentRequest.transaction?.id) {
+      const latestTransaction = paymentRequest.transactions[0];
+      
+      if (latestTransaction?.id) {
         const ordersResponse = await axios.get(`${ORDERS_API_URL}/api/orders/find`, {
           params: {
-            transaction_id: paymentRequest.transaction.id
+            transaction_id: latestTransaction.id
           },
           headers: {
             'Authorization': `Bearer ${ORDERS_API_KEY}`
@@ -248,25 +253,25 @@ export async function GET(request: NextRequest) {
     // Combinar as reposições dos dois sistemas
     const allRequests = [...formattedRequests, ...ordersReposicoes];
     
-    // Ordenar por data de criação (mais recente primeiro)
-    allRequests.sort((a, b) => 
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    // Ordenar por data de criação (mais recentes primeiro)
+    allRequests.sort((a, b) => {
+      const dateA = new Date(a.created_at);
+      const dateB = new Date(b.created_at);
+      return dateB.getTime() - dateA.getTime();
+    });
     
     return NextResponse.json({
       success: true,
-      reprocessRequests: allRequests,
-      total: allRequests.length,
-      hasActive: allRequests.some(r => r.status === 'pending' || r.status === 'processing')
+      reprocessRequests: allRequests
     });
     
   } catch (error) {
-    console.error('[API] Erro ao verificar status das reposições:', error);
+    console.error('[API] Erro ao buscar status de reposições:', error);
     
     return NextResponse.json(
       { 
         error: error instanceof Error ? error.message : 'Erro interno do servidor',
-        details: 'Não foi possível verificar o status das reposições'
+        details: 'Não foi possível buscar o status das reposições'
       },
       { status: 500 }
     );
