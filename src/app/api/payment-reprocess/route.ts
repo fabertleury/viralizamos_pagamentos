@@ -2,11 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
 import axios, { AxiosError } from 'axios';
 
+// Função para limpar URLs de caracteres extras
+function cleanUrl(url: string | null): string {
+  if (!url) return '';
+  return url.replace(/["';]+/g, '');
+}
+
 // URL do microserviço de orders
 // Ajuste para garantir que não haja duplicação de /api/ no caminho
-const ORDERS_API_URL = (process.env.ORDERS_API_URL?.endsWith('/api') 
-  ? process.env.ORDERS_API_URL 
-  : (process.env.ORDERS_API_URL || 'http://localhost:3001/api')).replace(/;$/, '');
+const ORDERS_API_URL = cleanUrl(
+  process.env.ORDERS_API_URL?.endsWith('/api') 
+    ? process.env.ORDERS_API_URL 
+    : (process.env.ORDERS_API_URL || 'http://localhost:3001/api')
+);
 
 const ORDERS_API_KEY = process.env.ORDERS_API_KEY || 'default-key';
 

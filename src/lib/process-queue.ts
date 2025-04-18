@@ -69,8 +69,14 @@ export async function processQueue() {
           throw new Error('Dados do serviço não encontrados');
         }
         
+        // Função para limpar URLs de caracteres extras
+        function cleanUrl(url: string | null): string {
+          if (!url) return '';
+          return url.replace(/["';]+/g, '');
+        }
+        
         // Enviar para API do sistema de pedidos
-        const orderApiEndpoint = (process.env.ORDERS_API_URL || 'https://api.viralizamos.com/orders').replace(/;$/, '');
+        const orderApiEndpoint = cleanUrl(process.env.ORDERS_API_URL || 'https://api.viralizamos.com/orders');
         const response = await axios.post(`${orderApiEndpoint}/create`, {
           transaction_id: transaction.id,
           service_id: item.payment_request.service_id,

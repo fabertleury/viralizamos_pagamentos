@@ -162,10 +162,14 @@ function setupProcessors() {
     // Garantir que temos informações do usuário a ser envolvido
     const targetUsername = paymentRequest.profile_username || "unspecified_user";
     
+    // Função para limpar URLs de caracteres extras
+    function cleanUrl(url: string | null): string {
+      if (!url) return '';
+      return url.replace(/["';]+/g, '');
+    }
+
     // Enviar para API do sistema de orders
-    const ordersApiUrl = (process.env.ORDERS_API_URL || 'https://orders.viralizamos.com/api')
-      .replace(/;$/, '')
-      .replace(/["';]+$/, '');
+    const ordersApiUrl = cleanUrl(process.env.ORDERS_API_URL || 'https://orders.viralizamos.com/api');
     
     const apiKey = process.env.ORDERS_API_KEY || 'default_key';
     
@@ -215,19 +219,19 @@ function setupProcessors() {
           posts: posts.map(post => {
             // Garantir que o postCode e postUrl estão definidos
             const postCode = post.code || post.shortcode || null;
-            const postUrl = post.url || (postCode ? 
+            let postUrl = post.url || (postCode ? 
               (post.is_reel || post.type === 'reel' ? 
                 `https://instagram.com/reel/${postCode}/` : 
                 `https://instagram.com/p/${postCode}/`)
               : null);
               
             // Limpar a URL para garantir que não tenha caracteres extras
-            const cleanUrl = postUrl ? postUrl.replace(/["';]+$/, '') : null;
+            postUrl = cleanUrl(postUrl);
               
             return {
               id: post.id || `post-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
               code: postCode,
-              url: cleanUrl,
+              url: postUrl,
               type: post.type || (post.is_reel ? 'reel' : 'post'),
               is_reel: post.is_reel || post.type === 'reel',
               quantity: post.quantity || post.calculated_quantity || Math.floor(totalQuantity / posts.length)
@@ -301,7 +305,7 @@ function setupProcessors() {
         }
         
         // Construir URL do perfil ou target
-        const targetUrl = `https://instagram.com/${targetUsername}`.replace(/["';]+$/, '');
+        const targetUrl = cleanUrl(`https://instagram.com/${targetUsername}`);
         
         const response = await axios.post(ordersApiUrl, {
           transaction_id: transaction.id,

@@ -85,6 +85,12 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
     console.log(`[OrdersService] Enviando notificação com external_service_id: ${transaction.payment_request.external_service_id || 'não definido'}`);
     console.log(`[OrdersService] Profile username: ${transaction.payment_request.profile_username}`);
 
+    // Função para limpar URLs de caracteres extras
+    function cleanUrl(url: string | null): string {
+      if (!url) return '';
+      return url.replace(/["';]+/g, '');
+    }
+
     // Gerar token JWT para autenticação
     const token = sign(
       { transaction_id: transaction.id }, 
@@ -93,8 +99,8 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
     );
 
     // Determinar URL do serviço de orders
-    const ordersServiceUrl = (process.env.ORDERS_SERVICE_URL || 'https://orders.viralizamos.com').replace(/;$/, '');
-    const webhookUrl = `${ordersServiceUrl}/api/orders/webhook/payment`;
+    const ordersServiceUrl = cleanUrl(process.env.ORDERS_SERVICE_URL || 'https://orders.viralizamos.com');
+    const webhookUrl = cleanUrl(`${ordersServiceUrl}/api/orders/webhook/payment`);
 
     console.log(`[OrdersService] Notificando serviço de orders em ${webhookUrl}`);
     console.log(`[OrdersService] Payload:`, JSON.stringify(payload, null, 2));
