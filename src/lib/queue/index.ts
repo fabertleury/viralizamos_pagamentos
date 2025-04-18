@@ -1,6 +1,7 @@
 import Bull, { Queue, JobOptions } from 'bull';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
+import { ORDERS_API_URL, ORDERS_API_KEY, cleanUrl } from '@/lib/constants';
 
 // Interface para dados de post
 interface PostData {
@@ -162,18 +163,7 @@ function setupProcessors() {
     // Garantir que temos informações do usuário a ser envolvido
     const targetUsername = paymentRequest.profile_username || "unspecified_user";
     
-    // Função para limpar URLs de caracteres extras
-    function cleanUrl(url: string | null): string {
-      if (!url) return '';
-      return url.replace(/["';]+/g, '');
-    }
-
-    // Enviar para API do sistema de orders
-    const ordersApiUrl = cleanUrl(process.env.ORDERS_API_URL || 'https://orders.viralizamos.com/api');
-    
-    const apiKey = process.env.ORDERS_API_KEY || 'default_key';
-    
-    console.log(`🔗 [Queue] Enviando para ${ordersApiUrl}`);
+    console.log(`🔗 [Queue] Enviando para ${ORDERS_API_URL}`);
     
     let createdOrderIds: string[] = [];
     let providerResponses: ProviderResponse[] = [];
@@ -191,11 +181,7 @@ function setupProcessors() {
           console.log(`ℹ️ [Queue] Usando provider_id do serviço: ${provider_id}`);
         }
         
-        // Endpoint atualizado para a rota de batch
-        const batchOrdersApiUrl = process.env.ORDERS_API_URL?.replace(/\/api\/orders\/create$/, '/api/orders/batch') || 
-          'https://orders.viralizamos.com/api/orders/batch';
-        
-        console.log(`🔄 [Queue] Enviando lote para ${batchOrdersApiUrl}`);
+        console.log(`🔄 [Queue] Enviando lote para ${ORDERS_API_URL}`);
         
         // Construir um único payload com todos os posts
         const batchPayload = {
@@ -243,9 +229,9 @@ function setupProcessors() {
         console.log(JSON.stringify(batchPayload, null, 2));
         
         // Enviar requisição para API em lote
-        const response = await axios.post(ordersApiUrl, batchPayload, {
+        const response = await axios.post(ORDERS_API_URL, batchPayload, {
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${ORDERS_API_KEY}`,
             'Content-Type': 'application/json',
             'Idempotency-Key': `batch_${transaction.id}_${Date.now()}`
           }
@@ -307,7 +293,7 @@ function setupProcessors() {
         // Construir URL do perfil ou target
         const targetUrl = cleanUrl(`https://instagram.com/${targetUsername}`);
         
-        const response = await axios.post(ordersApiUrl, {
+        const response = await axios.post(ORDERS_API_URL, {
           transaction_id: transaction.id,
           service_id: serviceId,
           provider_id: provider_id, // ID do provedor de serviços
@@ -326,7 +312,7 @@ function setupProcessors() {
           }
         }, {
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${ORDERS_API_KEY}`,
             'Content-Type': 'application/json',
             'Idempotency-Key': externalId // Garantir que não haja duplicação
           }

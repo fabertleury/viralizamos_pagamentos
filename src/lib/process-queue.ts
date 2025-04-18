@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
+import { ORDERS_API_URL, ORDERS_API_KEY } from '@/lib/constants';
 
 const prisma = new PrismaClient();
 
@@ -69,15 +70,8 @@ export async function processQueue() {
           throw new Error('Dados do serviço não encontrados');
         }
         
-        // Função para limpar URLs de caracteres extras
-        function cleanUrl(url: string | null): string {
-          if (!url) return '';
-          return url.replace(/["';]+/g, '');
-        }
-        
         // Enviar para API do sistema de pedidos
-        const orderApiEndpoint = cleanUrl(process.env.ORDERS_API_URL || 'https://api.viralizamos.com/orders');
-        const response = await axios.post(`${orderApiEndpoint}/create`, {
+        const response = await axios.post(`${ORDERS_API_URL}/create`, {
           transaction_id: transaction.id,
           service_id: item.payment_request.service_id,
           external_payment_id: externalId,  // ID externo do pagamento
@@ -92,7 +86,7 @@ export async function processQueue() {
           }
         }, {
           headers: {
-            'Authorization': `Bearer ${process.env.ORDERS_API_KEY || 'default_key'}`,
+            'Authorization': `Bearer ${ORDERS_API_KEY}`,
             'Content-Type': 'application/json'
           }
         });

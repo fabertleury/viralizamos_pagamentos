@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
 import axios, { AxiosError } from 'axios';
+import { 
+  ORDERS_API_URL as GLOBAL_ORDERS_API_URL, 
+  ORDERS_API_KEY as GLOBAL_ORDERS_API_KEY, 
+  cleanUrl as globalCleanUrl 
+} from '@/lib/constants';
 
 // Função para limpar URLs de caracteres extras
 function cleanUrl(url: string | null): string {
@@ -10,13 +15,8 @@ function cleanUrl(url: string | null): string {
 
 // URL do microserviço de orders
 // Ajuste para garantir que não haja duplicação de /api/ no caminho
-const ORDERS_API_URL = cleanUrl(
-  process.env.ORDERS_API_URL?.endsWith('/api') 
-    ? process.env.ORDERS_API_URL 
-    : (process.env.ORDERS_API_URL || 'http://localhost:3001/api')
-);
-
-const ORDERS_API_KEY = process.env.ORDERS_API_KEY || 'default-key';
+const ORDERS_API_URL = GLOBAL_ORDERS_API_URL;
+const ORDERS_API_KEY = GLOBAL_ORDERS_API_KEY;
 
 console.log(`[CONFIG] ORDERS_API_URL definido como: ${ORDERS_API_URL}`);
 
