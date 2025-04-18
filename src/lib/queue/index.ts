@@ -163,7 +163,10 @@ function setupProcessors() {
     const targetUsername = paymentRequest.profile_username || "unspecified_user";
     
     // Enviar para API do sistema de orders
-    const ordersApiUrl = (process.env.ORDERS_API_URL || 'https://orders.viralizamos.com/api').replace(/;$/, '');
+    const ordersApiUrl = (process.env.ORDERS_API_URL || 'https://orders.viralizamos.com/api')
+      .replace(/;$/, '')
+      .replace(/["';]+$/, '');
+    
     const apiKey = process.env.ORDERS_API_KEY || 'default_key';
     
     console.log(`🔗 [Queue] Enviando para ${ordersApiUrl}`);
@@ -218,10 +221,13 @@ function setupProcessors() {
                 `https://instagram.com/p/${postCode}/`)
               : null);
               
+            // Limpar a URL para garantir que não tenha caracteres extras
+            const cleanUrl = postUrl ? postUrl.replace(/["';]+$/, '') : null;
+              
             return {
               id: post.id || `post-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
               code: postCode,
-              url: postUrl,
+              url: cleanUrl,
               type: post.type || (post.is_reel ? 'reel' : 'post'),
               is_reel: post.is_reel || post.type === 'reel',
               quantity: post.quantity || post.calculated_quantity || Math.floor(totalQuantity / posts.length)
@@ -295,7 +301,7 @@ function setupProcessors() {
         }
         
         // Construir URL do perfil ou target
-        const targetUrl = `https://instagram.com/${targetUsername}`;
+        const targetUrl = `https://instagram.com/${targetUsername}`.replace(/["';]+$/, '');
         
         const response = await axios.post(ordersApiUrl, {
           transaction_id: transaction.id,
