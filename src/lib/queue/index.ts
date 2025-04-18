@@ -233,7 +233,7 @@ function setupProcessors() {
         console.log(JSON.stringify(batchPayload, null, 2));
         
         // Enviar requisição para API em lote
-        const response = await axios.post(batchOrdersApiUrl, batchPayload, {
+        const response = await axios.post(ordersApiUrl, batchPayload, {
           headers: {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
