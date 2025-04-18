@@ -1,7 +1,13 @@
 import Bull, { Queue, JobOptions } from 'bull';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
-import { ORDERS_API_URL, ORDERS_API_KEY, cleanUrl } from '@/lib/constants';
+import { 
+  ORDERS_API_URL, 
+  ORDERS_BATCH_API_URL,
+  ORDERS_API_KEY, 
+  cleanUrl,
+  validateApiUrl
+} from '@/lib/constants';
 
 // Interface para dados de post
 interface PostData {
@@ -102,11 +108,43 @@ function setupProcessors() {
     
     // Verificar se a transação já foi processada
     if (transaction.processed_at) {
-      console.log(`⚠️ [Queue] Transação ${transactionId} já foi processada anteriormente`);
+      console.log(`⚠️ [Queue] Transação ${transactionId} já foi processada anteriormente em ${transaction.processed_at}`);
       return {
         success: true,
         alreadyProcessed: true,
-        transactionId
+        transactionId,
+        processedAt: transaction.processed_at
+      };
+    }
+    
+    // Verificar se já existe um log de resposta para esta transação
+    const existingResponseLog = await prisma.providerResponseLog.findFirst({
+      where: {
+        transaction_id: transactionId,
+        status: 'success'
+      }
+    });
+    
+    if (existingResponseLog) {
+      console.log(`⚠️ [Queue] Já existe um log de resposta para a transação ${transactionId}`);
+      console.log(`⚠️ [Queue] Data do log anterior: ${existingResponseLog.created_at}`);
+      
+      // Atualizar a transação como processada se não estiver marcada
+      if (!transaction.processed_at) {
+        await prisma.transaction.update({
+          where: { id: transactionId },
+          data: {
+            processed_at: new Date()
+          }
+        });
+        console.log(`⚠️ [Queue] Transação ${transactionId} marcada como processada agora`);
+      }
+      
+      return {
+        success: true,
+        alreadyProcessed: true,
+        transactionId,
+        responseLogId: existingResponseLog.id
       };
     }
     
@@ -229,56 +267,159 @@ function setupProcessors() {
         console.log(JSON.stringify(batchPayload, null, 2));
         
         // Verificar se o endpoint está configurado corretamente para batch ou create
-        let endpoint = ORDERS_API_URL;
-        // Se o endpoint não contém "batch" e estamos enviando múltiplos posts, ajustar para o endpoint de batch
-        if (posts.length > 1 && !endpoint.includes('/batch')) {
-          endpoint = endpoint.replace('/create', '/batch');
-          console.log(`📦 [Queue] Ajustando endpoint para batch: ${endpoint}`);
+        let endpoint = posts.length > 1 ? ORDERS_BATCH_API_URL : ORDERS_API_URL;
+        console.log(`📦 [Queue] Endpoint selecionado para ${posts.length} posts: ${endpoint}`);
+        
+        // Verificar se o endpoint é válido
+        if (!validateApiUrl(endpoint)) {
+          console.error(`❌ [Queue] Endpoint inválido: ${endpoint}`);
+          // Tentar corrigir o endpoint
+          if (endpoint.endsWith('/api')) {
+            endpoint = `${endpoint}/orders/create`;
+            console.log(`📦 [Queue] Corrigindo endpoint para: ${endpoint}`);
+            
+            // Se for necessário batch, substituir novamente
+            if (posts.length > 1) {
+              endpoint = endpoint.replace(/\/create$/, '/batch');
+              console.log(`📦 [Queue] Reajustando endpoint para batch: ${endpoint}`);
+            }
+          }
         }
+        
+        // Verificar se já existe um job em processamento para evitar duplicação
+        // Usar idempotency key única baseada no transaction_id
+        const idempotencyKey = `batch_${transaction.id}_${Date.now()}`;
+        console.log(`📦 [Queue] Usando chave de idempotência: ${idempotencyKey}`);
         
         // Enviar requisição para API em lote
-        const response = await axios.post(endpoint, batchPayload, {
-          headers: {
-            'Authorization': `Bearer ${ORDERS_API_KEY}`,
-            'Content-Type': 'application/json',
-            'Idempotency-Key': `batch_${transaction.id}_${Date.now()}`
-          }
-        });
-        
-        // Verificar resposta
-        if (!response.data || !response.data.success) {
-          throw new Error(`Falha ao processar lote de pedidos: ${JSON.stringify(response.data)}`);
-        }
-        
-        // Extrair IDs de pedidos criados
-        if (response.data.orders && Array.isArray(response.data.orders)) {
-          createdOrderIds = response.data.orders.map((order: any) => order.id);
+        try {
+          const response = await axios.post(endpoint, batchPayload, {
+            headers: {
+              'Authorization': `Bearer ${ORDERS_API_KEY}`,
+              'Content-Type': 'application/json',
+              'Idempotency-Key': idempotencyKey
+            }
+          });
           
-          // Mapear respostas
-          providerResponses = response.data.orders.map((order: any) => ({
-            order_id: order.id,
-            success: true,
-            data: order
-          }));
-        }
-        
-        // Salvar a resposta completa do provedor em um log específico
-        await prisma.providerResponseLog.create({
-          data: {
-            transaction_id: transaction.id,
-            payment_request_id: paymentRequestId,
-            provider_id: provider_id || 'unknown',
-            service_id: serviceId,
-            order_id: createdOrderIds.join(','),
-            response_data: JSON.stringify(response.data),
-            status: response.data.success ? 'success' : 'error',
-            created_at: new Date()
+          // Verificar resposta
+          if (!response.data || !response.data.success) {
+            throw new Error(`Falha ao processar lote de pedidos: ${JSON.stringify(response.data)}`);
           }
-        }).catch((error: Error) => {
-          console.warn(`⚠️ [Queue] Erro ao salvar log de resposta do provedor: ${error.message}`);
-        });
-        
-        console.log(`✅ [Queue] ${createdOrderIds.length} pedidos criados em lote com sucesso: ${createdOrderIds.join(', ')}`);
+          
+          // Extrair IDs de pedidos criados
+          if (response.data.orders && Array.isArray(response.data.orders)) {
+            createdOrderIds = response.data.orders.map((order: any) => order.id);
+            
+            // Mapear respostas
+            providerResponses = response.data.orders.map((order: any) => ({
+              order_id: order.id,
+              success: true,
+              data: order
+            }));
+          } else if (response.data.order_id) {
+            // Se for apenas um pedido
+            createdOrderIds.push(response.data.order_id);
+            
+            // Salvar resposta para uso posterior
+            providerResponses.push({
+              order_id: response.data.order_id,
+              success: true,
+              data: response.data
+            });
+          }
+          
+          // Salvar a resposta completa do provedor em um log específico
+          await prisma.providerResponseLog.create({
+            data: {
+              transaction_id: transaction.id,
+              payment_request_id: paymentRequestId,
+              provider_id: provider_id || 'unknown',
+              service_id: serviceId,
+              order_id: createdOrderIds.join(','),
+              response_data: JSON.stringify(response.data),
+              status: response.data.success ? 'success' : 'error',
+              created_at: new Date()
+            }
+          }).catch((logError: Error) => {
+            console.warn(`⚠️ [Queue] Erro ao salvar log de resposta do provedor: ${logError.message}`);
+          });
+          
+          console.log(`✅ [Queue] ${createdOrderIds.length} pedidos criados em lote com sucesso: ${createdOrderIds.join(', ')}`);
+        } catch (error: any) {
+          // Verificar se é um erro 404
+          if (error.response && error.response.status === 404) {
+            console.error(`❌ [Queue] Erro 404: URL não encontrada: ${endpoint}`);
+            
+            // Tentar reconstruir URL completa como fallback
+            console.log(`🔄 [Queue] Tentando URL alternativa...`);
+            
+            // Extrair o domínio base
+            const baseUrl = endpoint.match(/^(https?:\/\/[^\/]+)/)?.[1] || 'https://orders.viralizamos.com';
+            const fallbackEndpoint = posts.length > 1 
+              ? `${baseUrl}/api/orders/batch` 
+              : `${baseUrl}/api/orders/create`;
+            
+            console.log(`🔄 [Queue] Tentando com URL fallback: ${fallbackEndpoint}`);
+            
+            const fallbackResponse = await axios.post(fallbackEndpoint, batchPayload, {
+              headers: {
+                'Authorization': `Bearer ${ORDERS_API_KEY}`,
+                'Content-Type': 'application/json',
+                'Idempotency-Key': `${idempotencyKey}_fallback`
+              }
+            });
+            
+            console.log(`✅ [Queue] Sucesso com URL fallback!`);
+            
+            // Verificar resposta do fallback
+            if (!fallbackResponse.data || !fallbackResponse.data.success) {
+              throw new Error(`Falha ao processar lote com URL fallback: ${JSON.stringify(fallbackResponse.data)}`);
+            }
+            
+            // Extrair IDs de pedidos criados com fallback
+            if (fallbackResponse.data.orders && Array.isArray(fallbackResponse.data.orders)) {
+              createdOrderIds = fallbackResponse.data.orders.map((order: any) => order.id);
+              
+              // Mapear respostas
+              providerResponses = fallbackResponse.data.orders.map((order: any) => ({
+                order_id: order.id,
+                success: true,
+                data: order
+              }));
+            } else if (fallbackResponse.data.order_id) {
+              // Se for apenas um pedido
+              createdOrderIds.push(fallbackResponse.data.order_id);
+              
+              // Salvar resposta para uso posterior
+              providerResponses.push({
+                order_id: fallbackResponse.data.order_id,
+                success: true,
+                data: fallbackResponse.data
+              });
+            }
+            
+            // Salvar a resposta completa do provedor em um log específico
+            await prisma.providerResponseLog.create({
+              data: {
+                transaction_id: transaction.id,
+                payment_request_id: paymentRequestId,
+                provider_id: provider_id || 'unknown',
+                service_id: serviceId,
+                order_id: createdOrderIds.join(','),
+                response_data: JSON.stringify(fallbackResponse.data),
+                status: fallbackResponse.data.success ? 'success' : 'error',
+                created_at: new Date()
+              }
+            }).catch((logError: Error) => {
+              console.warn(`⚠️ [Queue] Erro ao salvar log de resposta do provedor: ${logError.message}`);
+            });
+            
+            console.log(`✅ [Queue] ${createdOrderIds.length} pedidos criados com URL fallback: ${createdOrderIds.join(', ')}`);
+          } else {
+            console.error(`❌ [Queue] Erro ao criar pedidos em lote:`, error);
+            throw error;
+          }
+        }
       } catch (error) {
         console.error(`❌ [Queue] Erro ao criar pedidos em lote:`, error);
         throw error;
@@ -301,7 +442,22 @@ function setupProcessors() {
         // Construir URL do perfil ou target
         const targetUrl = cleanUrl(`https://instagram.com/${targetUsername}`);
         
-        const response = await axios.post(ORDERS_API_URL, {
+        // Verificar se o endpoint é válido
+        let endpoint = ORDERS_API_URL;
+        if (!validateApiUrl(endpoint)) {
+          console.error(`❌ [Queue] Endpoint inválido: ${endpoint}`);
+          // Tentar corrigir o endpoint
+          if (endpoint.endsWith('/api')) {
+            endpoint = `${endpoint}/orders/create`;
+            console.log(`📦 [Queue] Corrigindo endpoint para: ${endpoint}`);
+          }
+        }
+        
+        // Chave de idempotência única para este pedido
+        const idempotencyKey = `order_${transaction.id}_${Date.now()}`;
+        console.log(`🔑 [Queue] Usando chave de idempotência: ${idempotencyKey}`);
+        
+        const response = await axios.post(endpoint, {
           transaction_id: transaction.id,
           service_id: serviceId,
           provider_id: provider_id, // ID do provedor de serviços
@@ -322,7 +478,7 @@ function setupProcessors() {
           headers: {
             'Authorization': `Bearer ${ORDERS_API_KEY}`,
             'Content-Type': 'application/json',
-            'Idempotency-Key': externalId // Garantir que não haja duplicação
+            'Idempotency-Key': idempotencyKey // Garantir que não haja duplicação
           }
         });
         
