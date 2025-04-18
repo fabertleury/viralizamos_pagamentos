@@ -3,6 +3,8 @@ import { getQueue } from '@/lib/queue';
 import { isRedisConnected } from '@/lib/redis';
 import { checkApiKey } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 // Interface para jobs
 interface JobData {
   id: string;

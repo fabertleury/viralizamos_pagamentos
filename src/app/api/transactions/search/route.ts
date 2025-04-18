@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { TransactionResponse, Transaction, PaymentRequest } from '@/lib/types';
 import { isValidUuid, getSingleValue } from '@/lib/helpers';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Endpoint para buscar transações
  * Permite buscar por ID, ID externo ou token

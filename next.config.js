@@ -71,6 +71,14 @@ const nextConfig = {
       },
     ],
   },
+  experimental: {
+    // Desativar geração estática para todos os endpoints de API
+    // Isso resolve os erros Dynamic Server Usage relacionados a request.url e headers
+    serverComponentsExternalPackages: [],
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
 };
 
 module.exports = nextConfig; 

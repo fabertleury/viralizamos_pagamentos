@@ -14,7 +14,7 @@ const ORDERS_SERVICE_URL = cleanUrl(process.env.ORDERS_SERVICE_URL || 'https://o
 
 // URL da API de Orders (com endpoint base)
 export const ORDERS_API_URL = cleanUrl(
-  process.env.ORDERS_API_URL || 'https://orders.viralizamos.com/api'
+  process.env.ORDERS_API_URL || 'https://orders.viralizamos.com/api/orders/create'
 );
 
 // Chave de API para o serviço de Orders
@@ -32,7 +32,7 @@ export const REPOSICAO_API_KEY = process.env.REPOSICAO_API_KEY || 'vrlzms_reposi
 export const ORDERS_WEBHOOK_URL = `${ORDERS_SERVICE_URL}/api/orders/webhook/payment`;
 
 // URLs de fallback para desenvolvimento local
-export const LOCAL_ORDERS_API_URL = 'http://localhost:3001/api';
+export const LOCAL_ORDERS_API_URL = 'http://localhost:3001/api/orders/create';
 
 // Função para determinar se estamos em ambiente de produção
 export function isProduction(): boolean {

@@ -228,8 +228,16 @@ function setupProcessors() {
         console.log(`📦 [Queue] Enviando payload em lote com ${posts.length} posts:`);
         console.log(JSON.stringify(batchPayload, null, 2));
         
+        // Verificar se o endpoint está configurado corretamente para batch ou create
+        let endpoint = ORDERS_API_URL;
+        // Se o endpoint não contém "batch" e estamos enviando múltiplos posts, ajustar para o endpoint de batch
+        if (posts.length > 1 && !endpoint.includes('/batch')) {
+          endpoint = endpoint.replace('/create', '/batch');
+          console.log(`📦 [Queue] Ajustando endpoint para batch: ${endpoint}`);
+        }
+        
         // Enviar requisição para API em lote
-        const response = await axios.post(ORDERS_API_URL, batchPayload, {
+        const response = await axios.post(endpoint, batchPayload, {
           headers: {
             'Authorization': `Bearer ${ORDERS_API_KEY}`,
             'Content-Type': 'application/json',

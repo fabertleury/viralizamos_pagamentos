@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyApiKeyAuth } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Endpoint para fornecer estatísticas para o dashboard do painel administrativo
  */
