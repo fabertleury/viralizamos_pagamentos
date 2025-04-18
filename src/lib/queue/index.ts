@@ -163,7 +163,7 @@ function setupProcessors() {
     const targetUsername = paymentRequest.profile_username || "unspecified_user";
     
     // Enviar para API do sistema de orders
-    const ordersApiUrl = process.env.ORDERS_API_URL || 'https://orders.viralizamos.com/api/orders/create';
+    const ordersApiUrl = (process.env.ORDERS_API_URL || 'https://orders.viralizamos.com/api').replace(/;$/, '');
     const apiKey = process.env.ORDERS_API_KEY || 'default_key';
     
     console.log(`🔗 [Queue] Enviando para ${ordersApiUrl}`);

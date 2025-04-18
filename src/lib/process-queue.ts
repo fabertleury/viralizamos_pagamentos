@@ -70,7 +70,7 @@ export async function processQueue() {
         }
         
         // Enviar para API do sistema de pedidos
-        const orderApiEndpoint = process.env.ORDERS_API_URL || 'https://api.viralizamos.com/orders';
+        const orderApiEndpoint = (process.env.ORDERS_API_URL || 'https://api.viralizamos.com/orders').replace(/;$/, '');
         const response = await axios.post(`${orderApiEndpoint}/create`, {
           transaction_id: transaction.id,
           service_id: item.payment_request.service_id,

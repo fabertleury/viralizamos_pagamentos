@@ -93,7 +93,7 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
     );
 
     // Determinar URL do serviço de orders
-    const ordersServiceUrl = process.env.ORDERS_SERVICE_URL || 'https://orders.viralizamos.com';
+    const ordersServiceUrl = (process.env.ORDERS_SERVICE_URL || 'https://orders.viralizamos.com').replace(/;$/, '');
     const webhookUrl = `${ordersServiceUrl}/api/orders/webhook/payment`;
 
     console.log(`[OrdersService] Notificando serviço de orders em ${webhookUrl}`);
