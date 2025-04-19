@@ -3,6 +3,31 @@ import { PrismaClient } from '@prisma/client';
 import axios, { AxiosError } from 'axios';
 import { createClient } from '@supabase/supabase-js';
 
+// Constante para a URL da API de Orders
+const ORDERS_API_URL = process.env.ORDERS_API_URL || 'https://api.viralizamos.com.br/orders/create';
+
+// Definindo o tipo para fallback providers
+type ProviderConfig = {
+  api_url: string;
+  api_key: string;
+};
+
+type FallbackProviders = {
+  [key: string]: ProviderConfig;
+};
+
+// Definindo os providers de fallback com tipagem correta
+const FALLBACK_PROVIDERS: FallbackProviders = {
+  followerzz: { 
+    api_url: 'https://followerzz.com/api/v2',
+    api_key: process.env.FOLLOWERZZ_API_KEY || ''
+  },
+  smmpanel: {
+    api_url: 'https://smmpanel.com/api/v2',
+    api_key: process.env.SMMPANEL_API_KEY || ''
+  }
+};
+
 const prisma = new PrismaClient();
 
 // Inicializar cliente Supabase apenas se as variáveis de ambiente estiverem disponíveis
@@ -23,18 +48,6 @@ interface Provider {
   api_key: string;
   active: boolean;
 }
-
-// Simulação de provedores caso não tenhamos acesso ao Supabase
-const FALLBACK_PROVIDERS = {
-  'followerzz': {
-    api_url: 'https://followerzz.com/api/v2',
-    api_key: process.env.FOLLOWERZZ_API_KEY || 'demo_key',
-  },
-  'smmpanel': {
-    api_url: 'https://smmpanel.com/api/v2',
-    api_key: process.env.SMMPANEL_API_KEY || 'demo_key',
-  }
-};
 
 export async function POST(request: NextRequest) {
   try {
@@ -126,35 +139,7 @@ export async function POST(request: NextRequest) {
       paymentRequest.status = 'pending'; // Atualizar o objeto local também
     }
     
-    // Verificar se o pedido já está marcado como concluído
-    if (paymentRequest.status === 'completed') {
-      console.log(`[API] Pedido ${orderId} já está concluído. Mantendo status.`);
-      
-      return NextResponse.json({
-        success: true,
-        order: {
-          id: orderId,
-          status: 'completed',
-          metadata: {
-            status_updates: [
-              {
-                timestamp: new Date().toISOString(),
-                previous_status: 'completed',
-                new_status: 'completed',
-                source: 'status_check'
-              }
-            ]
-          }
-        },
-        provider_status: 'Completed',
-        charge: paymentRequest.amount.toString(),
-        start_count: '0',
-        remains: '0'
-      });
-    }
-    
-    // Extrair dados do provedor
-    // Este é um ponto crítico: precisamos saber qual provedor e qual ID do pedido no provedor
+    // Extrair dados do provedor - Precisamos tentar verificar o status real antes de devolver "concluído"
     let providerName = '';
     let externalOrderId = null;
     let serviceId = '';
@@ -192,9 +177,49 @@ export async function POST(request: NextRequest) {
           } else if (additionalData.external_order_id) {
             externalOrderId = additionalData.external_order_id;
           }
+          
+          // Se temos orders_microservice_order_id, usá-lo para a verificação
+          if (additionalData.orders_microservice_order_id) {
+            externalOrderId = additionalData.orders_microservice_order_id;
+          } else if (additionalData.processed_orders && additionalData.processed_orders.length > 0) {
+            externalOrderId = additionalData.processed_orders[0];
+          }
         } catch (e) {
           console.error(`[API] Erro ao parsear additional_data para ${orderId}:`, e);
         }
+      }
+    }
+    
+    // Se não temos o ID do pedido no provedor, mas o pedido está marcado como concluído, verificar diretamente no orders
+    if (!externalOrderId && paymentRequest.status === 'completed') {
+      try {
+        // Tentar buscar pelo transaction_id no orders microservice
+        if (latestTransaction?.id) {
+          const ordersApiUrl = `${ORDERS_API_URL.replace(/\/create$/, '/find')}?transaction_id=${latestTransaction.id}`;
+          console.log(`[API] Tentando verificar status no microservice orders: ${ordersApiUrl}`);
+          
+          const ordersResponse = await axios.get(ordersApiUrl);
+          
+          if (ordersResponse.data && ordersResponse.data.order) {
+            const orderFromMS = ordersResponse.data.order;
+            externalOrderId = orderFromMS.id;
+            
+            // Atualizar o additional_data com o ID do pedido no orders
+            const additionalData = paymentRequest.additional_data ? JSON.parse(paymentRequest.additional_data) : {};
+            additionalData.orders_microservice_order_id = externalOrderId;
+            
+            await prisma.paymentRequest.update({
+              where: { id: orderId },
+              data: { 
+                additional_data: JSON.stringify(additionalData)
+              }
+            });
+            
+            console.log(`[API] ID do pedido no orders atualizado: ${externalOrderId}`);
+          }
+        }
+      } catch (error) {
+        console.error(`[API] Erro ao verificar pedido no orders microservice:`, error);
       }
     }
     
@@ -320,94 +345,197 @@ export async function POST(request: NextRequest) {
     
     console.log(`[API] Consultando status do pedido ${externalOrderId} no provedor ${providerName}`);
     
-    // Preparar para fazer a chamada real à API do provedor
-    let providerResponse: Record<string, any> = {
-      charge: '0',
-      start_count: '0',
-      status: 'Unknown',
-      remains: '0',
-      currency: 'USD'
-    };
+    // Consultar o status no provedor externo
+    let providerStatus = '';
+    let providerResponse = null;
     
     try {
-      // Fazer a chamada no formato correto para a API do provedor
-      const response = await axios.post(provider.api_url, {
-        key: provider.api_key,
-        action: 'status',
-        order: externalOrderId
-      });
+      // Obter dados do provedor - primeiro tentar do Supabase, depois do fallback
+      let providerData: any = null;
       
-      providerResponse = response.data;
-      
-      console.log(`[API] Resposta do provedor ${providerName} para pedido ${externalOrderId}:`, providerResponse);
-      
-      // Salvar a resposta do provedor no log
-      await prisma.providerResponseLog.create({
-        data: {
-          payment_request_id: orderId,
-          transaction_id: latestTransaction.id,
-          provider_id: providerName,
-          service_id: serviceId || 'unknown',
-          order_id: externalOrderId,
-          response_data: JSON.stringify(providerResponse),
-          status: providerResponse.status || 'unknown'
+      if (canUseSupabase && supabase) {
+        console.log(`[API] Buscando dados do provedor ${providerName} no Supabase`);
+        const { data: providers } = await supabase
+          .from('providers')
+          .select('*')
+          .eq('id', providerName)
+          .eq('active', true)
+          .single();
+          
+        if (providers) {
+          providerData = providers;
         }
-      });
-    } catch (error) {
-      const axiosError = error as AxiosError;
-      console.error(`[API] Erro ao consultar provedor ${providerName} para pedido ${externalOrderId}:`, axiosError.message);
+      }
       
-      // Em caso de erro, manter os valores padrão
-      providerResponse.status = 'Error: ' + axiosError.message;
-    }
-    
-    // Mapear o status do provedor para o status interno
-    const providerStatus = providerResponse.status || 'unknown';
-    const orderStatus = mapProviderStatusToOrderStatus(providerStatus, paymentRequest.status);
-    
-    // Atualizar o status do pedido no banco de dados se for diferente
-    if (orderStatus !== paymentRequest.status) {
-      await prisma.paymentRequest.update({
-        where: { id: orderId },
-        data: { status: orderStatus }
-      });
+      // Se não encontramos no Supabase, usar fallback
+      if (!providerData && FALLBACK_PROVIDERS[providerName]) {
+        providerData = {
+          ...FALLBACK_PROVIDERS[providerName],
+          id: providerName,
+          name: providerName,
+          active: true
+        };
+      }
       
-      console.log(`[API] Status do pedido ${orderId} atualizado de ${paymentRequest.status} para ${orderStatus}`);
-    }
-    
-    // Retornar resposta com os dados atualizados do provedor
-    return NextResponse.json({
-      success: true,
-      order: {
-        id: orderId,
-        status: orderStatus,
-        metadata: {
-          status_updates: [
-            {
-              timestamp: new Date().toISOString(),
-              previous_status: paymentRequest.status,
-              new_status: orderStatus,
-              source: 'status_check'
+      if (!providerData) {
+        throw new Error(`Provedor ${providerName} não encontrado ou inativo`);
+      }
+      
+      // Verificar status do pedido no provedor
+      console.log(`[API] Verificando status do pedido ${externalOrderId} no provedor ${providerName}`);
+      
+      // Tenta consultar no microservice orders
+      try {
+        const ordersApiUrl = `${ORDERS_API_URL.replace(/\/create$/, '/status')}?order_id=${externalOrderId}`;
+        console.log(`[API] Consultando status em: ${ordersApiUrl}`);
+        
+        const ordersResponse = await axios.get(ordersApiUrl);
+        providerResponse = ordersResponse.data;
+        
+        if (providerResponse && providerResponse.status) {
+          providerStatus = providerResponse.status;
+          console.log(`[API] Status obtido do orders microservice: ${providerStatus}`);
+        }
+      } catch (error) {
+        console.warn(`[API] Não foi possível verificar status no orders microservice:`, error);
+        
+        // Tentar diretamente no provedor como fallback
+        console.log(`[API] Tentando verificar status diretamente no provedor: ${providerData.id}`);
+        
+        // Fazer requisição POST para o provedor conforme documentação
+        try {
+          const response = await axios.post(providerData.api_url, {
+            key: providerData.api_key,
+            action: 'status',
+            order: externalOrderId
+          });
+          
+          providerResponse = response.data;
+          
+          if (typeof providerResponse === 'object' && providerResponse !== null) {
+            providerStatus = providerResponse.status || '';
+            console.log(`[API] Status obtido do provedor via POST: ${providerStatus}`);
+          } else {
+            console.warn(`[API] Resposta inesperada do provedor:`, providerResponse);
+          }
+        } catch (providerError) {
+          console.error(`[API] Erro ao consultar provedor diretamente:`, providerError);
+          
+          // Tentar requisição GET como fallback final (método legado)
+          try {
+            const apiEndpoint = `${providerData.api_url}?key=${providerData.api_key}&action=status&order=${externalOrderId}`;
+            console.log(`[API] Tentando método GET alternativo para o provedor`);
+            
+            const getResponse = await axios.get(apiEndpoint);
+            providerResponse = getResponse.data;
+            
+            if (typeof providerResponse === 'object' && providerResponse !== null) {
+              providerStatus = providerResponse.status || '';
+              console.log(`[API] Status obtido do provedor via GET: ${providerStatus}`);
             }
-          ]
+          } catch (getError) {
+            console.error(`[API] Falha em todas as tentativas de consulta ao provedor:`, getError);
+          }
         }
-      },
-      provider_status: providerStatus,
-      charge: providerResponse.charge || '0',
-      start_count: providerResponse.start_count || '0',
-      remains: providerResponse.remains || '0',
-      currency: providerResponse.currency || 'USD'
-    });
-  } catch (error: any) {
-    console.error('[API] Erro ao consultar status do pedido:', error);
+      }
+      
+      console.log(`[API] Status obtido do provedor para ${orderId}: ${providerStatus}`);
+      
+      // Mapear o status do provedor para nosso formato interno
+      let newStatus = paymentRequest.status;
+      
+      if (providerStatus) {
+        if (['completed', 'Complete', 'Completed', 'success', 'Success'].includes(providerStatus)) {
+          newStatus = 'completed';
+        } else if (['in progress', 'inprogress', 'In progress', 'processing', 'Processing'].includes(providerStatus)) {
+          newStatus = 'processing';
+        } else if (['partial', 'Partial'].includes(providerStatus)) {
+          newStatus = 'partial';
+        } else if (['canceled', 'cancelled', 'Canceled', 'Cancelled', 'failed', 'Failed'].includes(providerStatus)) {
+          newStatus = 'failed';
+        } else if (['pending', 'Pending'].includes(providerStatus)) {
+          newStatus = 'pending';
+        }
+      }
+      
+      // Atualizar status do pedido se houver mudança
+      if (newStatus !== paymentRequest.status) {
+        console.log(`[API] Atualizando status do pedido ${orderId} de ${paymentRequest.status} para ${newStatus}`);
+        
+        await prisma.paymentRequest.update({
+          where: { id: orderId },
+          data: { 
+            status: newStatus
+            // O campo updated_at é atualizado automaticamente pelo Prisma via @updatedAt
+          }
+        });
+        
+        // Registrar a mudança de status na tabela de logs de webhook
+        await prisma.webhookLog.create({
+          data: {
+            type: 'status_change',
+            event: 'check_status_api',
+            data: JSON.stringify({
+              payment_request_id: orderId,
+              previous_status: paymentRequest.status,
+              new_status: newStatus,
+              provider_response: providerResponse
+            }),
+            processed: true,
+            created_at: new Date()
+          }
+        });
+        
+        // Atualizar o status local para a resposta
+        paymentRequest.status = newStatus;
+      }
+      
+      // Formatar a resposta com os dados obtidos conforme o exemplo da documentação
+      return NextResponse.json({
+        success: true,
+        order: {
+          id: orderId,
+          status: paymentRequest.status,
+          metadata: {
+            external_order_id: externalOrderId,
+            provider: providerName,
+            provider_response: providerResponse,
+            amount: paymentRequest.amount.toString(),
+            updated_at: new Date().toISOString()
+          }
+        },
+        charge: providerResponse?.charge || paymentRequest.amount.toString(),
+        start_count: providerResponse?.start_count || '0',
+        remains: providerResponse?.remains || '0',
+        status: providerStatus || 'Unknown',
+        currency: providerResponse?.currency || 'USD'
+      });
+      
+    } catch (error) {
+      console.error(`[API] Erro ao verificar status do pedido ${orderId}:`, error);
+      
+      const errorMessage = error instanceof AxiosError 
+        ? `Erro na API do provedor: ${error.message}`
+        : `Erro ao verificar status: ${(error as Error).message}`;
+      
+      return NextResponse.json({
+        success: false,
+        error: errorMessage,
+        order: {
+          id: orderId,
+          status: paymentRequest.status
+        }
+      }, { status: 200 }); // Retornar 200 mesmo com erro para não quebrar a UI
+    }
+  } catch (error) {
+    console.error('[API] Erro ao verificar status do pedido:', error);
     
     return NextResponse.json(
-      { 
-        error: 'Erro ao consultar status do pedido', 
-        details: error.message 
-      },
+      { error: `Erro ao verificar status: ${(error as Error).message}` },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }
 
