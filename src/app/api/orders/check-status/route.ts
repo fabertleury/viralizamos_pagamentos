@@ -51,7 +51,7 @@ interface Provider {
 
 export async function POST(request: NextRequest) {
   try {
-    const { orderId } = await request.json();
+    const { orderId, forceUpdate } = await request.json();
 
     if (!orderId) {
       return NextResponse.json(
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[API] Recebido pedido para verificar status: ${orderId}`);
+    console.log(`[API] Recebido pedido para verificar status: ${orderId}, forceUpdate: ${forceUpdate}`);
     
     // Buscar o pedido no banco de dados
     const paymentRequest = await prisma.paymentRequest.findUnique({
@@ -345,6 +345,64 @@ export async function POST(request: NextRequest) {
     
     console.log(`[API] Consultando status do pedido ${externalOrderId} no provedor ${providerName}`);
     
+    // Se não é uma atualização forçada e já temos dados recentes, retorna o status atual sem consultar o provedor
+    if (!forceUpdate) {
+      try {
+        // Verificar se já temos uma verificação de status recente (menos de 5 minutos)
+        const recentStatusCheck = await prisma.webhookLog.findFirst({
+          where: {
+            type: 'status_change',
+            event: 'check_status_api',
+            data: {
+              contains: orderId
+            },
+            created_at: {
+              gte: new Date(Date.now() - 5 * 60 * 1000) // Últimos 5 minutos
+            }
+          },
+          orderBy: {
+            created_at: 'desc'
+          }
+        });
+
+        // Se temos uma verificação recente, retornar os dados sem consultar o provedor
+        if (recentStatusCheck) {
+          console.log(`[API] Usando dados de status recentes para ${orderId}, última verificação há ${Math.round((Date.now() - recentStatusCheck.created_at.getTime()) / 1000)} segundos`);
+          
+          try {
+            const statusData = JSON.parse(recentStatusCheck.data);
+            return NextResponse.json({
+              success: true,
+              order: {
+                id: orderId,
+                status: paymentRequest.status,
+                metadata: {
+                  external_order_id: statusData.external_order_id || externalOrderId,
+                  provider: providerName,
+                  cached: true,
+                  last_checked: recentStatusCheck.created_at.toISOString(),
+                  amount: paymentRequest.amount.toString()
+                }
+              },
+              charge: paymentRequest.amount.toString(),
+              start_count: statusData.start_count || '0',
+              remains: statusData.remains || '0',
+              status: statusData.provider_status || 'Unknown',
+              currency: statusData.currency || 'USD'
+            });
+          } catch (parseError) {
+            console.warn(`[API] Erro ao parsear dados de status recentes:`, parseError);
+            // Continuar para fazer uma nova consulta
+          }
+        }
+      } catch (error) {
+        console.error(`[API] Erro ao verificar status recente:`, error);
+        // Continuar para fazer uma nova consulta
+      }
+    } else {
+      console.log(`[API] Forçando atualização de status para ${orderId} conforme solicitado pelo cliente`);
+    }
+    
     // Consultar o status no provedor externo
     let providerStatus = '';
     let providerResponse = null;
@@ -458,8 +516,8 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // Atualizar status do pedido se houver mudança
-      if (newStatus !== paymentRequest.status) {
+      // Atualizar status do pedido se houver mudança e o cliente solicitou atualização
+      if (newStatus !== paymentRequest.status && forceUpdate) {
         console.log(`[API] Atualizando status do pedido ${orderId} de ${paymentRequest.status} para ${newStatus}`);
         
         await prisma.paymentRequest.update({
@@ -479,7 +537,12 @@ export async function POST(request: NextRequest) {
               payment_request_id: orderId,
               previous_status: paymentRequest.status,
               new_status: newStatus,
-              provider_response: providerResponse
+              provider_response: providerResponse,
+              external_order_id: externalOrderId,
+              start_count: providerResponse?.start_count || '0',
+              remains: providerResponse?.remains || '0',
+              provider_status: providerStatus || 'Unknown',
+              currency: providerResponse?.currency || 'USD'
             }),
             processed: true,
             created_at: new Date()
@@ -488,6 +551,25 @@ export async function POST(request: NextRequest) {
         
         // Atualizar o status local para a resposta
         paymentRequest.status = newStatus;
+      } else if (newStatus !== paymentRequest.status && !forceUpdate) {
+        console.log(`[API] Status diferente detectado (${paymentRequest.status} -> ${newStatus}), mas não atualizando porque forceUpdate=false`);
+        
+        // Registrar que houve uma diferença de status, mas não atualizamos
+        await prisma.webhookLog.create({
+          data: {
+            type: 'status_detected',
+            event: 'check_status_api_no_update',
+            data: JSON.stringify({
+              payment_request_id: orderId,
+              current_status: paymentRequest.status,
+              detected_status: newStatus,
+              provider_response: providerResponse,
+              message: 'Status diferente detectado, mas não atualizado porque forceUpdate=false'
+            }),
+            processed: true,
+            created_at: new Date()
+          }
+        });
       }
       
       // Formatar a resposta com os dados obtidos conforme o exemplo da documentação
@@ -501,7 +583,8 @@ export async function POST(request: NextRequest) {
             provider: providerName,
             provider_response: providerResponse,
             amount: paymentRequest.amount.toString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            force_update_used: forceUpdate || false
           }
         },
         charge: providerResponse?.charge || paymentRequest.amount.toString(),
