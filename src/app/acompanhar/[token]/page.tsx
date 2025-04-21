@@ -314,6 +314,7 @@ export default function OrderDetailPage() {
         },
         body: JSON.stringify({
           orderId,
+          forceUpdate: true // Forçar atualização do status no banco de dados
         }),
       });
       

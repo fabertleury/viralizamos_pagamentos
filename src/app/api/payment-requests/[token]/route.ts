@@ -85,6 +85,36 @@ export async function GET(
       ? paymentRequest.transactions[0]
       : null;
 
+    // Se o pedido estiver com pagamento aprovado, fazer uma verificação no provedor
+    // apenas para obter o status atual, sem modificá-lo no banco de dados
+    if (transaction && transaction.status === 'approved' && paymentRequest.status !== 'unpaid') {
+      try {
+        // Chamar a API de verificação de status, mas sem forçar atualização
+        const response = await fetch(`${process.env.API_BASE_URL || ''}/api/orders/check-status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: paymentRequest.id,
+            forceUpdate: false // Não forçar atualização no banco
+          }),
+        });
+
+        if (response.ok) {
+          const statusData = await response.json();
+          // Usar o status retornado apenas para exibição, não alteramos no banco
+          if (statusData.success && statusData.order && statusData.order.status) {
+            // Apenas logar a informação, mas não alterar o estado real no banco
+            console.log(`[API] Status atual no provedor: ${statusData.order.status}, status no banco: ${paymentRequest.status}`);
+          }
+        }
+      } catch (error) {
+        console.error('[API] Erro ao verificar status atualizado:', error);
+        // Não falhar o request principal se isso falhar
+      }
+    }
+
     // Processar additional_data para transformar o JSON em algo legível
     let formattedDescription = '';
     let formattedPosts = [];

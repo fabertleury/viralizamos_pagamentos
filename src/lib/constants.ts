@@ -18,7 +18,7 @@ export const ORDERS_API_URL = cleanUrl(
 );
 
 // Chave de API para o serviço de Orders
-export const ORDERS_API_KEY = process.env.ORDERS_API_KEY || 'vrlzms_api_3ac5b8def47921e6a8b459f45d3c7a2fedcb1284';
+export const ORDERS_API_KEY = process.env.ORDERS_API_KEY || '';
 
 // URL para reposições
 export const REPOSICAO_API_URL = cleanUrl(
@@ -26,7 +26,7 @@ export const REPOSICAO_API_URL = cleanUrl(
 );
 
 // Chave de API para reposições
-export const REPOSICAO_API_KEY = process.env.REPOSICAO_API_KEY || 'vrlzms_reposicao_3ac5b8def47921e6a8b459f45d3c7a2fedcb1284';
+export const REPOSICAO_API_KEY = process.env.REPOSICAO_API_KEY || '';
 
 // URL do endpoint batch
 export const ORDERS_BATCH_API_URL = ORDERS_API_URL.replace(/\/create$/, '/batch');
