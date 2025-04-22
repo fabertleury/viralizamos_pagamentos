@@ -123,7 +123,6 @@ model User {
   email      String    @unique
   name       String
   role       String    @default("user")
-  active     Boolean   @default(true)
   phone      String?
   last_login DateTime?
   created_at DateTime  @default(now())
@@ -131,7 +130,6 @@ model User {
 
   @@index([email])
   @@index([role])
-  @@index([active])
   @@map("users")
 }
 
