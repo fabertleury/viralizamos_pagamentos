@@ -37,30 +37,15 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Verificar se o usuário existe
-    let user = await db.user.findUnique({
-      where: { email }
-    });
-
-    // Se o usuário não existir mas tiver pedidos, criar registro
-    if (!user && paymentRequests.length > 0) {
-      const firstRequest = paymentRequests[0];
-      
-      try {
-        user = await db.user.create({
-          data: {
-            email,
-            name: firstRequest.customer_name || email.split('@')[0],
-            role: 'customer'
-          }
-        });
-        
-        console.log(`[API] Usuário criado para ${email} com base no histórico de pedidos`);
-      } catch (createError) {
-        console.error('[API] Erro ao criar usuário automaticamente:', createError);
-        // Continuar mesmo se houver erro na criação do usuário
-      }
-    }
+    // Em vez de verificar se o usuário existe no banco de pagamentos,
+    // vamos apenas usar os dados dos pedidos que já temos
+    const user = {
+      id: email, // Usar o email como ID temporário
+      name: paymentRequests.length > 0 ? paymentRequests[0].customer_name : email.split('@')[0],
+      email: email
+    };
+    
+    console.log(`[API] Usando dados de pedidos para ${email} sem acessar tabela de usuários`);
 
     // Formatar os pedidos para a resposta
     const orders = paymentRequests.map(request => {
