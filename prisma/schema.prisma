@@ -119,15 +119,19 @@ model ProcessingQueue {
 }
 
 model User {
-  id         String   @id @default(uuid())
-  email      String   @unique
+  id         String    @id @default(uuid())
+  email      String    @unique
   name       String
-  role       String   @default("user")
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  role       String    @default("user")
+  active     Boolean   @default(true)
+  phone      String?
+  last_login DateTime?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
 
   @@index([email])
   @@index([role])
+  @@index([active])
   @@map("users")
 }
 

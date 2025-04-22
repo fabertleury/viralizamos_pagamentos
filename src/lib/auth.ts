@@ -73,4 +73,21 @@ function extractApiKey(authHeader: string): string {
   
   // Se não estiver no formato esperado, considere o cabeçalho inteiro como a chave
   return authHeader;
+}
+
+/**
+ * Verifica se a chave de API fornecida é válida
+ * @param apiKey Chave de API para verificação
+ * @returns Uma Promise que resolve para true se a chave for válida, false caso contrário
+ */
+export async function verifyApiKey(apiKey: string): Promise<boolean> {
+  // Verificar com a API key esperada no .env
+  const expectedApiKey = process.env.PAYMENTS_API_KEY || '';
+  
+  if (!expectedApiKey) {
+    console.error('PAYMENTS_API_KEY não está configurada no .env');
+    return false;
+  }
+  
+  return apiKey === expectedApiKey;
 } 
