@@ -98,7 +98,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     // Obter dados do corpo da requisição
     const data = await request.json();
-    const { name, role, active } = data;
+    const { name, role } = data;
 
     // Atualizar usuário
     const updatedUser = await prisma.user.update({
@@ -106,7 +106,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       data: {
         ...(name && { name }),
         ...(role && { role }),
-        ...(active !== undefined && { active }),
       },
     });
 

@@ -34,7 +34,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || undefined;
-    const active = searchParams.get('active') ? searchParams.get('active') === 'true' : undefined;
     
     // Calcular offset para paginação
     const skip = (page - 1) * limit;
@@ -47,10 +46,7 @@ export async function GET(request: NextRequest) {
       whereClause.role = role;
     }
 
-    // Filtrar por status (ativo/inativo)
-    if (active !== undefined) {
-      whereClause.active = active;
-    }
+    // Nota: filtro por status (ativo/inativo) foi removido pois a coluna não existe no banco
 
     // Filtrar por termo de busca
     if (search) {
@@ -120,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     // Obter dados do corpo da requisição
     const data = await request.json();
-    const { email, name, role, phone, active } = data;
+    const { email, name, role, phone } = data;
 
     // Validar dados
     if (!email || !name) {
@@ -149,7 +145,6 @@ export async function POST(request: NextRequest) {
         name,
         role: role || 'user',
         phone,
-        active: active === undefined ? true : active,
       },
     });
 
