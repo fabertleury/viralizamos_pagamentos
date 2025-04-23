@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import NextImage from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
+import Script from 'next/script';
 import { 
   Box, 
   Container,
@@ -386,8 +387,44 @@ export default function PaymentPage() {
     });
   };
   
+  // Rastrear início do checkout
+  useEffect(() => {
+    // Rastrear início do processo de pagamento
+    if (typeof window !== 'undefined' && (window as any).gtag && !loading && payment) {
+      (window as any).gtag('event', 'begin_checkout', {
+        'send_to': 'AW-16904345570',
+        'value': payment.amount,
+        'currency': 'BRL',
+        'items': [
+          {
+            'id': token,
+            'name': payment.service_name,
+            'quantity': payment.quantity
+          }
+        ]
+      });
+    }
+  }, [payment, loading, token]);
+  
   return (
-    <Box minH="100vh" display="flex" flexDir="column" bg={bgColor}>
+    <Box minH="100vh" display="flex" flexDirection="column" bg={bgColor}>
+      {/* Tag para rastreamento de início de checkout */}
+      <Script id="google-checkout-tracking" strategy="afterInteractive">
+        {`
+          function gtag_report_begin_checkout(amount, service_name) {
+            gtag('event', 'begin_checkout', {
+              'send_to': 'AW-16904345570',
+              'value': amount,
+              'currency': 'BRL',
+              'items': [{
+                'id': '${token}',
+                'name': service_name
+              }]
+            });
+          }
+        `}
+      </Script>
+      
       <ViralizamosHeader />
       
       <Container maxW="container.xl" py={8} px={{ base: 4, md: 8 }} flex="1">

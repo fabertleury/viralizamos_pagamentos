@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { CheckCircle } from 'lucide-react';
 import { Header } from '@/components/ui/Header';
+import Script from 'next/script';
 import {
   Box,
   Container,
@@ -81,6 +82,21 @@ export default function AgradecimentoPage() {
     
     fetchPaymentInfo();
   }, [params.token]);
+
+  // Registrar conversão quando o pagamento for carregado
+  useEffect(() => {
+    if (payment && !loading && !error && payment.status === 'approved') {
+      // Disparar evento de conversão do Google Ads quando o pagamento for confirmado
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'conversion', {
+          'send_to': 'AW-16904345570/KdXMCNytnakZEMvCiZk9',
+          'value': payment.amount,
+          'currency': 'BRL',
+          'transaction_id': payment.id
+        });
+      }
+    }
+  }, [payment, loading, error]);
   
   // Formatar valor em reais
   const formatCurrency = (value: number) => {
@@ -92,6 +108,24 @@ export default function AgradecimentoPage() {
   
   return (
     <Box minH="100vh" display="flex" flexDir="column" bg={bgColor}>
+      {/* Tag de conversão do Google para a página de agradecimento */}
+      <Script id="google-conversion-tag" strategy="afterInteractive">
+        {`
+          function gtag_report_conversion(url) {
+            var callback = function () {
+              if (typeof(url) != 'undefined') {
+                window.location = url;
+              }
+            };
+            gtag('event', 'conversion', {
+                'send_to': 'AW-16904345570/KdXMCNytnakZEMvCiZk9',
+                'event_callback': callback
+            });
+            return false;
+          }
+        `}
+      </Script>
+
       <Header />
       
       <Container maxW="container.md" py={12} flex="1">
