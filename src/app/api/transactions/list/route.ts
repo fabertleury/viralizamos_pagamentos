@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyApiKeyAuth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,15 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
+    // Verificar autenticação
+    const authHeader = request.headers.get('authorization');
+    if (!verifyApiKeyAuth(authHeader)) {
+      return NextResponse.json(
+        { error: 'Acesso não autorizado' },
+        { status: 401 }
+      );
+    }
+
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '10');
