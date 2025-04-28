@@ -184,9 +184,26 @@ export async function POST(request: NextRequest) {
         console.error('[SOLUÇÃO INTEGRADA] Erro ao criar pagamento no Mercado Pago:', mpError);
         
         try {
+          // Create a failed transaction first
+          const failedTransaction = await db.transaction.create({
+            data: {
+              payment_request_id: existingRequest.id,
+              external_id: `failed_${Date.now()}`,
+              status: 'failed',
+              method: 'pix',
+              amount: existingRequest.amount,
+              provider: 'mercadopago',
+              metadata: JSON.stringify({
+                error: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
+                idempotencyKey
+              })
+            }
+          });
+
+          // Now create the payment processing failure with the actual transaction ID
           await db.paymentProcessingFailure.create({
             data: {
-              transaction_id: 'error',
+              transaction_id: failedTransaction.id,
               error_code: 'MP_PAYMENT_CREATION_ERROR',
               error_message: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
               stack_trace: mpError instanceof Error ? mpError.stack : undefined,
@@ -196,14 +213,36 @@ export async function POST(request: NextRequest) {
               })
             }
           });
+
+          // Update payment request status to failed
+          await db.paymentRequest.update({
+            where: { id: existingRequest.id },
+            data: { status: 'failed' }
+          });
+
+          // Return response with failed transaction
+          return NextResponse.json({
+            id: existingRequest.id,
+            token: existingRequest.token,
+            amount: existingRequest.amount,
+            service_name: existingRequest.service_name,
+            status: 'failed',
+            customer_name: existingRequest.customer_name,
+            customer_email: existingRequest.customer_email,
+            customer_phone: existingRequest.customer_phone,
+            created_at: existingRequest.created_at,
+            expires_at: existingRequest.expires_at,
+            payment: {
+              id: failedTransaction.id,
+              status: failedTransaction.status,
+              method: failedTransaction.method,
+              amount: failedTransaction.amount,
+              error: mpError instanceof Error ? mpError.message : 'Erro desconhecido'
+            }
+          });
         } catch (logError) {
           console.error('[SOLUÇÃO INTEGRADA] Erro ao registrar falha:', logError);
         }
-        
-        return NextResponse.json(
-          { error: 'Erro ao criar pagamento no Mercado Pago' },
-          { status: 500 }
-        );
       }
     }
     
@@ -499,17 +538,61 @@ export async function POST(request: NextRequest) {
       console.error('[SOLUÇÃO INTEGRADA] Erro ao criar pagamento no Mercado Pago:', mpError);
       
       try {
+        // Create a failed transaction first
+        const failedTransaction = await db.transaction.create({
+          data: {
+            payment_request_id: paymentRequest.id,
+            external_id: `failed_${Date.now()}`,
+            status: 'failed',
+            method: 'pix',
+            amount: paymentRequest.amount,
+            provider: 'mercadopago',
+            metadata: JSON.stringify({
+              error: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
+              idempotencyKey
+            })
+          }
+        });
+
+        // Now create the payment processing failure with the actual transaction ID
         await db.paymentProcessingFailure.create({
           data: {
-            transaction_id: 'error',
+            transaction_id: failedTransaction.id,
             error_code: 'MP_PAYMENT_CREATION_ERROR',
             error_message: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
             stack_trace: mpError instanceof Error ? mpError.stack : undefined,
             metadata: JSON.stringify({
               payment_request_id: paymentRequest.id,
-              idempotency_key: idempotencyKey,
-              error: mpError
+              idempotencyKey
             })
+          }
+        });
+
+        // Update payment request status to failed
+        await db.paymentRequest.update({
+          where: { id: paymentRequest.id },
+          data: { status: 'failed' }
+        });
+
+        // Return response with failed transaction
+        return NextResponse.json({
+          id: paymentRequest.id,
+          token: paymentRequest.token,
+          amount: paymentRequest.amount,
+          service_name: paymentRequest.service_name,
+          status: 'failed',
+          customer_name: paymentRequest.customer_name,
+          customer_email: paymentRequest.customer_email,
+          customer_phone: paymentRequest.customer_phone,
+          created_at: paymentRequest.created_at,
+          expires_at: paymentRequest.expires_at,
+          payment_url: paymentUrl,
+          payment: {
+            id: failedTransaction.id,
+            status: failedTransaction.status,
+            method: failedTransaction.method,
+            amount: failedTransaction.amount,
+            error: mpError instanceof Error ? mpError.message : 'Erro desconhecido'
           }
         });
       } catch (logError) {
