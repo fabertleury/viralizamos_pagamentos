@@ -36,22 +36,12 @@ export async function checkApiKey(request: NextRequest): Promise<boolean> {
  * @returns true se a chave for válida, false caso contrário
  */
 export function verifyApiKeyAuth(authHeader: string | null): boolean {
-  if (!authHeader) {
-    return false;
-  }
-
-  // Extrair a API key do cabeçalho
-  const apiKey = extractApiKey(authHeader);
+  if (!authHeader) return false;
   
-  // Verificar com a API key esperada no .env
-  const expectedApiKey = process.env.PAYMENTS_API_KEY || '';
+  const apiKey = process.env.API_KEY || '6bVERz8A5P4drqmYjN2ZxK$Fw9sXhC7uJtH3GeQpT!vLWkS#D@_payments';
   
-  if (!expectedApiKey) {
-    console.error('PAYMENTS_API_KEY não está configurada no .env');
-    return false;
-  }
-  
-  return apiKey === expectedApiKey;
+  // Verificar se o header começa com 'ApiKey ' e se a chave corresponde
+  return authHeader.startsWith('ApiKey ') && authHeader.replace('ApiKey ', '') === apiKey;
 }
 
 /**
@@ -90,4 +80,10 @@ export async function verifyApiKey(apiKey: string): Promise<boolean> {
   }
   
   return apiKey === expectedApiKey;
+}
+
+// Função para verificar autenticação em uma requisição
+export function verifyAuth(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  return verifyApiKeyAuth(authHeader);
 } 
