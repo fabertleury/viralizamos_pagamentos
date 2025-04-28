@@ -36,12 +36,35 @@ export async function checkApiKey(request: NextRequest): Promise<boolean> {
  * @returns true se a chave for válida, false caso contrário
  */
 export function verifyApiKeyAuth(authHeader: string | null): boolean {
-  if (!authHeader) return false;
+  // Adicionar logs para depuração
+  console.log('[Auth:Debug] Verificando autenticação com header:', authHeader ? `${authHeader.substring(0, 10)}...` : 'null');
+  
+  if (!authHeader) {
+    console.log('[Auth:Debug] Header de autorização ausente');
+    return false;
+  }
   
   const apiKey = process.env.API_KEY || '6bVERz8A5P4drqmYjN2ZxK$Fw9sXhC7uJtH3GeQpT!vLWkS#D@_payments';
+  console.log('[Auth:Debug] API Key configurada:', apiKey.substring(0, 10) + '...');
   
   // Verificar se o header começa com 'ApiKey ' e se a chave corresponde
-  return authHeader.startsWith('ApiKey ') && authHeader.replace('ApiKey ', '') === apiKey;
+  const isApiKeyFormat = authHeader.startsWith('ApiKey ');
+  const extractedKey = isApiKeyFormat ? authHeader.replace('ApiKey ', '') : '';
+  const isValidKey = extractedKey === apiKey;
+  
+  console.log('[Auth:Debug] Header no formato ApiKey?', isApiKeyFormat);
+  console.log('[Auth:Debug] Chave extraída válida?', isValidKey);
+  
+  // Suporte adicional para o formato Bearer (temporário para compatibilidade)
+  if (!isApiKeyFormat && authHeader.startsWith('Bearer ')) {
+    const bearerKey = authHeader.replace('Bearer ', '');
+    const isBearerValid = bearerKey === apiKey;
+    console.log('[Auth:Debug] Tentando formato Bearer como fallback');
+    console.log('[Auth:Debug] Chave Bearer válida?', isBearerValid);
+    return isBearerValid;
+  }
+  
+  return isApiKeyFormat && isValidKey;
 }
 
 /**
