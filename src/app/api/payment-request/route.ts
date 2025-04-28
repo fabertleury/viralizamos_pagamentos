@@ -183,24 +183,21 @@ export async function POST(request: NextRequest) {
       } catch (mpError) {
         console.error('[SOLUÇÃO INTEGRADA] Erro ao criar pagamento no Mercado Pago:', mpError);
         
-        // Registrar o erro apenas se tivermos um transaction_id válido
-        if (transaction.id) {
-          try {
-            await db.paymentProcessingFailure.create({
-              data: {
-                transaction_id: transaction.id,
-                error_code: 'MP_PAYMENT_CREATION_ERROR',
-                error_message: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
-                stack_trace: mpError instanceof Error ? mpError.stack : undefined,
-                metadata: JSON.stringify({
-                  payment_request_id: existingRequest.id,
-                  idempotencyKey
-                })
-              }
-            });
-          } catch (logError) {
-            console.error('[SOLUÇÃO INTEGRADA] Erro ao registrar falha:', logError);
-          }
+        try {
+          await db.paymentProcessingFailure.create({
+            data: {
+              transaction_id: 'error',
+              error_code: 'MP_PAYMENT_CREATION_ERROR',
+              error_message: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
+              stack_trace: mpError instanceof Error ? mpError.stack : undefined,
+              metadata: JSON.stringify({
+                payment_request_id: existingRequest.id,
+                idempotencyKey
+              })
+            }
+          });
+        } catch (logError) {
+          console.error('[SOLUÇÃO INTEGRADA] Erro ao registrar falha:', logError);
         }
         
         return NextResponse.json(
@@ -501,25 +498,22 @@ export async function POST(request: NextRequest) {
     } catch (mpError) {
       console.error('[SOLUÇÃO INTEGRADA] Erro ao criar pagamento no Mercado Pago:', mpError);
       
-      // Registrar o erro apenas se tivermos um transaction_id válido
-      if (transactionId) {
-        try {
-          await db.paymentProcessingFailure.create({
-            data: {
-              transaction_id: transactionId,
-              error_code: 'MP_PAYMENT_CREATION_ERROR',
-              error_message: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
-              stack_trace: mpError instanceof Error ? mpError.stack : undefined,
-              metadata: JSON.stringify({
-                payment_request_id: paymentRequest.id,
-                idempotency_key: idempotencyKey,
-                error: mpError
-              })
-            }
-          });
-        } catch (logError) {
-          console.error('[SOLUÇÃO INTEGRADA] Erro ao registrar falha:', logError);
-        }
+      try {
+        await db.paymentProcessingFailure.create({
+          data: {
+            transaction_id: 'error',
+            error_code: 'MP_PAYMENT_CREATION_ERROR',
+            error_message: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
+            stack_trace: mpError instanceof Error ? mpError.stack : undefined,
+            metadata: JSON.stringify({
+              payment_request_id: paymentRequest.id,
+              idempotency_key: idempotencyKey,
+              error: mpError
+            })
+          }
+        });
+      } catch (logError) {
+        console.error('[SOLUÇÃO INTEGRADA] Erro ao registrar falha:', logError);
       }
       
       // Mesmo com erro, ainda retornamos a URL de pagamento
