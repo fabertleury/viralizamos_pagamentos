@@ -113,22 +113,9 @@ export default function AgradecimentoPage() {
       <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
+          function gtag(){window.dataLayer.push(arguments);}
           gtag('js', new Date());
           gtag('config', 'AW-16904345570');
-          
-          function gtag_report_conversion(url) {
-            var callback = function () {
-              if (typeof(url) != 'undefined') {
-                window.location = url;
-              }
-            };
-            gtag('event', 'conversion', {
-                'send_to': 'AW-16904345570/KdXMCNytnakZEMvCiZk9',
-                'event_callback': callback
-            });
-            return false;
-          }
         `}
       </Script>
 

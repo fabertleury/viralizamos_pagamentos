@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 
 // Configuração do banco de orders
 const ordersPool = new Pool({
-  connectionString: process.env.ORDERS_DATABASE_URL
+  connectionString: process.env.ORDERS_DATABASE_URL || ''
 });
 
 // Configuração do banco de pagamentos
@@ -17,7 +17,7 @@ async function analyzeDatabases() {
     console.log('=== BANCO DE PAGAMENTOS ===');
     
     // Listar todas as tabelas do banco de pagamentos
-    const paymentTables = await db.$queryRaw`
+    const paymentTables = await db.$queryRaw<{table_name: string}[]>`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public'
@@ -30,7 +30,7 @@ async function analyzeDatabases() {
       console.log(`\nTabela: ${table.table_name}`);
       
       // Listar colunas de cada tabela
-      const columns = await db.$queryRaw`
+      const columns = await db.$queryRaw<{column_name: string, data_type: string, is_nullable: string}[]>`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns
         WHERE table_schema = 'public'
