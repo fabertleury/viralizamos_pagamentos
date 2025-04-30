@@ -108,9 +108,15 @@ export default function AgradecimentoPage() {
   
   return (
     <Box minH="100vh" display="flex" flexDir="column" bg={bgColor}>
-      {/* Tag de conversão do Google para a página de agradecimento */}
-      <Script id="google-conversion-tag" strategy="afterInteractive">
+      {/* Tag do Google para marcação de conversão */}
+      <Script src="https://www.googletagmanager.com/gtag/js?id=AW-16904345570" strategy="afterInteractive" />
+      <Script id="google-analytics" strategy="afterInteractive">
         {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'AW-16904345570');
+          
           function gtag_report_conversion(url) {
             var callback = function () {
               if (typeof(url) != 'undefined') {
