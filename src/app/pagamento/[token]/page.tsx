@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import NextImage from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import Script from 'next/script';
+import ClarityCartTracker from '@/components/ClarityCartTracker';
 import { 
   Box, 
   Container,
@@ -425,6 +426,16 @@ export default function PaymentPage() {
         `}
       </Script>
       
+      {/* Componente de rastreamento de carrinhos abandonados */}
+      <ClarityCartTracker 
+        token={token}
+        amount={payment?.amount}
+        serviceName={payment?.service_name}
+        customerEmail={payment?.customer_email}
+        status={payment?.payment?.status}
+        timeRemaining={timeRemaining}
+      />
+      
       <ViralizamosHeader />
       
       <Container maxW="container.xl" py={8} px={{ base: 4, md: 8 }} flex="1">
@@ -582,10 +593,14 @@ export default function PaymentPage() {
                                 <Button
                                   ml={2}
                                   colorScheme="pink"
+                                  variant="outline"
+                                  size="md"
                                   onClick={handleCopyPixCode}
-                                  leftIcon={<Icon as={hasCopied ? FaCheck : FaCopy} />}
+                                  leftIcon={<Icon as={FaCopy} />}
+                                  width="100%"
+                                  data-action="copy-pix"
                                 >
-                                  {hasCopied ? "Copiado" : "Copiar"}
+                                  {hasCopied ? "Copiado!" : "Copiar código PIX"}
                                 </Button>
                               </Flex>
                             </FormControl>
@@ -599,12 +614,14 @@ export default function PaymentPage() {
                               colorScheme="green"
                               size="lg"
                               width="100%"
-                              leftIcon={<FaCheck />}
                               onClick={handleManualCheck}
                               isLoading={verifyingPayment}
                               loadingText="Verificando..."
+                              leftIcon={<Icon as={FaCheck} />}
+                              mt={4}
+                              data-action="check-payment"
                             >
-                              Já paguei {checkCountdown < 30 ? `(${checkCountdown}s)` : ""}
+                              Já paguei
                             </Button>
                             <Text mt={2} fontSize="sm" color="gray.600" textAlign="center">
                               Clique no botão acima após realizar o pagamento

@@ -86,6 +86,27 @@ export default function RootLayout({
             gtag('config', 'AW-16904345570');
           `}
         </Script>
+        
+        {/* Microsoft Clarity - Rastreamento de carrinho abandonado */}
+        <Script id="microsoft-clarity" strategy="afterInteractive">
+          {`
+            (function(c,l,a,r,i,t,y){
+              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window, document, "clarity", "script", "rchf046tcf");
+            
+            // Configuração para rastreamento de carrinho abandonado
+            if (typeof clarity === 'function') {
+              document.addEventListener('DOMContentLoaded', function() {
+                // Rastrear visualizações de página de carrinho
+                if (window.location.pathname.includes('/pagamento')) {
+                  clarity('set', 'cart_page_view', 1);
+                }
+              });
+            }
+          `}
+        </Script>
         <Providers>
           {children}
         </Providers>
