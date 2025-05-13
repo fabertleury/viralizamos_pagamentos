@@ -325,24 +325,56 @@ export default function OrderDetailPage() {
       const data = await response.json();
       
       if (data.success) {
+        // Verificar se é um pedido cancelado que precisamos destacar para o usuário
+        const previousStatus = order.status;
+        const newStatus = data.order.status;
+        
+        // Atualizar o objeto de pedido com o novo status
         setOrder(prev => prev ? { 
           ...prev, 
-          status: data.order.status,
+          status: newStatus,
           transaction: prev.transaction ? {
             ...prev.transaction,
             status: data.provider_status || prev.transaction.status
           } : null
         } : null);
         
-        toast({
-          title: 'Status atualizado',
-          description: 'O status do seu pedido foi atualizado com sucesso.',
-          status: 'success',
-          duration: 5000,
-          isClosable: true,
-        });
+        // Mensagem específica se o pedido foi cancelado
+        if (newStatus === 'failed' && previousStatus !== 'failed') {
+          toast({
+            title: 'Pedido cancelado',
+            description: 'Este pedido foi cancelado ou falhou no provedor do serviço.',
+            status: 'error',
+            duration: 8000,
+            isClosable: true,
+          });
+        } else {
+          toast({
+            title: 'Status atualizado',
+            description: 'O status do seu pedido foi atualizado com sucesso.',
+            status: 'success',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
       } else {
-        throw new Error(data.error || 'Erro ao atualizar status');
+        // Mesmo com erro, ainda podemos ter informações úteis na resposta
+        if (data.order && data.order.status) {
+          setOrder(prev => prev ? { 
+            ...prev, 
+            status: data.order.status
+          } : null);
+          
+          toast({
+            title: 'Status parcialmente atualizado',
+            description: 'O status do seu pedido foi atualizado, mas não conseguimos obter informações detalhadas do provedor.',
+            status: 'warning',
+            duration: 5000,
+            isClosable: true,
+          });
+        } else {
+          throw new Error(data.error || 'Erro ao atualizar status');
+        }
       }
     } catch (err) {
       console.error('Erro ao verificar status:', err);

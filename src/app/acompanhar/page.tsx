@@ -208,6 +208,69 @@ export default function AcompanharPedidoPage() {
             toast.info('Nenhum pedido encontrado para este e-mail.');
           } else {
             toast.success(`${data.orders.length} pedidos encontrados.`);
+            
+            // Verificar status dos pedidos no provedor se temos pedidos recentes
+            // Focar em pedidos dos últimos 30 dias para não sobrecarregar o sistema
+            const recentOrders = data.orders.filter((order: Order) => {
+              const orderDate = new Date(order.created_at);
+              const today = new Date();
+              const diffTime = Math.abs(today.getTime() - orderDate.getTime());
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              return diffDays <= 30 && 
+                    (order.status === 'completed' || order.status === 'processing' || order.status === 'pending');
+            });
+            
+            // Se temos pedidos recentes, verificar status deles em paralelo
+            if (recentOrders.length > 0) {
+              const updatePromises = recentOrders.map(async (order: Order) => {
+                try {
+                  const response = await fetch(`/api/orders/check-status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      orderId: order.id,
+                      forceUpdate: true
+                    }),
+                  });
+                  
+                  if (response.ok) {
+                    const statusData = await response.json();
+                    
+                    if (statusData.success && statusData.order && 
+                        statusData.order.status !== order.status) {
+                      // Atualizar status do pedido na lista local
+                      return {
+                        ...order,
+                        status: statusData.order.status,
+                        updated: true
+                      };
+                    }
+                  }
+                  return order;
+                } catch (error) {
+                  console.error(`Erro ao verificar status do pedido ${order.id}:`, error);
+                  return order;
+                }
+              });
+              
+              // Aguardar todas as verificações e atualizar a lista de pedidos
+              const updatedOrders = await Promise.all(updatePromises);
+              
+              // Contar pedidos atualizados
+              const updatedCount = updatedOrders.filter(order => order.updated).length;
+              
+              if (updatedCount > 0) {
+                // Atualizar a lista completa de pedidos com os novos status
+                setOrders(prevOrders => 
+                  prevOrders.map(prevOrder => {
+                    const updatedOrder = updatedOrders.find(o => o.id === prevOrder.id);
+                    return updatedOrder || prevOrder;
+                  })
+                );
+                
+                toast.info(`${updatedCount} pedidos tiveram seus status atualizados.`);
+              }
+            }
           }
         }
       } else {

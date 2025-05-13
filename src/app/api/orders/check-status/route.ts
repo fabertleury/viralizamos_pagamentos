@@ -190,13 +190,15 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Se não temos o ID do pedido no provedor, mas o pedido está marcado como concluído, verificar diretamente no orders
-    if (!externalOrderId && paymentRequest.status === 'completed') {
-      try {
-        // Tentar buscar pelo transaction_id no orders microservice
-        if (latestTransaction?.id) {
+    // Se não temos o ID do pedido no provedor, não podemos prosseguir
+    if (!externalOrderId) {
+      console.warn(`[API] Não foi possível determinar o ID do pedido no provedor para ${orderId}`);
+      
+      // Tentar buscar pelo transaction_id no orders microservice
+      if (latestTransaction?.id) {
+        try {
           const ordersApiUrl = `${ORDERS_API_URL.replace(/\/create$/, '/find')}?transaction_id=${latestTransaction.id}`;
-          console.log(`[API] Tentando verificar status no microservice orders: ${ordersApiUrl}`);
+          console.log(`[API] Tentando buscar ID do pedido no orders microservice: ${ordersApiUrl}`);
           
           const ordersResponse = await axios.get(ordersApiUrl);
           
@@ -215,26 +217,109 @@ export async function POST(request: NextRequest) {
               }
             });
             
-            console.log(`[API] ID do pedido no orders atualizado: ${externalOrderId}`);
+            console.log(`[API] ID do pedido recuperado do orders microservice: ${externalOrderId}`);
+          } else {
+            // Se ainda não encontramos, verificar se o pedido existe no provedor por outros meios
+            // Por exemplo, buscar pelo nome de usuário e data
+            console.log(`[API] Tentando métodos alternativos para identificar o pedido`);
+            
+            // Extrair dados do pedido para tentar uma busca por parâmetros
+            try {
+              if (paymentRequest.additional_data) {
+                const additionalData = JSON.parse(paymentRequest.additional_data);
+                
+                // Se temos dados sobre o username e o tipo de serviço
+                if (additionalData.profile_username && providerName) {
+                  // Tentar buscar os pedidos recentes para este usuário no provedor
+                  console.log(`[API] Tentando buscar pedidos por username: ${additionalData.profile_username}`);
+                  
+                  // Se temos acesso ao API do orders, podemos usar o endpoint de busca
+                  const ordersApiSearch = `${ORDERS_API_URL.replace(/\/create$/, '/search')}?provider=${providerName}&username=${additionalData.profile_username}`;
+                  const searchResponse = await axios.get(ordersApiSearch);
+                  
+                  if (searchResponse.data && searchResponse.data.orders && searchResponse.data.orders.length > 0) {
+                    // Encontrar o pedido mais recente que corresponda à data aproximada
+                    const paymentRequestDate = new Date(paymentRequest.created_at);
+                    let closestOrder = null;
+                    let timeDifference = Infinity;
+                    
+                    for (const order of searchResponse.data.orders) {
+                      const orderDate = new Date(order.created_at);
+                      const diff = Math.abs(orderDate.getTime() - paymentRequestDate.getTime());
+                      
+                      // Se o pedido foi criado em uma janela de tempo razoável (48 horas)
+                      if (diff < 48 * 60 * 60 * 1000 && diff < timeDifference) {
+                        closestOrder = order;
+                        timeDifference = diff;
+                      }
+                    }
+                    
+                    if (closestOrder) {
+                      externalOrderId = closestOrder.id;
+                      console.log(`[API] Pedido encontrado por correspondência de username e data: ${externalOrderId}`);
+                      
+                      // Atualizar o additional_data com o ID do pedido encontrado
+                      additionalData.orders_microservice_order_id = externalOrderId;
+                      await prisma.paymentRequest.update({
+                        where: { id: orderId },
+                        data: { 
+                          additional_data: JSON.stringify(additionalData)
+                        }
+                      });
+                    }
+                  }
+                }
+              }
+            } catch (searchError) {
+              console.error(`[API] Erro ao buscar pedidos alternativos:`, searchError);
+            }
           }
+        } catch (error) {
+          console.error(`[API] Erro ao buscar pedido no orders microservice:`, error);
         }
-      } catch (error) {
-        console.error(`[API] Erro ao verificar pedido no orders microservice:`, error);
       }
-    }
-    
-    // Se não temos o ID do pedido no provedor, não podemos prosseguir
-    if (!externalOrderId) {
-      console.warn(`[API] Não foi possível determinar o ID do pedido no provedor para ${orderId}`);
       
-      return NextResponse.json({
-        success: false,
-        error: 'Não foi possível determinar o ID do pedido no provedor',
-        order: {
-          id: orderId,
-          status: paymentRequest.status
+      // Se mesmo após as tentativas extras não encontramos o ID
+      if (!externalOrderId) {
+        // Verificar se o pagamento foi feito há mais de 48 horas e está pendente
+        const orderCreatedAt = paymentRequest.created_at;
+        const hoursElapsed = (Date.now() - orderCreatedAt.getTime()) / (1000 * 60 * 60);
+        
+        // Se passou mais de 48 horas e ainda está pendente, considerar como falho
+        if (hoursElapsed > 48 && paymentRequest.status === 'pending') {
+          console.log(`[API] Pedido ${orderId} está pendente há mais de 48 horas. Atualizando para falho.`);
+          
+          await prisma.paymentRequest.update({
+            where: { id: orderId },
+            data: { status: 'failed' }
+          });
+          
+          return NextResponse.json({
+            success: true,
+            order: {
+              id: orderId,
+              status: 'failed',
+              metadata: {
+                message: 'Pedido classificado como falho após 48 horas sem processamento.',
+                previous_status: paymentRequest.status
+              }
+            },
+            provider_status: 'Failed',
+            charge: paymentRequest.amount.toString(),
+            start_count: '0',
+            remains: '0'
+          });
         }
-      }, { status: 200 });
+        
+        return NextResponse.json({
+          success: false,
+          error: 'Não foi possível determinar o ID do pedido no provedor',
+          order: {
+            id: orderId,
+            status: paymentRequest.status
+          }
+        }, { status: 200 });
+      }
     }
     
     // Se não temos o provedor, tentar buscar pelo serviço via Supabase apenas se disponível
@@ -655,33 +740,73 @@ function determineStatusBasedOnCurrentStatus(currentStatus: string): string {
 
 // Função para mapear status do provedor para status do pedido
 function mapProviderStatusToOrderStatus(providerStatus: string, currentStatus: string): string {
+  if (!providerStatus) return currentStatus;
+  
   const status = providerStatus.toLowerCase();
   
   // Se o pedido já estiver concluído, não mude o status
   if (currentStatus.toLowerCase() === 'completed') {
+    // Mas se o status do provedor for explicitamente de falha/cancelamento, priorize-o
+    if (['canceled', 'cancelled', 'cancel', 'refunded', 'failed', 'error', 'rejected'].includes(status) ||
+         status.includes('cancel') || status.includes('fail') || status.includes('error')) {
+      console.log(`[API] Detectado cancelamento/falha (${providerStatus}) para pedido marcado como concluído - atualizando para failed`);
+      return 'failed';
+    }
     return 'completed';
   }
   
-  if (status.includes('complet') || status === 'done') {
+  // Verificar status de concluído
+  if (['completed', 'complete', 'done', 'success'].includes(status)) {
     return 'completed';
   }
   
-  if (status.includes('progress') || status.includes('process') || status === 'partial') {
+  // Verificar status de processamento
+  if (['in progress', 'inprogress', 'processing', 'active', 'running'].includes(status)) {
     return 'processing';
   }
   
-  if (status.includes('pend') || status === 'queued') {
-    return 'pending';
+  // Verificar status parcial (alguns serviços entregues)
+  if (['partial', 'partially completed'].includes(status)) {
+    return 'partial';
   }
   
-  if (status.includes('fail') || status.includes('error') || status === 'rejected') {
+  // Verificar status de falha/cancelamento - expandir para detectar mais variações
+  if (['canceled', 'cancelled', 'cancel', 'refunded', 'failed', 'error', 'rejected',
+       'refund', 'failure', 'not available', 'unavailable'].includes(status)) {
     return 'failed';
   }
   
-  if (status.includes('cancel')) {
-    return 'cancelled';
+  // Verificar status pendente
+  if (['pending', 'queued', 'waiting', 'not started'].includes(status)) {
+    return 'pending';
+  }
+  
+  // Verificar se o texto contém alguma dessas palavras
+  if (status.includes('cancel') || status.includes('refund') || 
+      status.includes('fail') || status.includes('error') || 
+      status.includes('reject') || status.includes('declin')) {
+    return 'failed';
+  }
+  
+  if (status.includes('complet') || status.includes('success')) {
+    return 'completed';
+  }
+  
+  if (status.includes('progress') || status.includes('process')) {
+    return 'processing';
+  }
+  
+  if (status.includes('pend') || status.includes('queue')) {
+    return 'pending';
+  }
+  
+  // Para outros casos, verificar se há algum código de erro numérico
+  if (/\berror\s*\d+\b/i.test(status) || /\bcode\s*:\s*\d+\b/i.test(status)) {
+    console.log(`[API] Detectado possível código de erro no status: "${providerStatus}"`);
+    return 'failed';
   }
   
   // Manter o status atual se não conseguir mapear
+  console.log(`[API] Status não mapeado: "${providerStatus}". Mantendo status atual: ${currentStatus}`);
   return currentStatus;
 } 
