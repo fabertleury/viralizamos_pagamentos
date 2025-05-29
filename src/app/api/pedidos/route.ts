@@ -56,11 +56,35 @@ export async function POST(request: NextRequest) {
         ? request.transactions[0] 
         : null;
       
+      // Extrair informações detalhadas do serviço do campo additional_data
+      let detailedServiceName = request.service_name || 'Serviço Viralizamos';
+      let serviceDetails = null;
+      
+      if (request.additional_data) {
+        try {
+          const additionalData = JSON.parse(request.additional_data);
+          
+          // Verificar se temos informações detalhadas do serviço
+          if (additionalData.service && additionalData.service.name) {
+            detailedServiceName = additionalData.service.name;
+          } else if (additionalData.serviceName) {
+            detailedServiceName = additionalData.serviceName;
+          }
+          
+          // Armazenar detalhes do serviço para uso posterior
+          serviceDetails = additionalData.service || null;
+          
+        } catch (error) {
+          console.error(`[API] Erro ao analisar additional_data para o pedido ${request.id}:`, error);
+        }
+      }
+      
       return {
         id: request.id,
         token: request.token,
         status: request.status,
-        service_name: request.service_name || 'Serviço Viralizamos',
+        service_name: detailedServiceName,
+        service_details: serviceDetails,
         profile_username: request.profile_username,
         amount: request.amount,
         created_at: request.created_at,
