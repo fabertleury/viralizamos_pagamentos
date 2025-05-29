@@ -20,10 +20,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] Buscando pedidos para o email: ${email}`);
 
-    // Buscar payment requests com este email
+    // Buscar payment requests com este email (insensível a maiúsculas/minúsculas)
     const paymentRequests = await db.paymentRequest.findMany({
       where: {
-        customer_email: email
+        customer_email: {
+          equals: email,
+          mode: 'insensitive'
+        }
       },
       orderBy: {
         created_at: 'desc'
