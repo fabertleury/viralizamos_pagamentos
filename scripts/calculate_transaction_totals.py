@@ -51,40 +51,14 @@ def calculate_daily_total(date):
             conn.close()
 
 def main():
-    try:
-        # Define the date range
-        start_date = datetime(2025, 5, 1, tzinfo=pytz.UTC)
-        end_date = datetime(2025, 5, 23, tzinfo=pytz.UTC)
-        
-        print("\nRelatório de Transações Aprovadas por Dia")
-        print("=" * 50)
-        
-        total_general = Decimal('0')
-        total_transactions = 0
-        
-        current_date = start_date
-        while current_date <= end_date:
-            amount, count = calculate_daily_total(current_date)
-            
-            print(f"\nData: {current_date.strftime('%d/%m/%Y')}")
-            print("-" * 50)
-            print(f"Total de Transações: {count:,}")
-            print(f"Valor Total: R$ {amount:,.2f}")
-            print("-" * 50)
-            
-            total_general += amount
-            total_transactions += count
-            
-            current_date += timedelta(days=1)
-        
-        print("\nResumo Geral")
-        print("=" * 50)
-        print(f"Total Geral de Transações: {total_transactions:,}")
-        print(f"Valor Total Geral: R$ {total_general:,.2f}")
-        print("=" * 50)
-        
-    except Exception as e:
-        print(f"Erro ao executar o script: {str(e)}")
+    # Data específica
+    date = datetime(2025, 5, 28, tzinfo=pytz.UTC)
+    print(f"\nTransações aprovadas em {date.strftime('%d/%m/%Y')}")
+    print("=" * 50)
+    amount, count = calculate_daily_total(date)
+    print(f"Total de Transações: {count:,}")
+    print(f"Valor Total: R$ {amount:,.2f}")
+    print("=" * 50)
 
 if __name__ == "__main__":
     main() 

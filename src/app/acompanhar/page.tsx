@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { RefreshCw, MessageCircle } from 'lucide-react';
+import { UpdateOrderStatusButton } from './update-order-status';
 import { toast } from 'sonner';
 import ViralizamosHeader from '@/components/layout/ViralizamosHeader';
 import { ViralizamosFooter } from '@/components/layout/ViralizamosFooter';
@@ -76,6 +77,7 @@ export default function AcompanharPedidoPage() {
   const [userData, setUserData] = useState<any>(null);
   const [processingOrders, setProcessingOrders] = useState<{[key: string]: boolean}>({});
   const [loadingReprocessStatus, setLoadingReprocessStatus] = useState<{[key: string]: boolean}>({});
+  const [updatingOrderStatus, setUpdatingOrderStatus] = useState<{[key: string]: boolean}>({});
   
   // Função para mapear o status do pagamento para o status do pedido
   const mapPaymentStatusToOrderStatus = (paymentStatus: string): string => {
@@ -408,23 +410,6 @@ export default function AcompanharPedidoPage() {
   const isWithin30Days = (dateString: string): boolean => {
     const orderDate = new Date(dateString);
     const today = new Date();
-    const diffTime = Math.abs(today.getTime() - orderDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    return diffDays <= 30;
-  };
-  
-  // Verificar se já se passaram 12 horas desde a compra
-  const isPast12Hours = (dateString: string): boolean => {
-    const orderDate = new Date(dateString);
-    const today = new Date();
-    const diffTime = Math.abs(today.getTime() - orderDate.getTime());
-    const diffHours = diffTime / (1000 * 60 * 60); 
-    return diffHours >= 12;
-  };
-  
-  return (
-    <Box minH="100vh" display="flex" flexDir="column">
-      <ViralizamosHeader />
       
       <Box flex="1" bg={bgColor} py={12}>
         <Container maxW="container.md">
@@ -791,6 +776,25 @@ export default function AcompanharPedidoPage() {
                                 </Button>
                               )}
                             </>
+                          )}
+                          
+                          {/* Botão para atualizar status do pedido no provedor */}
+                          {order.transaction && order.transaction.status === 'approved' && 
+                           (order.status === 'pending' || order.status === 'processing') && (
+                            <UpdateOrderStatusButton 
+                              orderId={order.id} 
+                              status={order.status} 
+                              onStatusUpdated={(newStatus) => {
+                                // Atualizar o status do pedido na lista local
+                                setOrders(prevOrders => 
+                                  prevOrders.map(o => 
+                                    o.id === order.id 
+                                      ? { ...o, status: newStatus }
+                                      : o
+                                  )
+                                );
+                              }}
+                            />
                           )}
                           
                           {order.transaction && (order.transaction.status === 'cancelled' || order.transaction.status === 'canceled') && (
