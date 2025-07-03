@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { blockedEmails } from './lib/blocked-emails';
 
 // Definir uma lista de origens permitidas
 const allowedOrigins = [
@@ -16,13 +17,64 @@ const allowedOrigins = [
   'http://localhost:3001'
 ];
 
-export function middleware(request: NextRequest) {
+/**
+ * Função para verificar se um email está bloqueado
+ * @param {string} email - Email para verificar
+ * @returns {boolean} - Retorna true se o email estiver bloqueado
+ */
+function isEmailBlocked(email: string): boolean {
+  if (!email) return false;
+  
+  // Normalizar o email (converter para minúsculas)
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  // Verificar se o email está na lista de bloqueados
+  return blockedEmails.some(blockedEmail => 
+    blockedEmail.toLowerCase() === normalizedEmail
+  );
+}
+
+export async function middleware(request: NextRequest) {
   // Extrair a origem da requisição
   const origin = request.headers.get('origin') || '';
   const requestMethod = request.method;
   
   // Verificar se a rota é uma API (todas as APIs começam com /api/)
   const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
+  
+  // Verificar se é uma rota de pagamento
+  const isPaymentRoute = 
+    request.nextUrl.pathname.startsWith('/api/payment-request') ||
+    request.nextUrl.pathname.startsWith('/api/payment-requests');
+  
+  // Verificar se é uma requisição POST para pagamento
+  if (isPaymentRoute && requestMethod === 'POST') {
+    try {
+      // Clonar a requisição para poder ler o corpo
+      const clonedRequest = request.clone();
+      const body = await clonedRequest.json();
+      
+      // Extrair o email do corpo da requisição
+      const email = body.customer_email || body.email;
+      
+      // Se o email estiver bloqueado, retornar erro 403
+      if (email && isEmailBlocked(email)) {
+        console.log(`[BLOQUEIO] Tentativa de pagamento bloqueada para email: ${email}`);
+        
+        return NextResponse.json(
+          {
+            error: 'Email bloqueado',
+            message: 'Este email está impedido de realizar compras no sistema.',
+            code: 'EMAIL_BLOCKED'
+          },
+          { status: 403 }
+        );
+      }
+    } catch (error) {
+      console.error('[BLOQUEIO] Erro ao processar requisição:', error);
+      // Em caso de erro, permitir a requisição continuar
+    }
+  }
   
   // Opções de resposta padrão para CORS
   const responseHeaders = new Headers(request.headers);
