@@ -53,6 +53,7 @@ interface Order {
   token: string;
   status: string;
   service_name: string;
+  service_details?: any;
   profile_username: string;
   amount: number;
   created_at: string;
@@ -410,434 +411,447 @@ export default function AcompanharPedidoPage() {
   const isWithin30Days = (dateString: string): boolean => {
     const orderDate = new Date(dateString);
     const today = new Date();
-      
-      <Box flex="1" bg={bgColor} py={12}>
-        <Container maxW="container.md">
-          <VStack spacing={6} align="stretch">
-            <Heading as="h1" size="xl" mb={6}>
-              Acompanhar Pedido
-            </Heading>
-            
-            <Card bg={cardBgColor} shadow="sm" borderRadius="lg" mb={8}>
-              <CardBody p={6}>
-                <form onSubmit={handleSearchOrders}>
-                  <FormControl id="email">
-                    <FormLabel fontWeight="medium">Email</FormLabel>
-                    <Flex>
-                      <Input
-                        type="email"
-                        placeholder="Digite seu email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        mr={2}
-                        fontSize="md"
-                        size="lg"
-                      />
-                      <Button
-                        type="submit"
-                        colorScheme="primary"
-                        isLoading={isSubmitting}
-                        loadingText="Buscando..."
-                        size="lg"
-                        minWidth="110px"
-                        height="46px"
-                      >
-                        Buscar
-                      </Button>
-                    </Flex>
-                  </FormControl>
-                </form>
-              </CardBody>
-            </Card>
-            
-            {searched && userData && (
-              <Box p={4} bg="blue.50" borderRadius="md" mb={4}>
-                <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" align="center">
-                  <Box>
-                    <Text fontSize="md" fontWeight="bold">Olá, {userData.name}!</Text>
-                    <Text fontSize="sm" color="gray.600">{userData.email}</Text>
-                  </Box>
-                </Flex>
-              </Box>
-            )}
-            
-            {searched && filteredOrders.length > 0 && (
-              <Box mt={8}>
-                <Flex 
-                  direction={{ base: "column", md: "row" }} 
-                  justify="space-between" 
-                  align={{ base: "flex-start", md: "center" }} 
-                  mb={6}
-                  gap={4}
-                >
-                  <Box>
-                    <Heading as="h2" size="md">Seus Pedidos</Heading>
-                    <Text color="gray.600" mt={1} fontSize="sm">
-                      Lista de todos os seus pedidos realizados
-                    </Text>
-                  </Box>
-                  
-                  <Stack 
-                    direction={{ base: "column", sm: "row" }} 
-                    spacing={3} 
-                    width={{ base: "100%", md: "auto" }}
-                    wrap={{ base: "wrap", md: "nowrap" }}
-                  >
+    const diffTime = Math.abs(today.getTime() - orderDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 30;
+  };
+  
+  // Verificar se já se passaram 12 horas desde a compra
+  const isPast12Hours = (dateString: string): boolean => {
+    const orderDate = new Date(dateString);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - orderDate.getTime());
+    const diffHours = diffTime / (1000 * 60 * 60); 
+    return diffHours >= 12;
+  };
+  
+  return (
+    <Box flex="1" bg={bgColor} py={12}>
+      <Container maxW="container.md">
+        <VStack spacing={6} align="stretch">
+          <Heading as="h1" size="xl" mb={6}>
+            Acompanhar Pedido
+          </Heading>
+          
+          <Card bg={cardBgColor} shadow="sm" borderRadius="lg" mb={8}>
+            <CardBody p={6}>
+              <form onSubmit={handleSearchOrders}>
+                <FormControl id="email">
+                  <FormLabel fontWeight="medium">Email</FormLabel>
+                  <Flex>
                     <Input
-                      placeholder="Buscar pedidos..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      size="md"
-                      width={{ base: "full", sm: "auto" }}
-                      minWidth={{ sm: "180px" }}
+                      type="email"
+                      placeholder="Digite seu email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      mr={2}
+                      fontSize="md"
+                      size="lg"
                     />
-                    <Select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      size="md"
-                      minWidth={{ sm: "150px" }}
-                    >
-                      <option value="all">Todos os status</option>
-                      <option value="pending">Pendente</option>
-                      <option value="processing">Processando</option>
-                      <option value="completed">Concluído</option>
-                      <option value="failed">Falhou</option>
-                      <option value="canceled">Cancelado</option>
-                    </Select>
                     <Button
-                      leftIcon={<RefreshCw size={18} />}
-                      colorScheme="blue"
-                      variant="solid"
-                      onClick={() => handleSearchOrders()}
+                      type="submit"
+                      colorScheme="primary"
                       isLoading={isSubmitting}
-                      size="md"
-                      px={4}
+                      loadingText="Buscando..."
+                      size="lg"
                       minWidth="110px"
-                      iconSpacing={2}
-                      height="40px"
+                      height="46px"
                     >
-                      Atualizar
+                      Buscar
                     </Button>
-                  </Stack>
-                </Flex>
+                  </Flex>
+                </FormControl>
+              </form>
+            </CardBody>
+          </Card>
+          
+          {searched && userData && (
+            <Box p={4} bg="blue.50" borderRadius="md" mb={4}>
+              <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" align="center">
+                <Box>
+                  <Text fontSize="md" fontWeight="bold">Olá, {userData.name}!</Text>
+                  <Text fontSize="sm" color="gray.600">{userData.email}</Text>
+                </Box>
+              </Flex>
+            </Box>
+          )}
+          
+          {searched && filteredOrders.length > 0 && (
+            <Box mt={8}>
+              <Flex 
+                direction={{ base: "column", md: "row" }} 
+                justify="space-between" 
+                align={{ base: "flex-start", md: "center" }} 
+                mb={6}
+                gap={4}
+              >
+                <Box>
+                  <Heading as="h2" size="md">Seus Pedidos</Heading>
+                  <Text color="gray.600" mt={1} fontSize="sm">
+                    Lista de todos os seus pedidos realizados
+                  </Text>
+                </Box>
                 
-                <VStack spacing={4} align="stretch">
-                  {filteredOrders.map((order) => (
-                    <Card key={order.id} overflow="hidden" variant="outline">
-                      <CardHeader
-                        bg={useColorModeValue('gray.50', 'gray.700')}
-                        py={3}
-                        px={4}
-                      >
-                        <Flex justifyContent="space-between" alignItems="center">
-                          <HStack spacing={2}>
-                            <Text fontWeight="bold" fontSize="sm" color="gray.700">
-                              Pedido: #VP-{order.token.substring(0, 8)}
-                            </Text>
-                            <Badge
-                              colorScheme={
-                                order.status === 'completed'
-                                  ? 'green'
-                                  : order.status === 'pending'
-                                  ? 'yellow'
-                                  : order.status === 'processing'
-                                  ? 'blue'
-                                  : 'red'
-                              }
-                            >
-                              {getOrderStatusBadge(order.status)}
-                            </Badge>
-                          </HStack>
-                          <Text fontSize="xs" color="gray.500">
-                            {formatDate(order.created_at)}
+                <Stack 
+                  direction={{ base: "column", sm: "row" }} 
+                  spacing={3} 
+                  width={{ base: "100%", md: "auto" }}
+                  wrap={{ base: "wrap", md: "nowrap" }}
+                >
+                  <Input
+                    placeholder="Buscar pedidos..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    size="md"
+                    width={{ base: "full", sm: "auto" }}
+                    minWidth={{ sm: "180px" }}
+                  />
+                  <Select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    size="md"
+                    minWidth={{ sm: "150px" }}
+                  >
+                    <option value="all">Todos os status</option>
+                    <option value="pending">Pendente</option>
+                    <option value="processing">Processando</option>
+                    <option value="completed">Concluído</option>
+                    <option value="failed">Falhou</option>
+                    <option value="canceled">Cancelado</option>
+                  </Select>
+                  <Button
+                    leftIcon={<RefreshCw size={18} />}
+                    colorScheme="blue"
+                    variant="solid"
+                    onClick={() => handleSearchOrders()}
+                    isLoading={isSubmitting}
+                    size="md"
+                    px={4}
+                    minWidth="110px"
+                    iconSpacing={2}
+                    height="40px"
+                  >
+                    Atualizar
+                  </Button>
+                </Stack>
+              </Flex>
+              
+              <VStack spacing={4} align="stretch">
+                {filteredOrders.map((order) => (
+                  <Card key={order.id} overflow="hidden" variant="outline">
+                    <CardHeader
+                      bg={useColorModeValue('gray.50', 'gray.700')}
+                      py={3}
+                      px={4}
+                    >
+                      <Flex justifyContent="space-between" alignItems="center">
+                        <HStack spacing={2}>
+                          <Text fontWeight="bold" fontSize="sm" color="gray.700">
+                            Pedido: #VP-{order.token.substring(0, 8)}
                           </Text>
-                        </Flex>
-                      </CardHeader>
-                      
-                      <CardBody py={4} px={4}>
-                        <Grid
-                          templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
-                          gap={4}
-                        >
-                          <GridItem>
-                            <VStack align="flex-start" spacing={1}>
-                              <Text fontSize="sm" color="gray.500">Serviço</Text>
-                              <Text fontWeight="medium">{order.service_name}</Text>
-                            </VStack>
-                          </GridItem>
-                          
-                          <GridItem>
-                            <VStack align="flex-start" spacing={1}>
-                              <Text fontSize="sm" color="gray.500">Perfil</Text>
-                              <Text fontWeight="medium">{order.profile_username || 'Não especificado'}</Text>
-                            </VStack>
-                          </GridItem>
-                          
-                          <GridItem>
-                            <VStack align="flex-start" spacing={1}>
-                              <Text fontSize="sm" color="gray.500">Valor</Text>
-                              <Text fontWeight="medium">
-                                {new Intl.NumberFormat('pt-BR', {
-                                  style: 'currency',
-                                  currency: 'BRL'
-                                }).format(order.amount)}
-                              </Text>
-                            </VStack>
-                          </GridItem>
-                          
-                          <GridItem>
-                            <VStack align="flex-start" spacing={1}>
-                              <Text fontSize="sm" color="gray.500">Método de pagamento</Text>
-                              <Text fontWeight="medium">
-                                {order.transaction?.method 
-                                  ? order.transaction.method === 'pix' 
-                                    ? 'PIX' 
-                                    : order.transaction.method.charAt(0).toUpperCase() + order.transaction.method.slice(1)
-                                  : 'Não informado'}
-                              </Text>
-                            </VStack>
-                          </GridItem>
-                          
-                          <GridItem>
-                            <VStack align="flex-start" spacing={1}>
-                              <Text fontSize="sm" color="gray.500">Detalhes</Text>
-                              <Text fontWeight="medium">
-                                {order.formatted_posts 
-                                  ? `${order.formatted_posts.length} ${order.formatted_posts.length === 1 ? 'post' : 'posts'} com total de ${order.formatted_posts.reduce((total, post) => total + (post.quantity || 0), 0)} ${order.service_name.toLowerCase().includes('curtida') ? 'curtidas' : 'visualizações'}`
-                                  : 'Não disponível'}
-                              </Text>
-                            </VStack>
-                          </GridItem>
-                        </Grid>
-                        
-                        {/* Exibir status de reposição se houver */}
-                        {order.reprocessRequests && order.reprocessRequests.length > 0 && (
-                          <Box mt={4} p={3} bg="gray.50" borderRadius="md">
-                            <Text fontSize="sm" fontWeight="medium" mb={2}>
-                              Reposições solicitadas: {order.reprocessRequests.length}
+                          <Badge
+                            colorScheme={
+                              order.status === 'completed'
+                                ? 'green'
+                                : order.status === 'pending'
+                                ? 'yellow'
+                                : order.status === 'processing'
+                                ? 'blue'
+                                : 'red'
+                            }
+                          >
+                            {getOrderStatusBadge(order.status)}
+                          </Badge>
+                        </HStack>
+                        <Text fontSize="xs" color="gray.500">
+                          {formatDate(order.created_at)}
+                        </Text>
+                      </Flex>
+                    </CardHeader>
+                    
+                    <CardBody py={4} px={4}>
+                      <Grid
+                        templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
+                        gap={4}
+                      >
+                        <GridItem>
+                          <VStack align="flex-start" spacing={1}>
+                            <Text fontSize="sm" color="gray.500">Serviço</Text>
+                            <Text fontWeight="medium">
+                              {order.service_details?.name || order.service_details?.fullName || order.service_name}
                             </Text>
-                            <HStack spacing={2} flexWrap="wrap">
-                              {order.reprocessRequests.slice(0, 3).map((request, index) => (
-                                <Badge 
-                                  key={request.id} 
-                                  colorScheme={getReprocessStatusColor(request.status)}
-                                  variant="subtle"
-                                  py={1}
-                                  px={2}
+                          </VStack>
+                        </GridItem>
+                        
+                        <GridItem>
+                          <VStack align="flex-start" spacing={1}>
+                            <Text fontSize="sm" color="gray.500">Perfil</Text>
+                            <Text fontWeight="medium">{order.profile_username || 'Não especificado'}</Text>
+                          </VStack>
+                        </GridItem>
+                        
+                        <GridItem>
+                          <VStack align="flex-start" spacing={1}>
+                            <Text fontSize="sm" color="gray.500">Valor</Text>
+                            <Text fontWeight="medium">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).format(order.amount)}
+                            </Text>
+                          </VStack>
+                        </GridItem>
+                        
+                        <GridItem>
+                          <VStack align="flex-start" spacing={1}>
+                            <Text fontSize="sm" color="gray.500">Método de pagamento</Text>
+                            <Text fontWeight="medium">
+                              {order.transaction?.method 
+                                ? order.transaction.method === 'pix' 
+                                  ? 'PIX' 
+                                  : order.transaction.method.charAt(0).toUpperCase() + order.transaction.method.slice(1)
+                                : 'Não informado'}
+                            </Text>
+                          </VStack>
+                        </GridItem>
+                        
+                        <GridItem>
+                          <VStack align="flex-start" spacing={1}>
+                            <Text fontSize="sm" color="gray.500">Detalhes</Text>
+                            <Text fontWeight="medium">
+                              {order.formatted_posts 
+                                ? `${order.formatted_posts.length} ${order.formatted_posts.length === 1 ? 'post' : 'posts'} com total de ${order.formatted_posts.reduce((total, post) => total + (post.quantity || 0), 0)} ${order.service_name.toLowerCase().includes('curtida') ? 'curtidas' : 'visualizações'}`
+                                : 'Não disponível'}
+                            </Text>
+                          </VStack>
+                        </GridItem>
+                      </Grid>
+                      
+                      {/* Exibir status de reposição se houver */}
+                      {order.reprocessRequests && order.reprocessRequests.length > 0 && (
+                        <Box mt={4} p={3} bg="gray.50" borderRadius="md">
+                          <Text fontSize="sm" fontWeight="medium" mb={2}>
+                            Reposições solicitadas: {order.reprocessRequests.length}
+                          </Text>
+                          <HStack spacing={2} flexWrap="wrap">
+                            {order.reprocessRequests.slice(0, 3).map((request, index) => (
+                              <Badge 
+                                key={request.id} 
+                                colorScheme={getReprocessStatusColor(request.status)}
+                                variant="subtle"
+                                py={1}
+                                px={2}
+                              >
+                                #{index + 1}: {formatReprocessStatus(request.status)}
+                              </Badge>
+                            ))}
+                            {order.reprocessRequests.length > 3 && (
+                              <Badge colorScheme="gray">
+                                +{order.reprocessRequests.length - 3} mais
+                              </Badge>
+                            )}
+                          </HStack>
+                        </Box>
+                      )}
+                      
+                      {order.transaction && (
+                        <>
+                          <Divider my={4} />
+                          <Text fontSize="sm" fontWeight="medium" mb={2}>
+                            Informações do pagamento
+                          </Text>
+                          <Grid
+                            templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
+                            gap={3}
+                          >
+                            <GridItem>
+                              <HStack>
+                                <Text fontSize="xs" color="gray.500">Status:</Text>
+                                <Badge
+                                  colorScheme={
+                                    order.transaction.status === 'approved'
+                                      ? 'green'
+                                      : order.transaction.status === 'pending'
+                                      ? 'yellow'
+                                      : order.transaction.status === 'processing'
+                                      ? 'blue'
+                                      : 'red'
+                                  }
+                                  fontSize="xs"
                                 >
-                                  #{index + 1}: {formatReprocessStatus(request.status)}
+                                  {order.transaction.status === 'approved' 
+                                    ? 'Aprovado' 
+                                    : order.transaction.status === 'pending'
+                                    ? 'Pendente'
+                                    : order.transaction.status === 'processing'
+                                    ? 'Processando'
+                                    : order.transaction.status === 'payment not approved'
+                                    ? 'Não Pago'
+                                    : order.transaction.status === 'cancelled'
+                                    ? 'Erro'
+                                    : order.transaction.status}
                                 </Badge>
-                              ))}
-                              {order.reprocessRequests.length > 3 && (
-                                <Badge colorScheme="gray">
-                                  +{order.reprocessRequests.length - 3} mais
-                                </Badge>
-                              )}
-                            </HStack>
-                          </Box>
+                              </HStack>
+                            </GridItem>
+                            
+                            <GridItem>
+                              <HStack>
+                                <Text fontSize="xs" color="gray.500">Processado:</Text>
+                                <Text fontSize="xs">
+                                  {order.transaction.processed_at 
+                                    ? formatDate(order.transaction.processed_at)
+                                    : 'Não processado'}
+                                </Text>
+                              </HStack>
+                            </GridItem>
+                          </Grid>
+                        </>
+                      )}
+                      
+                      <Flex 
+                        justify="flex-end" 
+                        mt={4} 
+                        flexWrap={{ base: "wrap", md: "nowrap" }}
+                        gap={2}
+                      >
+                        <Button
+                          as={Link}
+                          href={`/acompanhar/${order.token}`}
+                          size="md"
+                          colorScheme="blue"
+                          variant="outline"
+                          height="38px"
+                          minWidth={{ base: "100%", sm: "110px" }}
+                          flexGrow={{ base: 1, sm: 0 }}
+                          px={4}
+                          mb={{ base: 2, sm: 0 }}
+                        >
+                          Ver detalhes
+                        </Button>
+                        
+                        {order.transaction && order.transaction.status === 'approved' && (
+                          <Button
+                            as={Link}
+                            href={`/api/payment-requests/${order.token}/receipt`}
+                            target="_blank"
+                            size="md"
+                            colorScheme="green"
+                            variant="outline"
+                            height="38px"
+                            px={4}
+                            minWidth={{ base: "100%", sm: "auto" }}
+                            flexGrow={{ base: 1, sm: 0 }}
+                            mb={{ base: 2, sm: 0 }}
+                          >
+                            Recibo
+                          </Button>
                         )}
                         
-                        {order.transaction && (
+                        {order.status === 'completed' && (
                           <>
-                            <Divider my={4} />
-                            <Text fontSize="sm" fontWeight="medium" mb={2}>
-                              Informações do pagamento
-                            </Text>
-                            <Grid
-                              templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
-                              gap={3}
-                            >
-                              <GridItem>
-                                <HStack>
-                                  <Text fontSize="xs" color="gray.500">Status:</Text>
-                                  <Badge
-                                    colorScheme={
-                                      order.transaction.status === 'approved'
-                                        ? 'green'
-                                        : order.transaction.status === 'pending'
-                                        ? 'yellow'
-                                        : order.transaction.status === 'processing'
-                                        ? 'blue'
-                                        : 'red'
-                                    }
-                                    fontSize="xs"
-                                  >
-                                    {order.transaction.status === 'approved' 
-                                      ? 'Aprovado' 
-                                      : order.transaction.status === 'pending'
-                                      ? 'Pendente'
-                                      : order.transaction.status === 'processing'
-                                      ? 'Processando'
-                                      : order.transaction.status === 'payment not approved'
-                                      ? 'Não Pago'
-                                      : order.transaction.status === 'cancelled'
-                                      ? 'Erro'
-                                      : order.transaction.status}
-                                  </Badge>
-                                </HStack>
-                              </GridItem>
-                              
-                              <GridItem>
-                                <HStack>
-                                  <Text fontSize="xs" color="gray.500">Processado:</Text>
-                                  <Text fontSize="xs">
-                                    {order.transaction.processed_at 
-                                      ? formatDate(order.transaction.processed_at)
-                                      : 'Não processado'}
-                                  </Text>
-                                </HStack>
-                              </GridItem>
-                            </Grid>
+                            {/* Botão para buscar status de reposição, apenas se houver reposições e ainda não foram buscadas */}
+                            {order.reprocessRequests && order.reprocessRequests.length > 0 && !loadingReprocessStatus[order.id] && (
+                              <Button
+                                size="sm"
+                                colorScheme="gray"
+                                variant="ghost"
+                                height="38px"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  fetchReprocessStatus(order.id);
+                                }}
+                                minWidth={{ base: "100%", sm: "auto" }}
+                                flexGrow={{ base: 1, sm: 0 }}
+                                mb={{ base: 2, sm: 0 }}
+                              >
+                                Ver reposições
+                              </Button>
+                            )}
+                            
+                            {/* Botão de solicitar reposição (apenas se dentro de 30 dias, depois de 12 horas da compra e não há reposição pendente) */}
+                            {order.status === 'completed' && isWithin30Days(order.created_at) && isPast12Hours(order.created_at) && (
+                              !order.reprocessRequests || 
+                              !order.reprocessRequests.some(r => r.status === 'pending' || r.status === 'processing')
+                            ) && (
+                              <Button
+                                size="md"
+                                colorScheme="purple"
+                                variant="outline"
+                                height="38px"
+                                minWidth={{ base: "100%", sm: "110px" }}
+                                flexGrow={{ base: 1, sm: 0 }}
+                                px={4}
+                                isLoading={processingOrders[order.id] || false}
+                                loadingText="Enviando..."
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleRequestReprocess(order.id);
+                                }}
+                              >
+                                Solicitar Reposição
+                              </Button>
+                            )}
                           </>
                         )}
                         
-                        <Flex 
-                          justify="flex-end" 
-                          mt={4} 
-                          flexWrap={{ base: "wrap", md: "nowrap" }}
-                          gap={2}
-                        >
+                        {/* Botão para atualizar status do pedido no provedor */}
+                        {order.transaction && order.transaction.status === 'approved' && 
+                         (order.status === 'pending' || order.status === 'processing') && (
+                          <UpdateOrderStatusButton 
+                            orderId={order.id} 
+                            status={order.status} 
+                            onStatusUpdated={(newStatus) => {
+                              // Atualizar o status do pedido na lista local
+                              setOrders(prevOrders => 
+                                prevOrders.map(o => 
+                                  o.id === order.id 
+                                    ? { ...o, status: newStatus }
+                                    : o
+                                )
+                              );
+                            }}
+                          />
+                        )}
+                        
+                        {order.transaction && (order.transaction.status === 'cancelled' || order.transaction.status === 'canceled') && (
                           <Button
-                            as={Link}
-                            href={`/acompanhar/${order.token}`}
+                            as="a"
+                            href="https://wa.me/5562999915390"
+                            target="_blank"
                             size="md"
-                            colorScheme="blue"
-                            variant="outline"
+                            colorScheme="green"
+                            variant="solid"
                             height="38px"
-                            minWidth={{ base: "100%", sm: "110px" }}
-                            flexGrow={{ base: 1, sm: 0 }}
                             px={4}
+                            minWidth={{ base: "100%", sm: "auto" }}
+                            flexGrow={{ base: 1, sm: 0 }}
                             mb={{ base: 2, sm: 0 }}
+                            leftIcon={<MessageCircle size={18} />}
                           >
-                            Ver detalhes
+                            Pedir Ajuda
                           </Button>
-                          
-                          {order.transaction && order.transaction.status === 'approved' && (
-                            <Button
-                              as={Link}
-                              href={`/api/payment-requests/${order.token}/receipt`}
-                              target="_blank"
-                              size="md"
-                              colorScheme="green"
-                              variant="outline"
-                              height="38px"
-                              px={4}
-                              minWidth={{ base: "100%", sm: "auto" }}
-                              flexGrow={{ base: 1, sm: 0 }}
-                              mb={{ base: 2, sm: 0 }}
-                            >
-                              Recibo
-                            </Button>
-                          )}
-                          
-                          {order.status === 'completed' && (
-                            <>
-                              {/* Botão para buscar status de reposição, apenas se houver reposições e ainda não foram buscadas */}
-                              {order.reprocessRequests && order.reprocessRequests.length > 0 && !loadingReprocessStatus[order.id] && (
-                                <Button
-                                  size="sm"
-                                  colorScheme="gray"
-                                  variant="ghost"
-                                  height="38px"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    fetchReprocessStatus(order.id);
-                                  }}
-                                  minWidth={{ base: "100%", sm: "auto" }}
-                                  flexGrow={{ base: 1, sm: 0 }}
-                                  mb={{ base: 2, sm: 0 }}
-                                >
-                                  Ver reposições
-                                </Button>
-                              )}
-                              
-                              {/* Botão de solicitar reposição (apenas se dentro de 30 dias, depois de 12 horas da compra e não há reposição pendente) */}
-                              {order.status === 'completed' && isWithin30Days(order.created_at) && isPast12Hours(order.created_at) && (
-                                !order.reprocessRequests || 
-                                !order.reprocessRequests.some(r => r.status === 'pending' || r.status === 'processing')
-                              ) && (
-                                <Button
-                                  size="md"
-                                  colorScheme="purple"
-                                  variant="outline"
-                                  height="38px"
-                                  minWidth={{ base: "100%", sm: "110px" }}
-                                  flexGrow={{ base: 1, sm: 0 }}
-                                  px={4}
-                                  isLoading={processingOrders[order.id] || false}
-                                  loadingText="Enviando..."
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    handleRequestReprocess(order.id);
-                                  }}
-                                >
-                                  Solicitar Reposição
-                                </Button>
-                              )}
-                            </>
-                          )}
-                          
-                          {/* Botão para atualizar status do pedido no provedor */}
-                          {order.transaction && order.transaction.status === 'approved' && 
-                           (order.status === 'pending' || order.status === 'processing') && (
-                            <UpdateOrderStatusButton 
-                              orderId={order.id} 
-                              status={order.status} 
-                              onStatusUpdated={(newStatus) => {
-                                // Atualizar o status do pedido na lista local
-                                setOrders(prevOrders => 
-                                  prevOrders.map(o => 
-                                    o.id === order.id 
-                                      ? { ...o, status: newStatus }
-                                      : o
-                                  )
-                                );
-                              }}
-                            />
-                          )}
-                          
-                          {order.transaction && (order.transaction.status === 'cancelled' || order.transaction.status === 'canceled') && (
-                            <Button
-                              as="a"
-                              href="https://wa.me/5562999915390"
-                              target="_blank"
-                              size="md"
-                              colorScheme="green"
-                              variant="solid"
-                              height="38px"
-                              px={4}
-                              minWidth={{ base: "100%", sm: "auto" }}
-                              flexGrow={{ base: 1, sm: 0 }}
-                              mb={{ base: 2, sm: 0 }}
-                              leftIcon={<MessageCircle size={18} />}
-                            >
-                              Pedir Ajuda
-                            </Button>
-                          )}
-                        </Flex>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </VStack>
-              </Box>
-            )}
-            
-            {searched && orders.length === 0 && (
-              <Box textAlign="center" py={10}>
-                <Heading as="h3" size="md" mb={3}>
-                  Nenhum pedido encontrado
-                </Heading>
-                <Text color="gray.600">
-                  Não encontramos pedidos associados a este email. Verifique se digitou o email corretamente.
-                </Text>
-              </Box>
-            )}
-          </VStack>
-        </Container>
-      </Box>
-      
-      <ViralizamosFooter />
+                        )}
+                      </Flex>
+                    </CardBody>
+                  </Card>
+                ))}
+              </VStack>
+            </Box>
+          )}
+          
+          {searched && orders.length === 0 && (
+            <Box textAlign="center" py={10}>
+              <Heading as="h3" size="md" mb={3}>
+                Nenhum pedido encontrado
+              </Heading>
+              <Text color="gray.600">
+                Não encontramos pedidos associados a este email. Verifique se digitou o email corretamente.
+              </Text>
+            </Box>
+          )}
+        </VStack>
+      </Container>
     </Box>
   );
 } 
