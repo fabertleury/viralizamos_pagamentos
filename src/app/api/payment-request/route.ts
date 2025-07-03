@@ -3,6 +3,11 @@ import { db } from '@/lib/prisma';
 import crypto from 'crypto';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import jwt from 'jsonwebtoken';
+import { isEmailBlocked } from '@/lib/blocked-emails';
+// Importar função para verificar email bloqueado
+import { isEmailBlocked } from '@/lib/blocked-emails';
+// Importar função para verificar email bloqueado
+import { isEmailBlocked } from '@/lib/blocked-emails';
 
 // Interface para o tipo de Post
 interface Post {
@@ -57,6 +62,40 @@ export async function POST(request: NextRequest) {
   console.log('[SOLUÇÃO INTEGRADA] Dados recebidos:', JSON.stringify(body).substring(0, 200) + '...');
   
   try {
+    // Importar a função para verificar email bloqueado
+    const { isEmailBlocked } = require('@/lib/blocked-emails');
+    
+    // Verificar se o email está bloqueado
+    const email = body.customer_email || body.email;
+    if (email && isEmailBlocked(email)) {
+      console.log(`[BLOQUEIO] Tentativa de pagamento bloqueada para email: ${email}`);
+      
+      // Retornar erro 403 (Forbidden)
+      return NextResponse.json(
+        {
+          error: 'Email bloqueado',
+          message: 'Este email está impedido de realizar compras no sistema.',
+          code: 'EMAIL_BLOCKED'
+        },
+        { status: 403 }
+      );
+    }
+    // Verificar se o email está bloqueado
+    const email = body.customer_email || body.email;
+    if (email && isEmailBlocked(email)) {
+      console.log(`[BLOQUEIO] Tentativa de pagamento bloqueada para email: ${email}`);
+      
+      // Retornar erro 403 (Forbidden)
+      return NextResponse.json(
+        {
+          error: 'Email bloqueado',
+          message: 'Este email está impedido de realizar compras no sistema.',
+          code: 'EMAIL_BLOCKED'
+        },
+        { status: 403 }
+      );
+    }
+    
     // Se recebemos apenas um payment_request_id, buscar os dados da solicitação existente
     if (body.payment_request_id) {
       console.log('[SOLUÇÃO INTEGRADA] Criando pagamento para solicitação existente:', body.payment_request_id);
@@ -70,6 +109,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: 'Solicitação de pagamento não encontrada' },
           { status: 404 }
+        );
+      }
+      
+      // Verificar se o email da solicitação existente está bloqueado
+      if (existingRequest.customer_email && isEmailBlocked(existingRequest.customer_email)) {
+        console.log(`[BLOQUEIO] Tentativa de pagamento bloqueada para email existente: ${existingRequest.customer_email}`);
+        
+        // Retornar erro 403 (Forbidden)
+        return NextResponse.json(
+          {
+            error: 'Email bloqueado',
+            message: 'Este email está impedido de realizar compras no sistema.',
+            code: 'EMAIL_BLOCKED'
+          },
+          { status: 403 }
         );
       }
       
