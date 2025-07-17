@@ -4,10 +4,6 @@ import crypto from 'crypto';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import jwt from 'jsonwebtoken';
 import { isEmailBlocked } from '@/lib/blocked-emails';
-// Importar função para verificar email bloqueado
-import { isEmailBlocked } from '@/lib/blocked-emails';
-// Importar função para verificar email bloqueado
-import { isEmailBlocked } from '@/lib/blocked-emails';
 
 // Interface para o tipo de Post
 interface Post {
@@ -62,24 +58,6 @@ export async function POST(request: NextRequest) {
   console.log('[SOLUÇÃO INTEGRADA] Dados recebidos:', JSON.stringify(body).substring(0, 200) + '...');
   
   try {
-    // Importar a função para verificar email bloqueado
-    const { isEmailBlocked } = require('@/lib/blocked-emails');
-    
-    // Verificar se o email está bloqueado
-    const email = body.customer_email || body.email;
-    if (email && isEmailBlocked(email)) {
-      console.log(`[BLOQUEIO] Tentativa de pagamento bloqueada para email: ${email}`);
-      
-      // Retornar erro 403 (Forbidden)
-      return NextResponse.json(
-        {
-          error: 'Email bloqueado',
-          message: 'Este email está impedido de realizar compras no sistema.',
-          code: 'EMAIL_BLOCKED'
-        },
-        { status: 403 }
-      );
-    }
     // Verificar se o email está bloqueado
     const email = body.customer_email || body.email;
     if (email && isEmailBlocked(email)) {

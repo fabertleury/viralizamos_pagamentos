@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { blockedEmails } from './lib/blocked-emails';
+import { blockedEmails, isEmailBlocked } from './lib/blocked-emails';
 
 // Definir uma lista de origens permitidas
 const allowedOrigins = [
@@ -16,23 +16,6 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001'
 ];
-
-/**
- * Função para verificar se um email está bloqueado
- * @param {string} email - Email para verificar
- * @returns {boolean} - Retorna true se o email estiver bloqueado
- */
-function isEmailBlocked(email: string): boolean {
-  if (!email) return false;
-  
-  // Normalizar o email (converter para minúsculas)
-  const normalizedEmail = email.toLowerCase().trim();
-  
-  // Verificar se o email está na lista de bloqueados
-  return blockedEmails.some(blockedEmail => 
-    blockedEmail.toLowerCase() === normalizedEmail
-  );
-}
 
 export async function middleware(request: NextRequest) {
   // Extrair a origem da requisição
