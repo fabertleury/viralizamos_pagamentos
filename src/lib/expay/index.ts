@@ -1,17 +1,6 @@
 import { ExpayPaymentRequest, ExpayPaymentResponse, ExpayWebhookNotification, ExpayWebhookResponse, LegacyExpayPaymentResponse } from './types';
 import { getExpayBaseUrl, getExpayEndpointUrl, getExpayMerchantKey, getExpayMerchantId } from './config';
 
-// Função auxiliar para converter objeto em URLSearchParams
-const objectToURLSearchParams = (obj: Record<string, any>): URLSearchParams => {
-  const params = new URLSearchParams();
-  Object.entries(obj).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      params.append(key, typeof value === 'string' ? value : String(value));
-    }
-  });
-  return params;
-};
-
 // Criar um pagamento PIX
 export const createPixPayment = async (data: {
   invoice_id: string;
@@ -31,38 +20,46 @@ export const createPixPayment = async (data: {
   invoice?: string;
 }): Promise<LegacyExpayPaymentResponse> => {
   try {
-    // Preparar os dados conforme o formato esperado pelo Expay
-    const invoiceData = {
-      invoice_id: data.invoice_id,
-      invoice_description: data.invoice_description,
-      total: data.total,
-      devedor: data.devedor,
-      email: data.email,
-      cpf_cnpj: data.cpf_cnpj,
-      notification_url: data.notification_url,
-      telefone: data.telefone,
-      items: data.items
-    };
-    
-    // Converter para o formato esperado pelo Expay
+    // Criar o objeto de dados exatamente como nos exemplos
     const formData = new URLSearchParams();
+    
+    // Campos obrigatórios do formulário principal
     formData.append('merchant_key', getExpayMerchantKey());
     formData.append('currency_code', 'BRL');
-    formData.append('invoice', JSON.stringify(invoiceData));
+    
+    // Garantir que todos os campos obrigatórios estejam presentes no JSON do invoice
+    const invoiceData = {
+      // Campos obrigatórios
+      invoice_id: data.invoice_id,
+      invoice_description: data.invoice_description,
+      total: data.total.toString(),
+      devedor: data.devedor || "Cliente",
+      email: data.email || "cliente@exemplo.com",
+      cpf_cnpj: data.cpf_cnpj || "00000000000",
+      
+      // Campos opcionais
+      notification_url: data.notification_url,
+      telefone: data.telefone || "0000000000",
+      
+      // Campo obrigatório - items
+      items: data.items.map(item => ({
+        name: item.name,
+        price: item.price.toString(),
+        description: item.description,
+        qty: item.qty.toString()
+      }))
+    };
+    
+    // Serializar para JSON e adicionar ao formulário
+    const invoiceJson = JSON.stringify(invoiceData);
+    formData.append('invoice', invoiceJson);
     
     const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
     
     console.log('[EXPAY] URL da API:', endpointUrl);
     console.log('[EXPAY] Merchant Key configurada:', getExpayMerchantKey() ? 'Sim (comprimento: ' + getExpayMerchantKey().length + ')' : 'Não');
     console.log('[EXPAY] Dados do formulário:', formData.toString().replace(/merchant_key=[^&]+/, 'merchant_key=***HIDDEN***'));
-
-    // Verificar se a URL é válida
-    try {
-      new URL(endpointUrl);
-    } catch (urlError) {
-      console.error('[EXPAY] URL inválida:', endpointUrl, urlError);
-      throw new Error(`URL inválida: ${endpointUrl}`);
-    }
+    console.log('[EXPAY] JSON do invoice:', invoiceJson);
 
     console.log('[EXPAY] Iniciando requisição fetch para:', endpointUrl);
     const response = await fetch(endpointUrl, {

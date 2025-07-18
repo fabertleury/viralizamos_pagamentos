@@ -122,16 +122,20 @@ export async function POST(request: NextRequest) {
       
       // Criar pagamento na Expay
       const expayPayment = await createPixPayment({
-        invoice: '',  // Campo vazio conforme exemplo da documentação
         invoice_id: paymentRequest.id,
         invoice_description: paymentRequest.service_name || 'Pagamento Viralizamos',
         total: paymentRequest.amount,
-        devedor: paymentRequest.customer_name,
-        email: paymentRequest.customer_email,
-        cpf_cnpj: '00000000000', // TODO: Implementar campo de CPF/CNPJ
+        devedor: paymentRequest.customer_name || 'Cliente',
+        email: paymentRequest.customer_email || 'cliente@exemplo.com',
+        cpf_cnpj: '00000000000', // CPF padrão para não exigir do cliente
         notification_url: notificationUrl,
         telefone: paymentRequest.customer_phone || '0000000000',
-        items
+        items: [{
+          name: paymentRequest.service_name || 'Serviço Viralizamos',
+          price: paymentRequest.amount,
+          description: paymentRequest.service_name || 'Pagamento Viralizamos',
+          qty: 1
+        }]
       });
       
       // Criar a transação
