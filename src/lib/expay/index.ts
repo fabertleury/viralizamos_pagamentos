@@ -111,16 +111,35 @@ export const createPixPayment = async (data: {
       let extractedQrCode = '';
       let extractedEmv = '';
       
-      // Tentar extrair QR code base64
-      const qrCodeMatch = htmlText.match(/src="data:image\/png;base64,([^"]+)"/);
-      if (qrCodeMatch && qrCodeMatch[1]) {
-        // Evitar duplicação do prefixo data:image/png;base64,
-        if (qrCodeMatch[1].startsWith('data:image/png;base64,')) {
-          extractedQrCode = qrCodeMatch[1];
-        } else {
-          extractedQrCode = 'data:image/png;base64,' + qrCodeMatch[1];
-        }
-        console.log('[EXPAY] QR code base64 extraído da resposta HTML');
+      // Tentar extrair QR code base64 - procurar por diferentes padrões
+      console.log('[EXPAY] Tentando extrair QR code da resposta HTML...');
+      
+      // Padrão 1: src="data:image/png;base64,..."
+      const qrCodeMatch1 = htmlText.match(/src="(data:image\/png;base64,[^"]+)"/);
+      if (qrCodeMatch1 && qrCodeMatch1[1]) {
+        extractedQrCode = qrCodeMatch1[1];
+        console.log('[EXPAY] QR code base64 extraído da resposta HTML (padrão 1)');
+      }
+      
+      // Padrão 2: <img id="qrcode" src="data:image/png;base64,..."
+      const qrCodeMatch2 = htmlText.match(/<img[^>]*id="qrcode"[^>]*src="([^"]+)"/);
+      if (!extractedQrCode && qrCodeMatch2 && qrCodeMatch2[1]) {
+        extractedQrCode = qrCodeMatch2[1];
+        console.log('[EXPAY] QR code base64 extraído da resposta HTML (padrão 2)');
+      }
+      
+      // Padrão 3: <img src="data:image/png;base64,..." class="qr-code"
+      const qrCodeMatch3 = htmlText.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*qr-code[^"]*"/);
+      if (!extractedQrCode && qrCodeMatch3 && qrCodeMatch3[1]) {
+        extractedQrCode = qrCodeMatch3[1];
+        console.log('[EXPAY] QR code base64 extraído da resposta HTML (padrão 3)');
+      }
+      
+      // Padrão 4: Qualquer imagem base64 na página
+      const qrCodeMatch4 = htmlText.match(/src="(data:image\/png;base64,[A-Za-z0-9+/=]+)"/);
+      if (!extractedQrCode && qrCodeMatch4 && qrCodeMatch4[1]) {
+        extractedQrCode = qrCodeMatch4[1];
+        console.log('[EXPAY] QR code base64 extraído da resposta HTML (padrão 4)');
       }
       
       // Tentar extrair código EMV (código PIX)
@@ -128,6 +147,26 @@ export const createPixPayment = async (data: {
       if (emvMatch && emvMatch[1]) {
         extractedEmv = emvMatch[1].trim();
         console.log('[EXPAY] Código EMV extraído da resposta HTML');
+      }
+      
+      // Salvar a resposta HTML para diagnóstico (sempre, para depuração)
+      try {
+        const fs = require('fs');
+        fs.writeFileSync('expay-response.html', htmlText);
+        console.log('[EXPAY] Resposta HTML salva em expay-response.html para diagnóstico');
+        
+        // Salvar os primeiros 1000 caracteres da resposta HTML no log
+        console.log('[EXPAY] Primeiros 1000 caracteres da resposta HTML:');
+        console.log(htmlText.substring(0, 1000));
+        
+        // Procurar por todas as tags img na resposta
+        const imgTags = htmlText.match(/<img[^>]*>/g) || [];
+        console.log('[EXPAY] Tags de imagem encontradas na resposta:', imgTags.length);
+        imgTags.forEach((tag, index) => {
+          console.log(`[EXPAY] Tag de imagem ${index + 1}:`, tag);
+        });
+      } catch (e) {
+        console.error('[EXPAY] Erro ao salvar resposta HTML:', e);
       }
       
       // Criar uma resposta com os dados extraídos ou simulados
@@ -140,18 +179,9 @@ export const createPixPayment = async (data: {
         bacen_url: 'https://pix.bcb.gov.br'
       };
       
-      // Salvar a resposta HTML para diagnóstico (apenas em desenvolvimento)
-      if (process.env.NODE_ENV !== 'production') {
-        try {
-          const fs = require('fs');
-          fs.writeFileSync('expay-response.html', htmlText);
-          console.log('[EXPAY] Resposta HTML salva em expay-response.html para diagnóstico');
-        } catch (e) {
-          console.error('[EXPAY] Erro ao salvar resposta HTML:', e);
-        }
-      }
+      console.log('[EXPAY] QR code extraído:', extractedQrCode ? 'Sim (comprimento: ' + extractedQrCode.length + ')' : 'Não');
+      console.log('[EXPAY] Código EMV extraído:', extractedEmv ? 'Sim (comprimento: ' + extractedEmv.length + ')' : 'Não');
       
-      console.log('[EXPAY] Retornando resposta com dados extraídos/simulados');
       return mockResponse;
     }
   } catch (error) {
