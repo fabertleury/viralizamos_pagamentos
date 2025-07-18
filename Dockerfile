@@ -34,19 +34,15 @@ ENV NODE_ENV=production
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 
 # Copy necessary files from builder
+COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/package.json ./package.json
-
-# Install only production dependencies
-RUN npm install --production --frozen-lockfile
+COPY --from=builder /app/node_modules ./node_modules
 
 # Expose port
 EXPOSE 3000
 
 # Start the application
-CMD ["node", "server.js"] 
+CMD ["npm", "start"] 
