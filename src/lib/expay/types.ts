@@ -48,6 +48,13 @@ export type LegacyExpayPaymentResponse = {
   emv: string;
   pix_url: string;
   bacen_url: string;
+  // Campos adicionais conforme a documentação
+  transaction_id?: string;
+  date?: string;
+  expire_date?: string;
+  status?: string;
+  value?: string;
+  order_id?: string;
 };
 
 export type ExpayWebhookNotification = {
