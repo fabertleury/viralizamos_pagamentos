@@ -3,7 +3,7 @@
  */
 
 // URL base da API do Expay
-export const EXPAY_BASE_URL = 'http://expaybrasil.com';
+export const EXPAY_BASE_URL = 'https://expaybrasil.com';
 
 // Endpoints da API
 export const ENDPOINTS = {

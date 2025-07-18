@@ -115,6 +115,21 @@ export async function POST(request: NextRequest) {
     }];
 
     try {
+      // Construir URL de notificação corretamente
+      let notificationUrl = '';
+      if (process.env.WEBHOOK_URL) {
+        notificationUrl = `${process.env.WEBHOOK_URL}/api/webhooks/expay`;
+      } else {
+        // Usar o baseUrl como fallback
+        const fullBaseUrl = `${protocol}://${baseUrl.replace(/^https?:\/\//i, '')}`;
+        notificationUrl = `${fullBaseUrl}/api/webhooks/expay`;
+      }
+      
+      // Remover qualquer caractere inválido da URL
+      notificationUrl = notificationUrl.replace(/[;,\s]+$/, '');
+      
+      console.log('[SOLUÇÃO INTEGRADA] URL de notificação:', notificationUrl);
+      
       // Criar pagamento na Expay
       const expayPayment = await createPixPayment({
         invoice: '',  // Campo vazio conforme exemplo da documentação
@@ -124,7 +139,7 @@ export async function POST(request: NextRequest) {
         devedor: paymentRequest.customer_name,
         email: paymentRequest.customer_email,
         cpf_cnpj: '00000000000', // TODO: Implementar campo de CPF/CNPJ
-        notification_url: `${process.env.WEBHOOK_URL || baseUrl}/api/webhooks/expay`,
+        notification_url: notificationUrl,
         telefone: paymentRequest.customer_phone || '0000000000',
         items
       });
