@@ -1,5 +1,6 @@
 export type ExpayPaymentRequest = {
   merchant_key: string;
+  merchant_id?: string;
   currency_code: string;
   invoice_id: string;
   invoice_description: string;
