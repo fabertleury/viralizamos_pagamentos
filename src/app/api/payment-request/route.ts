@@ -3,7 +3,7 @@ import { db } from '@/lib/prisma';
 import { generateToken } from '@/lib/token';
 import { generateIdempotencyKey } from '@/lib/idempotency';
 import { createPixPayment } from '@/lib/expay';
-import { isEmailBlocked } from '@/lib/email-block';
+import { isEmailBlocked } from '@/lib/blocked-emails'; // Alterado para usar a implementação em memória
 
 /**
  * Endpoint de compatibilidade para manter compatibilidade com o site principal
@@ -20,11 +20,11 @@ export async function POST(request: NextRequest) {
   console.log('[SOLUÇÃO INTEGRADA] Dados recebidos:', JSON.stringify(body).substring(0, 200) + '...');
   
   try {
-    // Verificar se o email está bloqueado
+    // Verificar se o email está bloqueado usando a implementação em memória
     const email = body.customer_email || body.email;
     if (email) {
-      const isBlocked = await isEmailBlocked(email);
-      if (isBlocked) {
+      // Não é mais uma função assíncrona, não precisa de await
+      if (isEmailBlocked(email)) {
         console.log(`[BLOQUEIO] Tentativa de pagamento bloqueada para email: ${email}`);
         
         // Retornar erro 403 (Forbidden)

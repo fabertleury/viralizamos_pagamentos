@@ -50,8 +50,17 @@ export const createPixPayment = async (data: {
       }))
     };
     
-    // Serializar para JSON e adicionar ao formulário
+    // Serializar para JSON e adicionar ao formulário - garantir que não haja erros de formatação
     const invoiceJson = JSON.stringify(invoiceData);
+    
+    // Verificar se o JSON está correto
+    try {
+      JSON.parse(invoiceJson); // Validar que é um JSON válido
+    } catch (e) {
+      console.error('[EXPAY] JSON inválido gerado:', e);
+      throw new Error('JSON inválido gerado para o campo invoice');
+    }
+    
     formData.append('invoice', invoiceJson);
     
     const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
