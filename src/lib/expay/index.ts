@@ -27,29 +27,24 @@ export const createPixPayment = async (data: {
     formData.append('merchant_key', getExpayMerchantKey());
     formData.append('currency_code', 'BRL');
     
-    // Construir o JSON manualmente para evitar problemas de formatação
-    const itemsJson = data.items.map(item => 
-      `{"name":"${item.name}","price":"${item.price.toString()}","description":"${item.description}","qty":"${item.qty.toString()}"}`
-    ).join(',');
+    // Enviar cada campo separadamente em vez de um JSON completo
+    formData.append('invoice_id', data.invoice_id);
+    formData.append('invoice_description', data.invoice_description || 'Pagamento Viralizamos');
+    formData.append('total', data.total.toString());
+    formData.append('devedor', data.devedor || 'Cliente');
+    formData.append('email', data.email || 'cliente@exemplo.com');
+    formData.append('cpf_cnpj', data.cpf_cnpj || '00000000000');
+    formData.append('notification_url', data.notification_url || 'https://pagamentos.viralizamos.com/api/webhooks/expay');
+    formData.append('telefone', data.telefone || '0000000000');
     
-    const invoiceJson = `{
-      "invoice_id":"${data.invoice_id}",
-      "invoice_description":"${data.invoice_description}",
-      "total":"${data.total.toString()}",
-      "devedor":"${data.devedor || "Cliente"}",
-      "email":"${data.email || "cliente@exemplo.com"}",
-      "cpf_cnpj":"${data.cpf_cnpj || "00000000000"}",
-      "notification_url":"${data.notification_url}",
-      "telefone":"${data.telefone || "0000000000"}",
-      "items":[${itemsJson}]
-    }`;
-    
-    // Remover espaços em branco extras e quebras de linha
-    const cleanedJson = invoiceJson.replace(/\s+/g, ' ').trim();
-    
-    console.log('[EXPAY] JSON do invoice (construído manualmente):', cleanedJson);
-    
-    formData.append('invoice', cleanedJson);
+    // Adicionar itens
+    if (data.items && data.items.length > 0) {
+      const item = data.items[0]; // Usar apenas o primeiro item
+      formData.append('item_name', item.name);
+      formData.append('item_price', item.price.toString());
+      formData.append('item_description', item.description);
+      formData.append('item_qty', item.qty.toString());
+    }
     
     const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
     
