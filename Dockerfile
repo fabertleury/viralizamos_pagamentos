@@ -35,6 +35,7 @@ WORKDIR /app
 # Set environment variables for production
 ENV NODE_ENV=production
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
+ENV PRISMA_BINARY_TARGET="linux-musl"
 
 # Install dependencies required for Prisma in production
 RUN apk add --no-cache openssl1.1-compat libc6-compat
@@ -46,6 +47,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules ./node_modules
+
+# Regenerate Prisma Client for the current environment
+RUN npx prisma generate
 
 # Expose port
 EXPOSE 3000
