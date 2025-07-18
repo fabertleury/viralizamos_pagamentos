@@ -3,11 +3,18 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "node server.js"
+startCommand = "npm start"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 100
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
+restartPolicyMaxRetries = 5
+
+[deploy.healthcheck]
+path = "/api/health"
+interval = "30s"
+timeout = "10s"
+retries = 3
+grace_period = "30s"
 
 [variables]
 PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING = "1" 
