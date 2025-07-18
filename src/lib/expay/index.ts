@@ -27,48 +27,35 @@ export const createPixPayment = async (data: {
     formData.append('merchant_key', getExpayMerchantKey());
     formData.append('currency_code', 'BRL');
     
-    // Garantir que todos os campos obrigatórios estejam presentes no JSON do invoice
-    const invoiceData = {
-      // Campos obrigatórios
-      invoice_id: data.invoice_id,
-      invoice_description: data.invoice_description,
-      total: data.total.toString(),
-      devedor: data.devedor || "Cliente",
-      email: data.email || "cliente@exemplo.com",
-      cpf_cnpj: data.cpf_cnpj || "00000000000",
-      
-      // Campos opcionais
-      notification_url: data.notification_url,
-      telefone: data.telefone || "0000000000",
-      
-      // Campo obrigatório - items
-      items: data.items.map(item => ({
-        name: item.name,
-        price: item.price.toString(),
-        description: item.description,
-        qty: item.qty.toString()
-      }))
-    };
+    // Construir o JSON manualmente para evitar problemas de formatação
+    const itemsJson = data.items.map(item => 
+      `{"name":"${item.name}","price":"${item.price.toString()}","description":"${item.description}","qty":"${item.qty.toString()}"}`
+    ).join(',');
     
-    // Serializar para JSON e adicionar ao formulário - garantir que não haja erros de formatação
-    const invoiceJson = JSON.stringify(invoiceData);
+    const invoiceJson = `{
+      "invoice_id":"${data.invoice_id}",
+      "invoice_description":"${data.invoice_description}",
+      "total":"${data.total.toString()}",
+      "devedor":"${data.devedor || "Cliente"}",
+      "email":"${data.email || "cliente@exemplo.com"}",
+      "cpf_cnpj":"${data.cpf_cnpj || "00000000000"}",
+      "notification_url":"${data.notification_url}",
+      "telefone":"${data.telefone || "0000000000"}",
+      "items":[${itemsJson}]
+    }`;
     
-    // Verificar se o JSON está correto
-    try {
-      JSON.parse(invoiceJson); // Validar que é um JSON válido
-    } catch (e) {
-      console.error('[EXPAY] JSON inválido gerado:', e);
-      throw new Error('JSON inválido gerado para o campo invoice');
-    }
+    // Remover espaços em branco extras e quebras de linha
+    const cleanedJson = invoiceJson.replace(/\s+/g, ' ').trim();
     
-    formData.append('invoice', invoiceJson);
+    console.log('[EXPAY] JSON do invoice (construído manualmente):', cleanedJson);
+    
+    formData.append('invoice', cleanedJson);
     
     const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
     
     console.log('[EXPAY] URL da API:', endpointUrl);
     console.log('[EXPAY] Merchant Key configurada:', getExpayMerchantKey() ? 'Sim (comprimento: ' + getExpayMerchantKey().length + ')' : 'Não');
     console.log('[EXPAY] Dados do formulário:', formData.toString().replace(/merchant_key=[^&]+/, 'merchant_key=***HIDDEN***'));
-    console.log('[EXPAY] JSON do invoice:', invoiceJson);
 
     console.log('[EXPAY] Iniciando requisição fetch para:', endpointUrl);
     const response = await fetch(endpointUrl, {
