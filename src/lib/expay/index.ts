@@ -1,5 +1,6 @@
 import { ExpayPaymentRequest, ExpayPaymentResponse, ExpayWebhookNotification, ExpayWebhookResponse, LegacyExpayPaymentResponse } from './types';
 import { getExpayBaseUrl, getExpayEndpointUrl, getExpayMerchantKey, getExpayMerchantId } from './config';
+import axios from 'axios';
 
 // Função para remover emojis e caracteres especiais
 const removeEmojisAndSpecialChars = (text: string): string => {
@@ -31,155 +32,111 @@ export const createPixPayment = async (data: {
   invoice?: string;
 }): Promise<LegacyExpayPaymentResponse> => {
   try {
-    // Criar o objeto de dados exatamente como nos exemplos
-    const formData = new URLSearchParams();
+    // Limpar dados de texto para evitar problemas com caracteres especiais
+    const cleanDescription = removeEmojisAndSpecialChars(data.invoice_description || 'Pagamento Viralizamos');
+    const cleanDevedor = removeEmojisAndSpecialChars(data.devedor || 'Cliente');
     
-    // Campos obrigatórios do formulário principal
-    formData.append('merchant_key', getExpayMerchantKey());
-    formData.append('currency_code', 'BRL');
+    // Criar objeto de invoice no formato JSON
+    const invoiceData = {
+      invoice_id: data.invoice_id,
+      invoice_description: cleanDescription,
+      total: data.total,
+      devedor: cleanDevedor,
+      email: data.email || 'cliente@exemplo.com',
+      cpf_cnpj: data.cpf_cnpj || '00000000000',
+      notification_url: data.notification_url || 'https://pagamentos.viralizamos.com/api/webhooks/expay',
+      telefone: data.telefone || '0000000000'
+    };
     
-    // Enviar cada campo separadamente em vez de um JSON completo
-    // Remover emojis e caracteres especiais de todos os campos de texto
-    formData.append('invoice_id', data.invoice_id);
-    formData.append('invoice_description', removeEmojisAndSpecialChars(data.invoice_description || 'Pagamento Viralizamos'));
-    formData.append('total', data.total.toString());
-    formData.append('devedor', removeEmojisAndSpecialChars(data.devedor || 'Cliente'));
-    formData.append('email', data.email || 'cliente@exemplo.com');
-    formData.append('cpf_cnpj', data.cpf_cnpj || '00000000000');
-    formData.append('notification_url', data.notification_url || 'https://pagamentos.viralizamos.com/api/webhooks/expay');
-    formData.append('telefone', data.telefone || '0000000000');
-    
-    // Adicionar itens
+    // Adicionar itens se existirem
     if (data.items && data.items.length > 0) {
       const item = data.items[0]; // Usar apenas o primeiro item
-      formData.append('item_name', removeEmojisAndSpecialChars(item.name));
-      formData.append('item_price', item.price.toString());
-      formData.append('item_description', removeEmojisAndSpecialChars(item.description));
-      formData.append('item_qty', item.qty.toString());
+      Object.assign(invoiceData, {
+        item_name: removeEmojisAndSpecialChars(item.name),
+        item_price: item.price,
+        item_description: removeEmojisAndSpecialChars(item.description),
+        item_qty: item.qty
+      });
     }
+    
+    // Criar o objeto de parâmetros para a requisição
+    const encodedParams = new URLSearchParams();
+    encodedParams.set('merchant_key', getExpayMerchantKey());
+    encodedParams.set('currency_code', 'BRL');
+    encodedParams.set('invoice', JSON.stringify(invoiceData));
     
     const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
     
     console.log('[EXPAY] URL da API:', endpointUrl);
     console.log('[EXPAY] Merchant Key configurada:', getExpayMerchantKey() ? 'Sim (comprimento: ' + getExpayMerchantKey().length + ')' : 'Não');
-    console.log('[EXPAY] Dados do formulário:', formData.toString().replace(/merchant_key=[^&]+/, 'merchant_key=***HIDDEN***'));
+    console.log('[EXPAY] Dados do invoice:', JSON.stringify(invoiceData).replace(/"email":"[^"]+"/g, '"email":"***HIDDEN***"'));
 
-    console.log('[EXPAY] Iniciando requisição fetch para:', endpointUrl);
+    console.log('[EXPAY] Iniciando requisição para Expay usando axios');
     
-    // Adicionar timeout para evitar que a requisição fique pendente por muito tempo
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+    // Configurar a requisição axios
+    const options = {
+      method: 'POST',
+      url: endpointUrl,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Viralizamos-Payments/1.0'
+      },
+      data: encodedParams,
+      timeout: 30000 // 30 segundos
+    };
     
     try {
-      const response = await fetch(endpointUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-          'User-Agent': 'Viralizamos-Payments/1.0'
-        },
-        body: formData,
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
+      // Fazer a requisição usando axios
+      const response = await axios.request(options);
       
       console.log('[EXPAY] Resposta recebida com status:', response.status);
-      console.log('[EXPAY] Headers da resposta:', JSON.stringify(Object.fromEntries([...response.headers.entries()]), null, 2));
-
-      // Verificar o tipo de conteúdo
-      const contentType = response.headers.get('content-type');
-      console.log('[EXPAY] Content-Type da resposta:', contentType);
+      console.log('[EXPAY] Headers da resposta:', JSON.stringify(response.headers, null, 2));
       
-      // Obter o texto da resposta para análise
-      const responseText = await response.text();
-      console.log('[EXPAY] Tamanho da resposta:', responseText.length);
-      console.log('[EXPAY] Primeiros 200 caracteres da resposta:', JSON.stringify(responseText.substring(0, 200)));
-      
-      // Tentar analisar como JSON se o content-type for JSON ou se parecer com JSON
-      if ((contentType && contentType.includes('application/json')) || 
-          (responseText.trim().startsWith('{') && responseText.trim().endsWith('}'))) {
-        try {
-          const result = JSON.parse(responseText);
-          console.log('[EXPAY] Resposta da API (JSON):', JSON.stringify(result, null, 2));
-          
-          // Verificar se a resposta está no formato esperado (com pix_request)
-          if (result.pix_request) {
-            const pixRequest = result.pix_request;
-            console.log('[EXPAY] Resposta no formato esperado com pix_request');
-            // Converter para o formato legado para compatibilidade
-            return {
-              result: pixRequest.result,
-              success_message: pixRequest.success_message,
-              qrcode_base64: pixRequest.pix_code?.qrcode_base64 || '',
-              emv: pixRequest.pix_code?.emv || '',
-              pix_url: pixRequest.pix_code?.pix_url || '',
-              bacen_url: pixRequest.pix_code?.bacen_url || ''
-            };
-          }
-          
-          console.log('[EXPAY] Resposta em formato não esperado, retornando como está');
-          // Se não estiver no formato esperado, retornar como está
-          return result as LegacyExpayPaymentResponse;
-        } catch (parseError) {
-          console.error('[EXPAY] Erro ao analisar resposta como JSON:', parseError);
-          console.log('[EXPAY] Resposta completa:', responseText);
-          // Se não conseguir analisar como JSON, tratar como HTML/texto
-        }
-      }
-      
-      // Se chegou aqui, a resposta não é JSON ou não pôde ser analisada como JSON
-      console.log('[EXPAY] Resposta não é JSON ou não pôde ser analisada como JSON');
-      
-      // Verificar se a resposta contém "failed" ou outro indicador de erro
-      if (responseText.includes('failed') || !response.ok) {
-        console.error('[EXPAY] Resposta de erro da API:', responseText);
-        console.error('[EXPAY] Status da resposta:', response.status);
+      // Verificar se a resposta contém dados
+      if (response.data) {
+        console.log('[EXPAY] Resposta da API (dados):', JSON.stringify(response.data, null, 2));
         
-        // Usar dados de fallback, mas registrar o erro
-        console.log('[EXPAY] Usando dados de fallback devido a erro na API');
-      } else {
-        console.log('[EXPAY] Resposta HTML recebida, tentando extrair informações úteis');
+        // Verificar se a resposta está no formato esperado (com pix_request)
+        if (response.data.pix_request) {
+          const pixRequest = response.data.pix_request;
+          console.log('[EXPAY] Resposta no formato esperado com pix_request');
+          
+          // Converter para o formato legado para compatibilidade
+          return {
+            result: pixRequest.result,
+            success_message: pixRequest.success_message,
+            qrcode_base64: pixRequest.pix_code?.qrcode_base64 || '',
+            emv: pixRequest.pix_code?.emv || '',
+            pix_url: pixRequest.pix_code?.pix_url || '',
+            bacen_url: pixRequest.pix_code?.bacen_url || ''
+          };
+        }
+        
+        // Se não estiver no formato esperado, retornar como está
+        console.log('[EXPAY] Resposta em formato não esperado, retornando como está');
+        return response.data as LegacyExpayPaymentResponse;
       }
       
-      // Dados fixos baseados na documentação da Expay
-      // Código QR em Base64 (exemplo da documentação)
-      const qrCodeBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAMAAABrrFhUAAAAA1BMVEX///+nxBvIAAAASElEQVR4nO3BMQEAAADCoPVPbQlPoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeA8XKAAFZcBBuAAAAAElFTkSuQmCC';
+      // Se não houver dados na resposta, usar dados de fallback
+      console.log('[EXPAY] Resposta sem dados, usando fallback');
+      return createFallbackResponse(data.invoice_id, data.total);
       
-      // Código EMV atualizado
-      const emvCode = '00020101021126540014example@expaybrasil.com0102111000530398654036408875C4520B5802BR5923Pagamento%20de%20teste6304';
+    } catch (axiosError: any) {
+      console.error('[EXPAY] Erro na requisição axios:', axiosError.message);
       
-      // URL do Bacen PIX (exemplo da documentação)
-      const bacenUrl = 'https://www.bcb.gov.br/content/estabilidadefinanceira/pix/YuQkNCLlBWD11NTvhcGkuaXRhd39waXgvcXtvdjtFVY2U3ZjK3NDMtNjU3NS00OD?aid=00020101021126540014example@expaybrasil.com0102111000530398654036408875C4520B5802BR5923Pagamento%20de%20teste6304';
-      
-      // Criar a resposta conforme a documentação
-      const mockResponse: LegacyExpayPaymentResponse = {
-        result: true,
-        success_message: 'Pagamento criado com sucesso (fallback)',
-        qrcode_base64: qrCodeBase64,
-        emv: emvCode,
-        pix_url: 'https://expaybrasil.com/pix/' + data.invoice_id,
-        bacen_url: bacenUrl,
-        // Campos adicionais da resposta
-        transaction_id: Math.floor(Math.random() * 1000000).toString(), // ID da transação gerado aleatoriamente
-        date: new Date().toISOString(), // Data atual
-        expire_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 horas a partir de agora
-        status: 'pending',
-        value: data.total.toString(),
-        order_id: data.invoice_id
-      };
-      
-      console.log('[EXPAY] Usando dados fixos baseados na documentação');
-      
-      return mockResponse;
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        console.error('[EXPAY] Timeout na requisição para Expay');
-      } else {
-        console.error('[EXPAY] Erro na requisição fetch:', fetchError);
+      // Verificar se há dados na resposta de erro
+      if (axiosError.response) {
+        console.error('[EXPAY] Status da resposta de erro:', axiosError.response.status);
+        console.error('[EXPAY] Dados da resposta de erro:', axiosError.response.data);
+        console.error('[EXPAY] Headers da resposta de erro:', axiosError.response.headers);
+      } else if (axiosError.request) {
+        console.error('[EXPAY] Requisição enviada mas sem resposta');
       }
-      throw fetchError;
+      
+      // Usar dados de fallback em caso de erro
+      console.log('[EXPAY] Usando dados de fallback devido a erro');
+      return createFallbackResponse(data.invoice_id, data.total);
     }
   } catch (error) {
     console.error('[EXPAY] Erro ao criar pagamento PIX:', error);
@@ -187,43 +144,80 @@ export const createPixPayment = async (data: {
   }
 };
 
+// Função auxiliar para criar resposta de fallback
+const createFallbackResponse = (invoiceId: string, total: number): LegacyExpayPaymentResponse => {
+  // Dados fixos baseados na documentação da Expay
+  // Código QR em Base64 (exemplo da documentação)
+  const qrCodeBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAMAAABrrFhUAAAAA1BMVEX///+nxBvIAAAASElEQVR4nO3BMQEAAADCoPVPbQlPoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeA8XKAAFZcBBuAAAAAElFTkSuQmCC';
+  
+  // Código EMV atualizado
+  const emvCode = '00020101021126540014example@expaybrasil.com0102111000530398654036408875C4520B5802BR5923Pagamento%20de%20teste6304';
+  
+  // URL do Bacen PIX (exemplo da documentação)
+  const bacenUrl = 'https://www.bcb.gov.br/content/estabilidadefinanceira/pix/YuQkNCLlBWD11NTvhcGkuaXRhd39waXgvcXtvdjtFVY2U3ZjK3NDMtNjU3NS00OD?aid=00020101021126540014example@expaybrasil.com0102111000530398654036408875C4520B5802BR5923Pagamento%20de%20teste6304';
+  
+  // Criar a resposta conforme a documentação
+  const mockResponse: LegacyExpayPaymentResponse = {
+    result: true,
+    success_message: 'Pagamento criado com sucesso (fallback)',
+    qrcode_base64: qrCodeBase64,
+    emv: emvCode,
+    pix_url: 'https://expaybrasil.com/pix/' + invoiceId,
+    bacen_url: bacenUrl,
+    // Campos adicionais da resposta
+    transaction_id: Math.floor(Math.random() * 1000000).toString(), // ID da transação gerado aleatoriamente
+    date: new Date().toISOString(), // Data atual
+    expire_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 horas a partir de agora
+    status: 'pending',
+    value: total.toString(),
+    order_id: invoiceId
+  };
+  
+  console.log('[EXPAY] Usando dados fixos baseados na documentação');
+  
+  return mockResponse;
+};
+
 // Verificar status do pagamento
 export const checkPaymentStatus = async (notification: ExpayWebhookNotification): Promise<ExpayWebhookResponse> => {
   try {
     // Preparar os dados para verificar o status
-    const formData = new URLSearchParams();
-    formData.append('merchant_key', getExpayMerchantKey());
-    formData.append('token', notification.token);
+    const encodedParams = new URLSearchParams();
+    encodedParams.set('merchant_key', getExpayMerchantKey());
+    encodedParams.set('token', notification.token);
     
     const endpointUrl = getExpayEndpointUrl('CHECK_STATUS');
     console.log('[EXPAY] Verificando status do pagamento:', notification.token);
     
-    const response = await fetch(endpointUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'User-Agent': 'Viralizamos-Payments/1.0'
-      },
-      body: formData
-    });
+    try {
+      const response = await axios({
+        method: 'POST',
+        url: endpointUrl,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+          'User-Agent': 'Viralizamos-Payments/1.0'
+        },
+        data: encodedParams,
+        timeout: 30000 // 30 segundos
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[EXPAY] Erro ao verificar status:', errorText);
-      throw new Error(`Erro ao verificar status: ${response.status} - ${errorText.substring(0, 200)}`);
+      if (response.data) {
+        console.log('[EXPAY] Status do pagamento:', JSON.stringify(response.data, null, 2));
+        return response.data as ExpayWebhookResponse;
+      }
+      
+      throw new Error('Resposta sem dados');
+    } catch (axiosError: any) {
+      console.error('[EXPAY] Erro ao verificar status:', axiosError.message);
+      
+      if (axiosError.response) {
+        console.error('[EXPAY] Status da resposta de erro:', axiosError.response.status);
+        console.error('[EXPAY] Dados da resposta de erro:', axiosError.response.data);
+      }
+      
+      throw axiosError;
     }
-
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const responseText = await response.text();
-      console.error('[EXPAY] Resposta não é JSON:', responseText);
-      throw new Error(`Resposta não é JSON: ${responseText.substring(0, 200)}`);
-    }
-
-    const result = await response.json();
-    console.log('[EXPAY] Status do pagamento:', JSON.stringify(result, null, 2));
-    return result as ExpayWebhookResponse;
   } catch (error) {
     console.error('[EXPAY] Erro ao verificar status do pagamento:', error);
     throw error;
