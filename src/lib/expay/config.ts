@@ -13,7 +13,8 @@ export const ENDPOINTS = {
 
 // Função para obter a URL base do Expay
 export const getExpayBaseUrl = (): string => {
-  return process.env.EXPAY_BASE_URL || EXPAY_BASE_URL;
+  // Forçar o uso da URL fixa para evitar problemas
+  return 'https://expaybrasil.com';
 };
 
 // Função para obter a URL completa de um endpoint

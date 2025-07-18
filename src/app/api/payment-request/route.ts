@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     let postsCount = 0;
     let externalServiceId = null;
 
-    if (body.additional_data) {
+      if (body.additional_data) {
       additionalDataString = JSON.stringify(body.additional_data);
       
       // Extrair informações dos dados adicionais
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       
       serviceType = additionalData.service_type || 'instagram_likes';
       isFollowersService = serviceType === 'instagram_followers';
-      externalServiceId = additionalData.external_service_id;
+          externalServiceId = additionalData.external_service_id;
       
       if (additionalData.posts) {
         postsWithQuantities = additionalData.posts;
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     // Gerar chave de idempotência
     const idempotencyKey = generateIdempotencyKey(paymentRequest.id);
     console.log('[SOLUÇÃO INTEGRADA] Chave de idempotência:', idempotencyKey);
-
+    
     // Preparar os itens para a Expay
     const items = [{
       name: paymentRequest.service_name || 'Serviço Viralizamos',
@@ -115,18 +115,8 @@ export async function POST(request: NextRequest) {
     }];
 
     try {
-      // Construir URL de notificação corretamente
-      let notificationUrl = '';
-      if (process.env.WEBHOOK_URL) {
-        notificationUrl = `${process.env.WEBHOOK_URL}/api/webhooks/expay`;
-      } else {
-        // Usar o baseUrl como fallback
-        const fullBaseUrl = `${protocol}://${baseUrl.replace(/^https?:\/\//i, '')}`;
-        notificationUrl = `${fullBaseUrl}/api/webhooks/expay`;
-      }
-      
-      // Remover qualquer caractere inválido da URL
-      notificationUrl = notificationUrl.replace(/[;,\s]+$/, '');
+      // Usar uma URL fixa para notificação para evitar problemas
+      const notificationUrl = "https://pagamentos.viralizamos.com/api/webhooks/expay";
       
       console.log('[SOLUÇÃO INTEGRADA] URL de notificação:', notificationUrl);
       
@@ -235,40 +225,40 @@ export async function POST(request: NextRequest) {
       console.error('[SOLUÇÃO INTEGRADA] Erro ao criar pagamento:', error);
       
       // Criar transação com erro
-      const failedTransaction = await db.transaction.create({
-        data: {
-          payment_request_id: paymentRequest.id,
-          external_id: `failed_${Date.now()}`,
-          status: 'failed',
-          method: 'pix',
-          amount: paymentRequest.amount,
+        const failedTransaction = await db.transaction.create({
+          data: {
+            payment_request_id: paymentRequest.id,
+            external_id: `failed_${Date.now()}`,
+            status: 'failed',
+            method: 'pix',
+            amount: paymentRequest.amount,
           provider: 'expay',
-          metadata: JSON.stringify({
+            metadata: JSON.stringify({
             error: error instanceof Error ? error.message : 'Erro desconhecido',
-            idempotencyKey
-          })
-        }
-      });
+              idempotencyKey
+            })
+          }
+        });
 
       // Registrar falha de processamento
-      await db.paymentProcessingFailure.create({
-        data: {
-          transaction_id: failedTransaction.id,
+        await db.paymentProcessingFailure.create({
+          data: {
+            transaction_id: failedTransaction.id,
           error_code: 'EXPAY_PAYMENT_CREATION_ERROR',
           error_message: error instanceof Error ? error.message : 'Erro desconhecido',
           stack_trace: error instanceof Error ? error.stack : undefined,
-          metadata: JSON.stringify({
-            payment_request_id: paymentRequest.id,
-            idempotencyKey
-          })
-        }
-      });
+            metadata: JSON.stringify({
+              payment_request_id: paymentRequest.id,
+              idempotencyKey
+            })
+          }
+        });
 
       // Atualizar status da solicitação para failed
-      await db.paymentRequest.update({
-        where: { id: paymentRequest.id },
-        data: { status: 'failed' }
-      });
+        await db.paymentRequest.update({
+          where: { id: paymentRequest.id },
+          data: { status: 'failed' }
+        });
 
       throw error;
     }

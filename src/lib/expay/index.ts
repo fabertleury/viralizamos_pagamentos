@@ -1,6 +1,17 @@
 import { ExpayPaymentRequest, ExpayPaymentResponse, ExpayWebhookNotification, ExpayWebhookResponse, LegacyExpayPaymentResponse } from './types';
 import { getExpayBaseUrl, getExpayEndpointUrl, getExpayMerchantKey, getExpayMerchantId } from './config';
 
+// Função auxiliar para converter objeto em URLSearchParams
+const objectToURLSearchParams = (obj: Record<string, any>): URLSearchParams => {
+  const params = new URLSearchParams();
+  Object.entries(obj).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      params.append(key, typeof value === 'string' ? value : String(value));
+    }
+  });
+  return params;
+};
+
 // Criar um pagamento PIX
 export const createPixPayment = async (data: {
   invoice_id: string;
@@ -19,26 +30,32 @@ export const createPixPayment = async (data: {
   }>;
   invoice?: string;
 }): Promise<LegacyExpayPaymentResponse> => {
-  const paymentData: ExpayPaymentRequest = {
-    merchant_key: getExpayMerchantKey(),
-    merchant_id: getExpayMerchantId(),
-    currency_code: 'BRL',
-    ...data,
-    // Garantir que o invoice_id seja uma string
-    invoice_id: String(data.invoice_id)
-  };
-
-  const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
-  console.log('[EXPAY] Enviando solicitação para criar pagamento PIX:', JSON.stringify(paymentData, (key, value) => {
-    // Ocultar a merchant_key no log
-    if (key === 'merchant_key') return '***HIDDEN***';
-    return value;
-  }, 2));
-  console.log('[EXPAY] URL da API:', endpointUrl);
-  console.log('[EXPAY] Merchant Key configurada:', getExpayMerchantKey() ? 'Sim (comprimento: ' + getExpayMerchantKey().length + ')' : 'Não');
-  console.log('[EXPAY] Merchant ID configurado:', getExpayMerchantId());
-
   try {
+    // Preparar os dados conforme o formato esperado pelo Expay
+    const invoiceData = {
+      invoice_id: data.invoice_id,
+      invoice_description: data.invoice_description,
+      total: data.total,
+      devedor: data.devedor,
+      email: data.email,
+      cpf_cnpj: data.cpf_cnpj,
+      notification_url: data.notification_url,
+      telefone: data.telefone,
+      items: data.items
+    };
+    
+    // Converter para o formato esperado pelo Expay
+    const formData = new URLSearchParams();
+    formData.append('merchant_key', getExpayMerchantKey());
+    formData.append('currency_code', 'BRL');
+    formData.append('invoice', JSON.stringify(invoiceData));
+    
+    const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
+    
+    console.log('[EXPAY] URL da API:', endpointUrl);
+    console.log('[EXPAY] Merchant Key configurada:', getExpayMerchantKey() ? 'Sim (comprimento: ' + getExpayMerchantKey().length + ')' : 'Não');
+    console.log('[EXPAY] Dados do formulário:', formData.toString().replace(/merchant_key=[^&]+/, 'merchant_key=***HIDDEN***'));
+
     // Verificar se a URL é válida
     try {
       new URL(endpointUrl);
@@ -51,11 +68,12 @@ export const createPixPayment = async (data: {
     const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(paymentData)
+      body: formData
     });
+    
     console.log('[EXPAY] Resposta recebida com status:', response.status);
     console.log('[EXPAY] Headers da resposta:', JSON.stringify(Object.fromEntries([...response.headers.entries()]), null, 2));
 
@@ -108,26 +126,21 @@ export const createPixPayment = async (data: {
 // Verificar status do pagamento
 export const checkPaymentStatus = async (notification: ExpayWebhookNotification): Promise<ExpayWebhookResponse> => {
   try {
-    const statusData = {
-      merchant_key: getExpayMerchantKey(),
-      merchant_id: getExpayMerchantId(),
-      token: notification.token
-    };
+    // Preparar os dados para verificar o status
+    const formData = new URLSearchParams();
+    formData.append('merchant_key', getExpayMerchantKey());
+    formData.append('token', notification.token);
     
     const endpointUrl = getExpayEndpointUrl('CHECK_STATUS');
-    console.log('[EXPAY] Verificando status do pagamento:', JSON.stringify(statusData, (key, value) => {
-      // Ocultar a merchant_key no log
-      if (key === 'merchant_key') return '***HIDDEN***';
-      return value;
-    }, 2));
+    console.log('[EXPAY] Verificando status do pagamento:', notification.token);
     
     const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(statusData)
+      body: formData
     });
 
     if (!response.ok) {
