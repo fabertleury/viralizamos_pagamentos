@@ -8,6 +8,9 @@ WORKDIR /app
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 ENV NODE_ENV=production
 
+# Install dependencies required for Prisma
+RUN apk add --no-cache openssl1.1-compat libc6-compat
+
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
@@ -32,6 +35,9 @@ WORKDIR /app
 # Set environment variables for production
 ENV NODE_ENV=production
 ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
+
+# Install dependencies required for Prisma in production
+RUN apk add --no-cache openssl1.1-compat libc6-compat
 
 # Copy necessary files from builder
 COPY --from=builder /app/package.json ./package.json
