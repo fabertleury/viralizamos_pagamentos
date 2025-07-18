@@ -16,8 +16,7 @@ const prismaClientSingleton = () => {
     return new PrismaClient({
       log: process.env.NODE_ENV === 'development' 
         ? ['query', 'error', 'warn'] 
-        : ['error'],
-      datasourceUrl: process.env.DATABASE_URL, // Explicitamente utilizando a DATABASE_URL
+        : ['error']
     });
   } catch (error) {
     console.error('Erro ao criar cliente Prisma:', error);

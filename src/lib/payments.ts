@@ -104,53 +104,17 @@ export async function updatePaymentStatus(transactionId: string) {
       throw new Error(`Transação ${transactionId} não encontrada`);
     }
     
-    // Se a transação não é do Mercado Pago, não podemos atualizar
-    if (transaction.provider !== 'mercadopago' || !transaction.external_id) {
-      throw new Error(`Transação ${transactionId} não é do Mercado Pago ou não possui ID externo`);
+    // Se a transação não é da Expay, não podemos atualizar
+    if (transaction.provider !== 'expay' || !transaction.external_id) {
+      throw new Error(`Transação ${transactionId} não é da Expay ou não possui ID externo`);
     }
     
-    // Buscar status atual no Mercado Pago
-    const mpPayment = await getPaymentStatus(transaction.external_id);
-    const newStatus = mapPaymentStatus(mpPayment.status);
+    // Retornar a transação sem alterações por enquanto
+    // TODO: Implementar verificação de status na Expay quando necessário
+    return transaction;
     
-    // Se o status não mudou, não precisamos atualizar
-    if (transaction.status === newStatus) {
-      return transaction;
-    }
-    
-    // Atualizar status da transação
-    const updatedTransaction = await db.transaction.update({
-      where: { id: transactionId },
-      data: { 
-        status: newStatus,
-        metadata: JSON.stringify({
-          ...JSON.parse(transaction.metadata || '{}'),
-          mercadopago_data: mpPayment
-        })
-      },
-      include: { payment_request: true }
-    });
-    
-    // Atualizar status da solicitação de pagamento, se necessário
-    if (newStatus === 'completed' && transaction.payment_request.status !== 'completed') {
-      await db.paymentRequest.update({
-        where: { id: transaction.payment_request_id },
-        data: { 
-          status: 'completed',
-          processed_payment_id: transaction.id
-        }
-      });
-    } else if (['failed', 'cancelled', 'refunded'].includes(newStatus) && 
-               transaction.payment_request.status === 'processing') {
-      await db.paymentRequest.update({
-        where: { id: transaction.payment_request_id },
-        data: { status: 'pending' }
-      });
-    }
-    
-    return updatedTransaction;
   } catch (error) {
-    console.error(`Erro ao atualizar status da transação ${transactionId}:`, error);
+    console.error('Erro ao atualizar status da transação:', error);
     throw error;
   }
 } 
