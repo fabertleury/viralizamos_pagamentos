@@ -1,47 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
-import crypto from 'crypto';
-import { MercadoPagoConfig, Payment } from 'mercadopago';
-import jwt from 'jsonwebtoken';
-import { isEmailBlocked } from '@/lib/blocked-emails';
-
-// Interface para o tipo de Post
-interface Post {
-  id?: string;
-  postId?: string;
-  code?: string;
-  postCode?: string;
-  url?: string;
-  postLink?: string;
-  image_url?: string;
-  thumbnail_url?: string;
-  display_url?: string;
-  is_reel?: boolean;
-  type?: string;
-  quantity?: number;
-}
-
-// Configuração do Mercado Pago
-const client = new MercadoPagoConfig({
-  accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN!,
-});
-
-// Validar a configuração do banco de dados
-if (!process.env.DATABASE_URL) {
-  console.error('ERRO CRÍTICO: DATABASE_URL não definida para o endpoint /api/payment-request');
-}
-
-const payment = new Payment(client);
-
-// Função para gerar um token único para o pagamento
-function generateToken() {
-  return crypto.randomBytes(16).toString('hex');
-}
-
-// Função para gerar chave de idempotência
-function generateIdempotencyKey(paymentRequestId: string): string {
-  return `pix_${paymentRequestId}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
-}
+import { generateToken } from '@/lib/token';
+import { generateIdempotencyKey } from '@/lib/idempotency';
+import { createPixPayment } from '@/lib/expay';
+import { isEmailBlocked } from '@/lib/email-block';
 
 /**
  * Endpoint de compatibilidade para manter compatibilidade com o site principal
@@ -73,323 +35,40 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
-    
-    // Se recebemos apenas um payment_request_id, buscar os dados da solicitação existente
-    if (body.payment_request_id) {
-      console.log('[SOLUÇÃO INTEGRADA] Criando pagamento para solicitação existente:', body.payment_request_id);
-      
-      // Buscar a solicitação de pagamento
-      const existingRequest = await db.paymentRequest.findUnique({
-        where: { id: body.payment_request_id }
-      });
-      
-      if (!existingRequest) {
-        return NextResponse.json(
-          { error: 'Solicitação de pagamento não encontrada' },
-          { status: 404 }
-        );
-      }
-      
-      // Verificar se o email da solicitação existente está bloqueado
-      if (existingRequest.customer_email && isEmailBlocked(existingRequest.customer_email)) {
-        console.log(`[BLOQUEIO] Tentativa de pagamento bloqueada para email existente: ${existingRequest.customer_email}`);
-        
-        // Retornar erro 403 (Forbidden)
-        return NextResponse.json(
-          {
-            error: 'Email bloqueado',
-            message: 'Este email está impedido de realizar compras no sistema.',
-            code: 'EMAIL_BLOCKED'
-          },
-          { status: 403 }
-        );
-      }
-      
-      // Verificar se a solicitação já tem uma transação
-      const existingTransaction = await db.transaction.findFirst({
-        where: { payment_request_id: body.payment_request_id }
-      });
-      
-      if (existingTransaction) {
-        return NextResponse.json({
-          id: existingRequest.id,
-          token: existingRequest.token,
-          amount: existingRequest.amount,
-          service_name: existingRequest.service_name,
-          status: existingRequest.status,
-          customer_name: existingRequest.customer_name,
-          customer_email: existingRequest.customer_email,
-          customer_phone: existingRequest.customer_phone,
-          created_at: existingRequest.created_at,
-          expires_at: existingRequest.expires_at,
-          payment: {
-            id: existingTransaction.id,
-            status: existingTransaction.status,
-            method: existingTransaction.method,
-            pix_code: existingTransaction.pix_code,
-            pix_qrcode: existingTransaction.pix_qrcode,
-            amount: existingTransaction.amount
-          }
-        });
-      }
-      
-      // Gerar chave de idempotência para o Mercado Pago
-      const idempotencyKey = generateIdempotencyKey(existingRequest.id);
-      console.log('[SOLUÇÃO INTEGRADA] Chave de idempotência:', idempotencyKey);
-      
-      // Criar payload para o Mercado Pago
-      const paymentData = {
-        transaction_amount: existingRequest.amount,
-        description: existingRequest.service_name || 'Pagamento Viralizamos',
-        payment_method_id: 'pix',
-        payer: {
-          email: existingRequest.customer_email,
-          first_name: existingRequest.customer_name.split(' ')[0],
-          last_name: existingRequest.customer_name.split(' ').slice(1).join(' ') || 'Sobrenome',
-          identification: {
-            type: 'CPF',
-            number: '00000000000'
-          }
-        },
-        notification_url: `${process.env.WEBHOOK_URL || process.env.NEXT_PUBLIC_BASE_URL}/api/webhooks/mercadopago`
-      };
-      
-      console.log('[SOLUÇÃO INTEGRADA] Enviando dados para Mercado Pago:', JSON.stringify(paymentData).substring(0, 200) + '...');
-      
-      try {
-        // Criar o pagamento no Mercado Pago
-        const mpResponse = await payment.create({ body: paymentData });
-        
-        if (!mpResponse || !mpResponse.id) {
-          throw new Error('Resposta inválida do Mercado Pago');
-        }
-        
-        console.log('[SOLUÇÃO INTEGRADA] Resposta do Mercado Pago:', JSON.stringify(mpResponse).substring(0, 200) + '...');
-        
-        // Criar a transação
-        const transaction = await db.transaction.create({
-          data: {
-            payment_request_id: existingRequest.id,
-            external_id: mpResponse.id.toString(),
-            status: 'pending',
-            method: 'pix',
-            amount: existingRequest.amount,
-            provider: 'mercadopago',
-            pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
-            pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
-            metadata: JSON.stringify({
-              mercadopago_response: mpResponse,
-              idempotencyKey
-            })
-          }
-        });
-        
-        // Atualizar o status da solicitação
-        await db.paymentRequest.update({
-          where: { id: existingRequest.id },
-          data: { status: 'processing' }
-        });
-        
-        // Retornar a resposta
-        return NextResponse.json({
-          id: existingRequest.id,
-          token: existingRequest.token,
-          amount: existingRequest.amount,
-          service_name: existingRequest.service_name,
-          status: 'processing',
-          customer_name: existingRequest.customer_name,
-          customer_email: existingRequest.customer_email,
-          customer_phone: existingRequest.customer_phone,
-          created_at: existingRequest.created_at,
-          expires_at: existingRequest.expires_at,
-          payment: {
-            id: transaction.id,
-            status: transaction.status,
-            method: transaction.method,
-            pix_code: transaction.pix_code,
-            pix_qrcode: transaction.pix_qrcode,
-            amount: transaction.amount
-          }
-        });
-        
-      } catch (mpError) {
-        console.error('[SOLUÇÃO INTEGRADA] Erro ao criar pagamento no Mercado Pago:', mpError);
-        
-        try {
-          // Create a failed transaction first
-          const failedTransaction = await db.transaction.create({
-            data: {
-              payment_request_id: existingRequest.id,
-              external_id: `failed_${Date.now()}`,
-              status: 'failed',
-              method: 'pix',
-              amount: existingRequest.amount,
-              provider: 'mercadopago',
-              metadata: JSON.stringify({
-                error: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
-                idempotencyKey
-              })
-            }
-          });
 
-          // Now create the payment processing failure with the actual transaction ID
-          await db.paymentProcessingFailure.create({
-            data: {
-              transaction_id: failedTransaction.id,
-              error_code: 'MP_PAYMENT_CREATION_ERROR',
-              error_message: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
-              stack_trace: mpError instanceof Error ? mpError.stack : undefined,
-              metadata: JSON.stringify({
-                payment_request_id: existingRequest.id,
-                idempotencyKey
-              })
-            }
-          });
-
-          // Update payment request status to failed
-          await db.paymentRequest.update({
-            where: { id: existingRequest.id },
-            data: { status: 'failed' }
-          });
-
-          // Return response with failed transaction
-          return NextResponse.json({
-            id: existingRequest.id,
-            token: existingRequest.token,
-            amount: existingRequest.amount,
-            service_name: existingRequest.service_name,
-            status: 'failed',
-            customer_name: existingRequest.customer_name,
-            customer_email: existingRequest.customer_email,
-            customer_phone: existingRequest.customer_phone,
-            created_at: existingRequest.created_at,
-            expires_at: existingRequest.expires_at,
-            payment: {
-              id: failedTransaction.id,
-              status: failedTransaction.status,
-              method: failedTransaction.method,
-              amount: failedTransaction.amount,
-              error: mpError instanceof Error ? mpError.message : 'Erro desconhecido'
-            }
-          });
-        } catch (logError) {
-          console.error('[SOLUÇÃO INTEGRADA] Erro ao registrar falha:', logError);
-        }
-      }
-    }
-    
-    // Continuar com o fluxo original para criação de nova solicitação
-    // Validar campos obrigatórios
-    if (!body.amount || !body.customer_name || !body.customer_email) {
-      console.log('[SOLUÇÃO INTEGRADA] Erro: campos obrigatórios ausentes');
-      return NextResponse.json(
-        { error: 'Campos obrigatórios: amount, customer_name, customer_email' },
-        { status: 400 }
-      );
-    }
-    
-    // Garantir que o valor é um número válido
-    const amount = Number(body.amount);
-    if (isNaN(amount) || amount <= 0) {
-      console.log('[SOLUÇÃO INTEGRADA] Erro: valor inválido:', amount);
-      return NextResponse.json(
-        { error: 'O valor (amount) deve ser um número positivo' },
-        { status: 400 }
-      );
-    }
-    
-    // Gerar token único para acesso à página de pagamento
+    // Gerar token único para esta solicitação
     const token = generateToken();
-    console.log('[SOLUÇÃO INTEGRADA] Token gerado:', token);
-    
-    // Definir data de expiração (padrão: 24 horas)
-    const expiresAt = body.expires_at 
-      ? new Date(body.expires_at) 
-      : new Date(Date.now() + 24 * 60 * 60 * 1000);
-    
-    console.log('[SOLUÇÃO INTEGRADA] Criando registro no banco de dados');
-    console.log('[SOLUÇÃO INTEGRADA] DATABASE_URL configurada:', !!process.env.DATABASE_URL);
-    
-    // Verificar se há múltiplos posts e suas quantidades
-    let posts = [];
-    let additionalData: any = null;
-    let externalServiceId: string | null = null;
-    
-    // Determinar o tipo de serviço
-    const serviceType = additionalData?.service_type || body.service_type || '';
-    const isFollowersService = serviceType.toLowerCase().includes('seguidores') || 
-                              serviceType.toLowerCase().includes('followers');
-    
-    try {
-      if (body.additional_data) {
-        if (typeof body.additional_data === 'string') {
-          additionalData = JSON.parse(body.additional_data);
-        } else {
-          additionalData = body.additional_data;
-        }
-        
-        posts = additionalData.posts || [];
-        
-        // Tentar extrair external_service_id se disponível
-        if (additionalData.external_service_id) {
-          externalServiceId = additionalData.external_service_id;
-          console.log('[SOLUÇÃO INTEGRADA] External service ID encontrado nos dados adicionais:', externalServiceId);
-        }
+
+    // Processar dados adicionais
+    let additionalDataString = null;
+    let serviceType = 'instagram_likes';
+    let isFollowersService = false;
+    let totalQuantity = 0;
+    let postsWithQuantities = [];
+    let postsCount = 0;
+    let externalServiceId = null;
+
+    if (body.additional_data) {
+      additionalDataString = JSON.stringify(body.additional_data);
+      
+      // Extrair informações dos dados adicionais
+      const additionalData = typeof body.additional_data === 'string' 
+        ? JSON.parse(body.additional_data) 
+        : body.additional_data;
+      
+      serviceType = additionalData.service_type || 'instagram_likes';
+      isFollowersService = serviceType === 'instagram_followers';
+      externalServiceId = additionalData.external_service_id;
+      
+      if (additionalData.posts) {
+        postsWithQuantities = additionalData.posts;
+        postsCount = additionalData.posts.length;
+        totalQuantity = additionalData.posts.reduce((total: number, post: any) => total + (post.quantity || 0), 0);
       }
-    } catch (e) {
-      console.error('[SOLUÇÃO INTEGRADA] Erro ao analisar additional_data:', e);
     }
-    
-    // Calcular corretamente a distribuição das quantidades entre os posts
-    const totalQuantity = additionalData?.quantity || body.quantity || 0;
-    const postsCount = posts.length;
-    const baseQuantityPerPost = Math.floor(totalQuantity / postsCount);
-    const remainder = totalQuantity % postsCount;
-    
-    // Mapear posts com suas quantidades calculadas
-    const postsWithQuantities = posts.map((post: Post, index: number) => {
-      // Se o post já tiver uma quantidade específica, usá-la
-      if (post.quantity && post.quantity > 0) {
-        return {
-          ...post,
-          quantity: post.quantity,
-          calculated_quantity: post.quantity
-        };
-      }
-      
-      // Caso contrário, calcular a quantidade
-      // Distribuir o resto para os primeiros posts
-      const extraQuantity = index < remainder ? 1 : 0;
-      const calculatedQuantity = baseQuantityPerPost + extraQuantity;
-      
-      return {
-        id: post.id || post.postId,
-        code: post.code || post.postCode || '',
-        url: post.url || post.postLink || `https://instagram.com/p/${post.code || post.postCode || ''}`,
-        image_url: post.image_url || post.thumbnail_url || post.display_url || '',
-        is_reel: post.is_reel || post.type === 'reel' || post.type === 'video' || false,
-        type: post.type || (post.is_reel || post.type === 'reel' || post.type === 'video' ? 'reel' : 'post'),
-        quantity: calculatedQuantity,
-        calculated_quantity: calculatedQuantity
-      };
-    });
-    
-    console.log('[SOLUÇÃO INTEGRADA] Quantidade total distribuída:', totalQuantity);
-    console.log('[SOLUÇÃO INTEGRADA] Distribuição por post:', postsWithQuantities.map((p: { calculated_quantity: number }) => p.calculated_quantity));
-    
-    // Salvar os dados adicionais atualizados com as quantidades distribuídas
-    const updatedAdditionalData = {
-      ...additionalData,
-      posts: postsWithQuantities,
-      total_quantity: totalQuantity,
-      posts_count: postsCount
-    };
-    
-    // Armazenar o additional_data atualizado
-    const additionalDataString = JSON.stringify(updatedAdditionalData);
-    
-    // Usar o valor de postsWithQuantities
-    posts = postsWithQuantities;
+
+    // Data de expiração (24 horas)
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     
     // Criar a solicitação de pagamento
     const paymentRequest = await db.paymentRequest.create({
@@ -420,61 +99,45 @@ export async function POST(request: NextRequest) {
     const protocol = request.headers.get('x-forwarded-proto') || 'https';
     const paymentUrl = `${protocol}://${baseUrl.replace(/^https?:\/\//i, '')}/pagamento/${token}`;
     
-    // Gerar chave de idempotência para o Mercado Pago
+    // Gerar chave de idempotência
     const idempotencyKey = generateIdempotencyKey(paymentRequest.id);
     console.log('[SOLUÇÃO INTEGRADA] Chave de idempotência:', idempotencyKey);
-    
-    // Criar payload para o Mercado Pago
-    const paymentData = {
-      transaction_amount: paymentRequest.amount,
+
+    // Preparar os itens para a Expay
+    const items = [{
+      name: paymentRequest.service_name || 'Serviço Viralizamos',
+      price: paymentRequest.amount,
       description: paymentRequest.service_name || 'Pagamento Viralizamos',
-      payment_method_id: 'pix',
-      payer: {
-        email: paymentRequest.customer_email,
-        first_name: paymentRequest.customer_name.split(' ')[0],
-        last_name: paymentRequest.customer_name.split(' ').slice(1).join(' ') || 'Sobrenome',
-        identification: {
-          type: 'CPF',
-          number: '00000000000'
-        }
-      },
-      notification_url: `${process.env.WEBHOOK_URL || baseUrl}/api/webhooks/mercadopago`
-    };
-    
-    console.log('[SOLUÇÃO INTEGRADA] Enviando dados para Mercado Pago:', JSON.stringify(paymentData).substring(0, 200) + '...');
-    
+      qty: 1
+    }];
+
     try {
-      // Criar o pagamento no Mercado Pago
-      const mpResponse = await payment.create({ body: paymentData });
+      // Criar pagamento na Expay
+      const expayPayment = await createPixPayment({
+        invoice_id: paymentRequest.id,
+        invoice_description: paymentRequest.service_name || 'Pagamento Viralizamos',
+        total: paymentRequest.amount,
+        devedor: paymentRequest.customer_name,
+        email: paymentRequest.customer_email,
+        cpf_cnpj: '00000000000', // TODO: Implementar campo de CPF/CNPJ
+        notification_url: `${process.env.WEBHOOK_URL || baseUrl}/api/webhooks/expay`,
+        telefone: paymentRequest.customer_phone || '0000000000',
+        items
+      });
       
-      if (!mpResponse || !mpResponse.id) {
-        throw new Error('Resposta inválida do Mercado Pago');
-      }
-      
-      console.log('[SOLUÇÃO INTEGRADA] Resposta do Mercado Pago:', JSON.stringify(mpResponse).substring(0, 200) + '...');
-      
-      // Tratar diferentemente com base no tipo de serviço
-      let transactionId = '';
-      let transactionStatus = 'pending';
-      let transactionMethod = 'pix';
-      let transactionAmount = paymentRequest.amount;
-      let transactionPixCode = mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined;
-      let transactionPixQrcode = mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined;
-      let transactionCreatedAt = new Date();
-      
-      // Criar uma única transação, independentemente do tipo de serviço ou número de posts
+      // Criar a transação
       const transaction = await db.transaction.create({
         data: {
           payment_request_id: paymentRequest.id,
-          external_id: mpResponse.id.toString(),
+          provider: 'expay',
+          external_id: paymentRequest.id, // Usando o mesmo ID da invoice
           status: 'pending',
           method: 'pix',
           amount: paymentRequest.amount,
-          provider: 'mercadopago',
-          pix_code: mpResponse.point_of_interaction?.transaction_data?.qr_code || undefined,
-          pix_qrcode: mpResponse.point_of_interaction?.transaction_data?.qr_code_base64 || undefined,
+          pix_code: expayPayment.emv,
+          pix_qrcode: expayPayment.qrcode_base64,
           metadata: JSON.stringify({
-            mercadopago_response: mpResponse,
+            expay_response: expayPayment,
             idempotency_key: idempotencyKey,
             service_id: body.service_id,
             service_name: body.service_name,
@@ -483,29 +146,18 @@ export async function POST(request: NextRequest) {
             is_followers_service: isFollowersService,
             total_quantity: totalQuantity,
             posts: postsWithQuantities,
-            posts_count: postsCount
+            posts_count: postsCount,
+            pix_url: expayPayment.pix_url,
+            bacen_url: expayPayment.bacen_url
           })
         }
       });
-      
-      console.log('[SOLUÇÃO INTEGRADA] Transação única criada com ID:', transaction.id);
-      
-      // Atualizar variáveis para retorno
-      transactionId = transaction.id;
-      transactionStatus = transaction.status;
-      transactionMethod = transaction.method;
-      transactionAmount = transaction.amount;
-      transactionPixCode = transaction.pix_code || undefined;
-      transactionPixQrcode = transaction.pix_qrcode || undefined;
-      transactionCreatedAt = transaction.created_at;
       
       // Atualizar a solicitação de pagamento para 'processing'
       await db.paymentRequest.update({
         where: { id: paymentRequest.id },
         data: { status: 'processing' }
       });
-      
-      console.log('[SOLUÇÃO INTEGRADA] Status atualizado para processing');
       
       // Criar um registro de fila de processamento
       await db.processingQueue.create({
@@ -515,41 +167,35 @@ export async function POST(request: NextRequest) {
           type: 'payment_confirmation',
           priority: 1,
           metadata: JSON.stringify({
-            transaction_id: transactionId,
-            external_id: mpResponse.id.toString()
+            transaction_id: transaction.id,
+            external_id: paymentRequest.id
           })
         }
       });
       
-      console.log('[SOLUÇÃO INTEGRADA] Adicionado à fila de processamento');
-      
       // Salvar resposta para idempotência
-      const responseData = {
-        id: transactionId,
-        status: transactionStatus,
-        method: transactionMethod,
-        amount: transactionAmount,
-        pix_code: transactionPixCode,
-        pix_qrcode: transactionPixQrcode,
-        created_at: transactionCreatedAt
-      };
-      
       await db.paymentIdempotencyLog.create({
         data: {
           key: idempotencyKey,
-          response: JSON.stringify(responseData)
+          response: JSON.stringify({
+            id: transaction.id,
+            status: transaction.status,
+            method: transaction.method,
+            amount: transaction.amount,
+            pix_code: transaction.pix_code,
+            pix_qrcode: transaction.pix_qrcode,
+            created_at: transaction.created_at
+          })
         }
       });
       
-      console.log('[SOLUÇÃO INTEGRADA] Registro de idempotência criado');
-      
-      // Retornar a resposta completa com a URL de pagamento e detalhes do PIX
+      // Retornar a resposta completa
       return NextResponse.json({
         id: paymentRequest.id,
         token: paymentRequest.token,
         amount: paymentRequest.amount,
         service_name: paymentRequest.service_name,
-        status: 'processing', // Status já atualizado para processing
+        status: 'processing',
         customer_name: paymentRequest.customer_name,
         customer_email: paymentRequest.customer_email,
         customer_phone: paymentRequest.customer_phone,
@@ -557,113 +203,61 @@ export async function POST(request: NextRequest) {
         expires_at: paymentRequest.expires_at,
         payment_url: paymentUrl,
         payment: {
-          id: transactionId,
-          status: transactionStatus,
-          method: transactionMethod,
-          pix_code: transactionPixCode,
-          pix_qrcode: transactionPixQrcode,
-          amount: transactionAmount
+          id: transaction.id,
+          status: transaction.status,
+          method: transaction.method,
+          pix_code: transaction.pix_code,
+          pix_qrcode: transaction.pix_qrcode,
+          amount: transaction.amount
         }
       });
       
-    } catch (mpError) {
-      console.error('[SOLUÇÃO INTEGRADA] Erro ao criar pagamento no Mercado Pago:', mpError);
+    } catch (error) {
+      console.error('[SOLUÇÃO INTEGRADA] Erro ao criar pagamento:', error);
       
-      try {
-        // Create a failed transaction first
-        const failedTransaction = await db.transaction.create({
-          data: {
-            payment_request_id: paymentRequest.id,
-            external_id: `failed_${Date.now()}`,
-            status: 'failed',
-            method: 'pix',
-            amount: paymentRequest.amount,
-            provider: 'mercadopago',
-            metadata: JSON.stringify({
-              error: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
-              idempotencyKey
-            })
-          }
-        });
-
-        // Now create the payment processing failure with the actual transaction ID
-        await db.paymentProcessingFailure.create({
-          data: {
-            transaction_id: failedTransaction.id,
-            error_code: 'MP_PAYMENT_CREATION_ERROR',
-            error_message: mpError instanceof Error ? mpError.message : 'Erro desconhecido',
-            stack_trace: mpError instanceof Error ? mpError.stack : undefined,
-            metadata: JSON.stringify({
-              payment_request_id: paymentRequest.id,
-              idempotencyKey
-            })
-          }
-        });
-
-        // Update payment request status to failed
-        await db.paymentRequest.update({
-          where: { id: paymentRequest.id },
-          data: { status: 'failed' }
-        });
-
-        // Return response with failed transaction
-        return NextResponse.json({
-          id: paymentRequest.id,
-          token: paymentRequest.token,
-          amount: paymentRequest.amount,
-          service_name: paymentRequest.service_name,
+      // Criar transação com erro
+      const failedTransaction = await db.transaction.create({
+        data: {
+          payment_request_id: paymentRequest.id,
+          external_id: `failed_${Date.now()}`,
           status: 'failed',
-          customer_name: paymentRequest.customer_name,
-          customer_email: paymentRequest.customer_email,
-          customer_phone: paymentRequest.customer_phone,
-          created_at: paymentRequest.created_at,
-          expires_at: paymentRequest.expires_at,
-          payment_url: paymentUrl,
-          payment: {
-            id: failedTransaction.id,
-            status: failedTransaction.status,
-            method: failedTransaction.method,
-            amount: failedTransaction.amount,
-            error: mpError instanceof Error ? mpError.message : 'Erro desconhecido'
-          }
-        });
-      } catch (logError) {
-        console.error('[SOLUÇÃO INTEGRADA] Erro ao registrar falha:', logError);
-      }
-      
-      // Mesmo com erro, ainda retornamos a URL de pagamento
-      // para que o usuário possa tentar novamente na página
-      return NextResponse.json({
-        id: paymentRequest.id,
-        token: paymentRequest.token,
-        amount: paymentRequest.amount,
-        service_name: paymentRequest.service_name,
-        status: paymentRequest.status,
-        customer_name: paymentRequest.customer_name,
-        customer_email: paymentRequest.customer_email,
-        customer_phone: paymentRequest.customer_phone,
-        created_at: paymentRequest.created_at,
-        expires_at: paymentRequest.expires_at,
-        payment_url: paymentUrl,
-        // Não incluímos detalhes de pagamento pois houve erro
-        mp_error: process.env.NODE_ENV === 'development' ? (mpError as Error).message : undefined
+          method: 'pix',
+          amount: paymentRequest.amount,
+          provider: 'expay',
+          metadata: JSON.stringify({
+            error: error instanceof Error ? error.message : 'Erro desconhecido',
+            idempotencyKey
+          })
+        }
       });
+
+      // Registrar falha de processamento
+      await db.paymentProcessingFailure.create({
+        data: {
+          transaction_id: failedTransaction.id,
+          error_code: 'EXPAY_PAYMENT_CREATION_ERROR',
+          error_message: error instanceof Error ? error.message : 'Erro desconhecido',
+          stack_trace: error instanceof Error ? error.stack : undefined,
+          metadata: JSON.stringify({
+            payment_request_id: paymentRequest.id,
+            idempotencyKey
+          })
+        }
+      });
+
+      // Atualizar status da solicitação para failed
+      await db.paymentRequest.update({
+        where: { id: paymentRequest.id },
+        data: { status: 'failed' }
+      });
+
+      throw error;
     }
-    
   } catch (error) {
-    console.error('[SOLUÇÃO INTEGRADA] Erro geral:', error);
-    
-    // Informações para diagnóstico
-    console.error('[SOLUÇÃO INTEGRADA] DATABASE_URL configurada:', !!process.env.DATABASE_URL);
-    console.error('[SOLUÇÃO INTEGRADA] NODE_ENV:', process.env.NODE_ENV);
-    
-    return NextResponse.json(
-      {
-        error: 'Erro ao processar solicitação de pagamento',
-        message: (error as Error).message,
-        stack: process.env.NODE_ENV === 'development' ? (error as Error).stack : undefined
-      },
-      { status: 500 }
-    );
+    console.error('[SOLUÇÃO INTEGRADA] Erro ao processar solicitação:', error);
+    return NextResponse.json({ 
+      error: 'Erro interno ao processar a solicitação de pagamento',
+      message: error instanceof Error ? error.message : 'Erro desconhecido'
+    }, { status: 500 });
   }
 } 
