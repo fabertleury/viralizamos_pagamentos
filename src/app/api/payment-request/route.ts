@@ -22,18 +22,21 @@ export async function POST(request: NextRequest) {
   try {
     // Verificar se o email está bloqueado
     const email = body.customer_email || body.email;
-    if (email && isEmailBlocked(email)) {
-      console.log(`[BLOQUEIO] Tentativa de pagamento bloqueada para email: ${email}`);
-      
-      // Retornar erro 403 (Forbidden)
-      return NextResponse.json(
-        {
-          error: 'Email bloqueado',
-          message: 'Este email está impedido de realizar compras no sistema.',
-          code: 'EMAIL_BLOCKED'
-        },
-        { status: 403 }
-      );
+    if (email) {
+      const isBlocked = await isEmailBlocked(email);
+      if (isBlocked) {
+        console.log(`[BLOQUEIO] Tentativa de pagamento bloqueada para email: ${email}`);
+        
+        // Retornar erro 403 (Forbidden)
+        return NextResponse.json(
+          {
+            error: 'Email bloqueado',
+            message: 'Este email está impedido de realizar compras no sistema.',
+            code: 'EMAIL_BLOCKED'
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // Gerar token único para esta solicitação
