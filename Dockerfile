@@ -9,7 +9,7 @@ ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 ENV NODE_ENV=production
 
 # Install dependencies required for Prisma
-RUN apk add --no-cache openssl1.1-compat libc6-compat
+RUN apk add --no-cache openssl libc6-compat
 
 # Copy package files
 COPY package*.json ./
@@ -38,7 +38,7 @@ ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 ENV PRISMA_BINARY_TARGET="linux-musl"
 
 # Install dependencies required for Prisma in production
-RUN apk add --no-cache openssl1.1-compat libc6-compat
+RUN apk add --no-cache openssl libc6-compat
 
 # Copy necessary files from builder
 COPY --from=builder /app/package.json ./package.json
