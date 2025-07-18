@@ -21,6 +21,24 @@ export type ExpayItem = {
   qty: number;
 };
 
+// Tipo para o objeto de invoice no formato JSON
+export type ExpayInvoiceData = {
+  invoice_id: string;
+  invoice_description: string;
+  total: string;
+  devedor: string;
+  email: string;
+  cpf_cnpj: string;
+  notification_url: string;
+  telefone: string;
+  items: Array<{
+    name: string;
+    price: string;
+    description: string;
+    qty: string;
+  }>;
+};
+
 export type ExpayPaymentResponse = {
   pix_request: {
     result: boolean;
