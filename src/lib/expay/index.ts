@@ -1,6 +1,17 @@
 import { ExpayPaymentRequest, ExpayPaymentResponse, ExpayWebhookNotification, ExpayWebhookResponse, LegacyExpayPaymentResponse } from './types';
 import { getExpayBaseUrl, getExpayEndpointUrl, getExpayMerchantKey, getExpayMerchantId } from './config';
 
+// Função para remover emojis e caracteres especiais
+const removeEmojisAndSpecialChars = (text: string): string => {
+  if (!text) return '';
+  
+  // Remover emojis e caracteres especiais, mantendo apenas letras, números e pontuação básica
+  return text
+    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+    .replace(/[^\w\s.,;:!?@#$%&*()[\]{}+\-=/<>|"']/g, '')
+    .trim();
+};
+
 // Criar um pagamento PIX
 export const createPixPayment = async (data: {
   invoice_id: string;
@@ -28,10 +39,11 @@ export const createPixPayment = async (data: {
     formData.append('currency_code', 'BRL');
     
     // Enviar cada campo separadamente em vez de um JSON completo
+    // Remover emojis e caracteres especiais de todos os campos de texto
     formData.append('invoice_id', data.invoice_id);
-    formData.append('invoice_description', data.invoice_description || 'Pagamento Viralizamos');
+    formData.append('invoice_description', removeEmojisAndSpecialChars(data.invoice_description || 'Pagamento Viralizamos'));
     formData.append('total', data.total.toString());
-    formData.append('devedor', data.devedor || 'Cliente');
+    formData.append('devedor', removeEmojisAndSpecialChars(data.devedor || 'Cliente'));
     formData.append('email', data.email || 'cliente@exemplo.com');
     formData.append('cpf_cnpj', data.cpf_cnpj || '00000000000');
     formData.append('notification_url', data.notification_url || 'https://pagamentos.viralizamos.com/api/webhooks/expay');
@@ -40,9 +52,9 @@ export const createPixPayment = async (data: {
     // Adicionar itens
     if (data.items && data.items.length > 0) {
       const item = data.items[0]; // Usar apenas o primeiro item
-      formData.append('item_name', item.name);
+      formData.append('item_name', removeEmojisAndSpecialChars(item.name));
       formData.append('item_price', item.price.toString());
-      formData.append('item_description', item.description);
+      formData.append('item_description', removeEmojisAndSpecialChars(item.description));
       formData.append('item_qty', item.qty.toString());
     }
     
@@ -112,7 +124,7 @@ export const createPixPayment = async (data: {
       // Código QR em Base64 (exemplo da documentação)
       const qrCodeBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAMAAABrrFhUAAAAA1BMVEX///+nxBvIAAAASElEQVR4nO3BMQEAAADCoPVPbQlPoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeA8XKAAFZcBBuAAAAAElFTkSuQmCC';
       
-      // Código EMV (exemplo da documentação)
+      // Código EMV atualizado
       const emvCode = '00020101021126540014example@expaybrasil.com0102111000530398654036408875C4520B5802BR5923Pagamento%20de%20teste6304';
       
       // URL do Bacen PIX (exemplo da documentação)
