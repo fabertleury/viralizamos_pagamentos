@@ -1,37 +1,5 @@
 import { ExpayPaymentRequest, ExpayPaymentResponse, ExpayWebhookNotification, ExpayWebhookResponse } from './types';
-
-// Configuração da Expay
-let merchantKey = '';
-let baseUrl = '';
-
-// Inicializar a configuração da Expay
-export const initExpay = (key: string, url?: string) => {
-  if (!key) {
-    throw new Error('EXPAY_MERCHANT_KEY não configurado no ambiente');
-  }
-  merchantKey = key;
-  baseUrl = url || process.env.EXPAY_BASE_URL || 'https://expaybrasil.com';
-};
-
-// Obter a merchant key
-export const getMerchantKey = () => {
-  if (!merchantKey) {
-    const key = process.env.EXPAY_MERCHANT_KEY;
-    if (!key) {
-      throw new Error('EXPAY_MERCHANT_KEY não configurado no ambiente');
-    }
-    merchantKey = key;
-  }
-  return merchantKey;
-};
-
-// Obter a URL base
-export const getBaseUrl = () => {
-  if (!baseUrl) {
-    baseUrl = process.env.EXPAY_BASE_URL || 'https://expaybrasil.com';
-  }
-  return baseUrl;
-};
+import { getExpayBaseUrl, getExpayEndpointUrl, getExpayMerchantKey, getExpayMerchantId } from './config';
 
 // Criar um pagamento PIX
 export const createPixPayment = async (data: {
@@ -51,17 +19,18 @@ export const createPixPayment = async (data: {
   }>;
 }): Promise<ExpayPaymentResponse> => {
   const paymentData: ExpayPaymentRequest = {
-    merchant_key: getMerchantKey(),
-    merchant_id: process.env.EXPAY_MERCHANT_ID || '909',
+    merchant_key: getExpayMerchantKey(),
+    merchant_id: getExpayMerchantId(),
     currency_code: 'BRL',
     ...data
   };
 
+  const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
   console.log('[EXPAY] Enviando solicitação para criar pagamento PIX:', JSON.stringify(paymentData).substring(0, 200) + '...');
-  console.log('[EXPAY] URL da API:', `${getBaseUrl()}/en/purchase/link`);
+  console.log('[EXPAY] URL da API:', endpointUrl);
 
   try {
-    const response = await fetch(`${getBaseUrl()}/en/purchase/link`, {
+    const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,14 +67,15 @@ export const createPixPayment = async (data: {
 export const checkPaymentStatus = async (notification: ExpayWebhookNotification): Promise<ExpayWebhookResponse> => {
   try {
     const statusData = {
-      merchant_key: getMerchantKey(),
-      merchant_id: process.env.EXPAY_MERCHANT_ID || '909',
+      merchant_key: getExpayMerchantKey(),
+      merchant_id: getExpayMerchantId(),
       token: notification.token
     };
     
+    const endpointUrl = getExpayEndpointUrl('CHECK_STATUS');
     console.log('[EXPAY] Verificando status do pagamento:', JSON.stringify(statusData));
     
-    const response = await fetch(`${getBaseUrl()}/en/request/status`, {
+    const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
