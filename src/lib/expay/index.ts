@@ -114,7 +114,12 @@ export const createPixPayment = async (data: {
       // Tentar extrair QR code base64
       const qrCodeMatch = htmlText.match(/src="data:image\/png;base64,([^"]+)"/);
       if (qrCodeMatch && qrCodeMatch[1]) {
-        extractedQrCode = 'data:image/png;base64,' + qrCodeMatch[1];
+        // Evitar duplicação do prefixo data:image/png;base64,
+        if (qrCodeMatch[1].startsWith('data:image/png;base64,')) {
+          extractedQrCode = qrCodeMatch[1];
+        } else {
+          extractedQrCode = 'data:image/png;base64,' + qrCodeMatch[1];
+        }
         console.log('[EXPAY] QR code base64 extraído da resposta HTML');
       }
       
@@ -129,7 +134,7 @@ export const createPixPayment = async (data: {
       const mockResponse: LegacyExpayPaymentResponse = {
         result: true,
         success_message: 'Pagamento criado com sucesso',
-        qrcode_base64: extractedQrCode || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAMAAABrrFhUAAAAA1BMVEX///+nxBvIAAAASElEQVR4nO3BMQEAAADCoPVPbQlPoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeA8XKAAFZcBBuAAAAAElFTkSuQmCC',
+        qrcode_base64: extractedQrCode || 'iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAMAAABrrFhUAAAAA1BMVEX///+nxBvIAAAASElEQVR4nO3BMQEAAADCoPVPbQlPoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABeA8XKAAFZcBBuAAAAAElFTkSuQmCC',
         emv: extractedEmv || '00020101021226870014br.gov.bcb.pix2565qrcodepix-h.picpay.com/qr/2551557/PAYMENT5204000053039865802BR5923PICPAY SERVICOS S.A.6009SAO PAULO62070503***63044B3C',
         pix_url: 'https://app.picpay.com/checkout/NjY4MTM4NjU.LTE4NDEyMDg4NTQ',
         bacen_url: 'https://pix.bcb.gov.br'

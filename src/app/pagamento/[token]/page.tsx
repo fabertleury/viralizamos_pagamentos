@@ -521,7 +521,7 @@ export default function PaymentPage() {
                         )}
                         
                         {/* QR Code */}
-                        {payment?.payment?.pix_qrcode || payment?.payment?.pix_code ? (
+                        {payment?.payment?.pix_qrcode ? (
                           <Box 
                             p={4} 
                             borderWidth="2px" 
@@ -532,7 +532,9 @@ export default function PaymentPage() {
                           >
                             {payment?.payment?.pix_qrcode ? (
                               <ChakraImage 
-                                src={`data:image/png;base64,${payment.payment.pix_qrcode}`} 
+                                src={payment.payment.pix_qrcode.startsWith('data:') 
+                                  ? payment.payment.pix_qrcode 
+                                  : `data:image/png;base64,${payment.payment.pix_qrcode}`} 
                                 alt="QR Code PIX" 
                                 width="200px" 
                                 height="200px"

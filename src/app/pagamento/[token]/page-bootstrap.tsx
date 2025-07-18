@@ -128,7 +128,9 @@ export default function PaymentPage() {
                         <div className="mb-4">
                           {paymentRequest.payment.pix_qrcode ? (
                             <img 
-                              src={`data:image/png;base64,${paymentRequest.payment.pix_qrcode}`} 
+                              src={paymentRequest.payment.pix_qrcode.startsWith('data:') 
+                  ? paymentRequest.payment.pix_qrcode 
+                  : `data:image/png;base64,${paymentRequest.payment.pix_qrcode}`} 
                               alt="QR Code PIX" 
                               className="img-fluid border p-2 rounded"
                               style={{ maxWidth: '200px' }}

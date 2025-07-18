@@ -441,7 +441,9 @@ export default function PaymentPage() {
                       <div className="mb-6 flex flex-col items-center">
                         {paymentRequest.payment.pix_qrcode ? (
                           <img 
-                            src={`data:image/png;base64,${paymentRequest.payment.pix_qrcode}`} 
+                            src={paymentRequest.payment.pix_qrcode.startsWith('data:') 
+                  ? paymentRequest.payment.pix_qrcode 
+                  : `data:image/png;base64,${paymentRequest.payment.pix_qrcode}`} 
                             alt="QR Code PIX" 
                             className="w-48 h-48 border p-2 rounded-lg mb-2"
                           />
