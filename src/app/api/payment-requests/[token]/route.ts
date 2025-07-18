@@ -89,8 +89,14 @@ export async function GET(
     // apenas para obter o status atual, sem modificá-lo no banco de dados
     if (transaction && transaction.status === 'approved' && paymentRequest.status !== 'unpaid') {
       try {
+        // Construir URL base corretamente
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://pagamentos.viralizamos.com';
+        const apiUrl = `${baseUrl}/api/orders/check-status`;
+        
+        console.log(`[API] Verificando status atualizado em: ${apiUrl}`);
+        
         // Chamar a API de verificação de status, mas sem forçar atualização
-        const response = await fetch(`${process.env.API_BASE_URL || ''}/api/orders/check-status`, {
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

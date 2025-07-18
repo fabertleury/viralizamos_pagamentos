@@ -29,10 +29,25 @@ export const createPixPayment = async (data: {
   };
 
   const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
-  console.log('[EXPAY] Enviando solicitação para criar pagamento PIX:', JSON.stringify(paymentData).substring(0, 200) + '...');
+  console.log('[EXPAY] Enviando solicitação para criar pagamento PIX:', JSON.stringify(paymentData, (key, value) => {
+    // Ocultar a merchant_key no log
+    if (key === 'merchant_key') return '***HIDDEN***';
+    return value;
+  }, 2));
   console.log('[EXPAY] URL da API:', endpointUrl);
+  console.log('[EXPAY] Merchant Key configurada:', getExpayMerchantKey() ? 'Sim (comprimento: ' + getExpayMerchantKey().length + ')' : 'Não');
+  console.log('[EXPAY] Merchant ID configurado:', getExpayMerchantId());
 
   try {
+    // Verificar se a URL é válida
+    try {
+      new URL(endpointUrl);
+    } catch (urlError) {
+      console.error('[EXPAY] URL inválida:', endpointUrl, urlError);
+      throw new Error(`URL inválida: ${endpointUrl}`);
+    }
+
+    console.log('[EXPAY] Iniciando requisição fetch para:', endpointUrl);
     const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
@@ -41,16 +56,22 @@ export const createPixPayment = async (data: {
       },
       body: JSON.stringify(paymentData)
     });
+    console.log('[EXPAY] Resposta recebida com status:', response.status);
+    console.log('[EXPAY] Headers da resposta:', JSON.stringify(Object.fromEntries([...response.headers.entries()]), null, 2));
 
     // Verificar se a resposta é ok
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[EXPAY] Resposta de erro da API:', errorText);
+      console.error('[EXPAY] Status da resposta:', response.status);
+      console.error('[EXPAY] Status text:', response.statusText);
       throw new Error(`Erro ao criar pagamento: ${response.status} - ${errorText.substring(0, 200)}`);
     }
 
     // Verificar o tipo de conteúdo
     const contentType = response.headers.get('content-type');
+    console.log('[EXPAY] Content-Type da resposta:', contentType);
+    
     if (!contentType || !contentType.includes('application/json')) {
       const responseText = await response.text();
       console.error('[EXPAY] Resposta não é JSON:', responseText);
@@ -58,11 +79,12 @@ export const createPixPayment = async (data: {
     }
 
     const result = await response.json();
-    console.log('[EXPAY] Resposta da API:', JSON.stringify(result).substring(0, 200) + '...');
+    console.log('[EXPAY] Resposta da API:', JSON.stringify(result, null, 2));
     
     // Verificar se a resposta está no formato esperado (com pix_request)
     if (result.pix_request) {
       const pixRequest = result.pix_request;
+      console.log('[EXPAY] Resposta no formato esperado com pix_request');
       // Converter para o formato legado para compatibilidade
       return {
         result: pixRequest.result,
@@ -74,6 +96,7 @@ export const createPixPayment = async (data: {
       };
     }
     
+    console.log('[EXPAY] Resposta em formato não esperado, retornando como está');
     // Se não estiver no formato esperado, retornar como está
     return result as LegacyExpayPaymentResponse;
   } catch (error) {
@@ -92,7 +115,11 @@ export const checkPaymentStatus = async (notification: ExpayWebhookNotification)
     };
     
     const endpointUrl = getExpayEndpointUrl('CHECK_STATUS');
-    console.log('[EXPAY] Verificando status do pagamento:', JSON.stringify(statusData));
+    console.log('[EXPAY] Verificando status do pagamento:', JSON.stringify(statusData, (key, value) => {
+      // Ocultar a merchant_key no log
+      if (key === 'merchant_key') return '***HIDDEN***';
+      return value;
+    }, 2));
     
     const response = await fetch(endpointUrl, {
       method: 'POST',
@@ -117,7 +144,7 @@ export const checkPaymentStatus = async (notification: ExpayWebhookNotification)
     }
 
     const result = await response.json();
-    console.log('[EXPAY] Status do pagamento:', JSON.stringify(result));
+    console.log('[EXPAY] Status do pagamento:', JSON.stringify(result, null, 2));
     return result as ExpayWebhookResponse;
   } catch (error) {
     console.error('[EXPAY] Erro ao verificar status do pagamento:', error);
