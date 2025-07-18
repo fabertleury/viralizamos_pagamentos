@@ -106,6 +106,64 @@ export const createPixPayment = async (data: {
     else {
       const htmlText = await response.text();
       console.log('[EXPAY] Resposta HTML recebida, tamanho:', htmlText.length);
+      console.log('[EXPAY] Conteúdo da resposta HTML:', JSON.stringify(htmlText));
+      
+      // Se a resposta for muito pequena, tentar fazer uma segunda requisição direta
+      if (htmlText.length < 100) {
+        console.log('[EXPAY] Resposta HTML muito pequena, tentando fazer uma requisição direta...');
+        
+        try {
+          // Construir URL para requisição direta
+          const baseUrl = getExpayBaseUrl();
+          const directUrl = `${baseUrl}/payment/link?merchant_key=${encodeURIComponent(getExpayMerchantKey())}&invoice_id=${encodeURIComponent(data.invoice_id)}`;
+          
+          console.log('[EXPAY] Fazendo requisição direta para:', directUrl.replace(/merchant_key=[^&]+/, 'merchant_key=***HIDDEN***'));
+          
+          const directResponse = await fetch(directUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json, text/html'
+            }
+          });
+          
+          console.log('[EXPAY] Resposta direta recebida com status:', directResponse.status);
+          
+          if (directResponse.ok) {
+            const directContentType = directResponse.headers.get('content-type');
+            console.log('[EXPAY] Content-Type da resposta direta:', directContentType);
+            
+            if (directContentType && directContentType.includes('text/html')) {
+              const directHtmlText = await directResponse.text();
+              console.log('[EXPAY] Resposta HTML direta recebida, tamanho:', directHtmlText.length);
+              
+              // Salvar a resposta HTML direta para diagnóstico
+              try {
+                const fs = require('fs');
+                fs.writeFileSync('expay-direct-response.html', directHtmlText);
+                console.log('[EXPAY] Resposta HTML direta salva em expay-direct-response.html');
+              } catch (e) {
+                console.error('[EXPAY] Erro ao salvar resposta HTML direta:', e);
+              }
+              
+              // Tentar extrair QR code da resposta direta
+              const directQrCodeMatch = directHtmlText.match(/src="(data:image\/png;base64,[^"]+)"/);
+              if (directQrCodeMatch && directQrCodeMatch[1]) {
+                console.log('[EXPAY] QR code extraído da resposta direta');
+                return {
+                  result: true,
+                  success_message: 'Pagamento criado com sucesso',
+                  qrcode_base64: directQrCodeMatch[1],
+                  emv: data.invoice_id, // Usar o ID da fatura como código EMV temporário
+                  pix_url: directUrl,
+                  bacen_url: 'https://pix.bcb.gov.br'
+                };
+              }
+            }
+          }
+        } catch (directError) {
+          console.error('[EXPAY] Erro ao fazer requisição direta:', directError);
+        }
+      }
       
       // Tentar extrair informações úteis da resposta HTML
       let extractedQrCode = '';
