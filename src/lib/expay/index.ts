@@ -36,59 +36,53 @@ export const createPixPayment = async (data: {
     const cleanDescription = removeEmojisAndSpecialChars(data.invoice_description || 'Pagamento Viralizamos');
     const cleanDevedor = removeEmojisAndSpecialChars(data.devedor || 'Cliente');
     
-    // Criar objeto de invoice no formato JSON
-    const invoiceData = {
-      invoice_id: data.invoice_id,
-      invoice_description: cleanDescription,
-      total: data.total,
-      devedor: cleanDevedor,
-      email: data.email || 'cliente@exemplo.com',
-      cpf_cnpj: data.cpf_cnpj || '00000000000',
-      notification_url: data.notification_url || 'https://pagamentos.viralizamos.com/api/webhooks/expay',
-      telefone: data.telefone || '0000000000'
-    };
+    // Criar o objeto de parâmetros para a requisição - campos separados
+    const encodedParams = new URLSearchParams();
+    
+    // Campos obrigatórios
+    encodedParams.set('merchant_key', getExpayMerchantKey());
+    encodedParams.set('currency_code', 'BRL');
+    
+    // Dados da fatura
+    encodedParams.set('invoice_id', data.invoice_id);
+    encodedParams.set('invoice_description', cleanDescription);
+    encodedParams.set('total', data.total.toString());
+    encodedParams.set('devedor', cleanDevedor);
+    encodedParams.set('email', data.email || 'cliente@exemplo.com');
+    encodedParams.set('cpf_cnpj', data.cpf_cnpj || '00000000000');
+    encodedParams.set('notification_url', data.notification_url || 'https://pagamentos.viralizamos.com/api/webhooks/expay');
+    encodedParams.set('telefone', data.telefone || '0000000000');
     
     // Adicionar itens se existirem
     if (data.items && data.items.length > 0) {
       const item = data.items[0]; // Usar apenas o primeiro item
-      Object.assign(invoiceData, {
-        item_name: removeEmojisAndSpecialChars(item.name),
-        item_price: item.price,
-        item_description: removeEmojisAndSpecialChars(item.description),
-        item_qty: item.qty
-      });
+      encodedParams.set('item_name', removeEmojisAndSpecialChars(item.name));
+      encodedParams.set('item_price', item.price.toString());
+      encodedParams.set('item_description', removeEmojisAndSpecialChars(item.description));
+      encodedParams.set('item_qty', item.qty.toString());
     }
-    
-    // Criar o objeto de parâmetros para a requisição
-    const encodedParams = new URLSearchParams();
-    encodedParams.set('merchant_key', getExpayMerchantKey());
-    encodedParams.set('currency_code', 'BRL');
-    encodedParams.set('invoice', JSON.stringify(invoiceData));
     
     const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');
     
     console.log('[EXPAY] URL da API:', endpointUrl);
     console.log('[EXPAY] Merchant Key configurada:', getExpayMerchantKey() ? 'Sim (comprimento: ' + getExpayMerchantKey().length + ')' : 'Não');
-    console.log('[EXPAY] Dados do invoice:', JSON.stringify(invoiceData).replace(/"email":"[^"]+"/g, '"email":"***HIDDEN***"'));
+    console.log('[EXPAY] Dados do formulário:', encodedParams.toString().replace(/merchant_key=[^&]+/, 'merchant_key=***HIDDEN***'));
 
     console.log('[EXPAY] Iniciando requisição para Expay usando axios');
     
-    // Configurar a requisição axios
-    const options = {
-      method: 'POST',
-      url: endpointUrl,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Viralizamos-Payments/1.0'
-      },
-      data: encodedParams,
-      timeout: 30000 // 30 segundos
-    };
-    
     try {
       // Fazer a requisição usando axios
-      const response = await axios.request(options);
+      const response = await axios({
+        method: 'POST',
+        url: endpointUrl,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Viralizamos-Payments/1.0'
+        },
+        data: encodedParams,
+        timeout: 30000 // 30 segundos
+      });
       
       console.log('[EXPAY] Resposta recebida com status:', response.status);
       console.log('[EXPAY] Headers da resposta:', JSON.stringify(response.headers, null, 2));
@@ -119,7 +113,15 @@ export const createPixPayment = async (data: {
       }
       
       // Se não houver dados na resposta, usar dados de fallback
-      console.log('[EXPAY] Resposta sem dados, usando fallback');
+      console.log('[EXPAY] Resposta sem dados ou em formato HTML, usando fallback');
+      
+      // Tentar extrair dados do HTML se for uma resposta HTML
+      if (typeof response.data === 'string' && response.headers['content-type']?.includes('text/html')) {
+        console.log('[EXPAY] Tentando extrair dados da resposta HTML');
+        const htmlContent = response.data;
+        console.log('[EXPAY] Primeiros 200 caracteres do HTML:', htmlContent.substring(0, 200));
+      }
+      
       return createFallbackResponse(data.invoice_id, data.total);
       
     } catch (axiosError: any) {
