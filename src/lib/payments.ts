@@ -1,22 +1,6 @@
 import { db } from '@/lib/prisma';
-import { createPixPayment, getPaymentStatus, MercadoPagoPayment } from '@/lib/mercadopago';
-
-// Mapeia os status do Mercado Pago para status internos
-export function mapPaymentStatus(mpStatus: string): string {
-  const statusMap: Record<string, string> = {
-    'pending': 'pending',
-    'approved': 'completed',
-    'authorized': 'processing',
-    'in_process': 'processing',
-    'in_mediation': 'processing',
-    'rejected': 'failed',
-    'cancelled': 'cancelled',
-    'refunded': 'refunded',
-    'charged_back': 'disputed'
-  };
-  
-  return statusMap[mpStatus] || 'pending';
-}
+import { createPixPayment } from '@/lib/expay';
+import { mapExpayStatus } from '@/lib/expay/types';
 
 // Cria um pagamento PIX a partir de uma solicitação de pagamento
 export async function createPix({
@@ -53,33 +37,44 @@ export async function createPix({
       // Se já existe uma transação pendente, retornar os dados da transação existente
       return existingTransaction;
     }
-    
-    // Criar pagamento no Mercado Pago
-    const mpPayment = await createPixPayment({
-      transactionAmount: paymentRequest.amount,
+
+    // Preparar os itens para a Expay
+    const items = [{
+      name: paymentRequest.service_name || 'Serviço Viralizamos',
+      price: paymentRequest.amount,
       description: paymentRequest.service_name || 'Pagamento Viralizamos',
-      payerEmail: paymentRequest.customer_email,
-      payerName: paymentRequest.customer_name,
-      externalReference: paymentRequestId,
-      notificationUrl: webhookUrl
+      qty: 1
+    }];
+
+    // Criar pagamento na Expay
+    const expayPayment = await createPixPayment({
+      invoice_id: paymentRequestId,
+      invoice_description: paymentRequest.service_name || 'Pagamento Viralizamos',
+      total: paymentRequest.amount,
+      devedor: paymentRequest.customer_name,
+      email: paymentRequest.customer_email,
+      cpf_cnpj: '00000000000', // TODO: Implementar campo de CPF/CNPJ
+      notification_url: webhookUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/api/webhooks/expay`,
+      telefone: paymentRequest.customer_phone || '0000000000',
+      items
     });
-    
-    // Extrair QR Code e código PIX da resposta
-    const pixCode = mpPayment.point_of_interaction?.transaction_data?.qr_code || '';
-    const pixQrCode = mpPayment.point_of_interaction?.transaction_data?.qr_code_base64 || '';
     
     // Salvar dados da transação no banco de dados
     const transaction = await db.transaction.create({
       data: {
         payment_request_id: paymentRequestId,
-        provider: 'mercadopago',
-        external_id: mpPayment.id.toString(),
-        status: mapPaymentStatus(mpPayment.status),
+        provider: 'expay',
+        external_id: paymentRequestId, // Usando o mesmo ID da invoice
+        status: 'pending',
         method: 'pix',
-        amount: mpPayment.transaction_amount,
-        pix_code: pixCode,
-        pix_qrcode: pixQrCode ? `data:image/png;base64,${pixQrCode}` : null,
-        metadata: JSON.stringify(mpPayment)
+        amount: paymentRequest.amount,
+        pix_code: expayPayment.emv,
+        pix_qrcode: expayPayment.qrcode_base64,
+        metadata: JSON.stringify({
+          expay_response: expayPayment,
+          pix_url: expayPayment.pix_url,
+          bacen_url: expayPayment.bacen_url
+        })
       }
     });
     
