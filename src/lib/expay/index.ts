@@ -17,12 +17,15 @@ export const createPixPayment = async (data: {
     description: string;
     qty: number;
   }>;
+  invoice?: string;
 }): Promise<ExpayPaymentResponse> => {
   const paymentData: ExpayPaymentRequest = {
     merchant_key: getExpayMerchantKey(),
     merchant_id: getExpayMerchantId(),
     currency_code: 'BRL',
-    ...data
+    ...data,
+    // Garantir que o invoice_id seja uma string
+    invoice_id: String(data.invoice_id)
   };
 
   const endpointUrl = getExpayEndpointUrl('CREATE_PAYMENT');

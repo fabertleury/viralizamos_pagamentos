@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
     try {
       // Criar pagamento na Expay
       const expayPayment = await createPixPayment({
+        invoice: '',  // Campo vazio conforme exemplo da documentação
         invoice_id: paymentRequest.id,
         invoice_description: paymentRequest.service_name || 'Pagamento Viralizamos',
         total: paymentRequest.amount,
