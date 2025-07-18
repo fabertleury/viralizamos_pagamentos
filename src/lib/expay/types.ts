@@ -22,6 +22,26 @@ export type ExpayItem = {
 };
 
 export type ExpayPaymentResponse = {
+  pix_request: {
+    result: boolean;
+    success_message: string;
+    transaction_id: number;
+    date: string;
+    expire_date: string;
+    status: string;
+    value: string;
+    order_id: string;
+    pix_code: {
+      qrcode_base64: string;
+      emv: string;
+      bacen_url: string;
+      pix_url: string;
+    }
+  }
+};
+
+// Tipo legado para compatibilidade com código existente
+export type LegacyExpayPaymentResponse = {
   result: boolean;
   success_message: string;
   qrcode_base64: string;

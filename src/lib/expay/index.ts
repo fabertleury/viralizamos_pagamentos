@@ -1,4 +1,4 @@
-import { ExpayPaymentRequest, ExpayPaymentResponse, ExpayWebhookNotification, ExpayWebhookResponse } from './types';
+import { ExpayPaymentRequest, ExpayPaymentResponse, ExpayWebhookNotification, ExpayWebhookResponse, LegacyExpayPaymentResponse } from './types';
 import { getExpayBaseUrl, getExpayEndpointUrl, getExpayMerchantKey, getExpayMerchantId } from './config';
 
 // Criar um pagamento PIX
@@ -18,7 +18,7 @@ export const createPixPayment = async (data: {
     qty: number;
   }>;
   invoice?: string;
-}): Promise<ExpayPaymentResponse> => {
+}): Promise<LegacyExpayPaymentResponse> => {
   const paymentData: ExpayPaymentRequest = {
     merchant_key: getExpayMerchantKey(),
     merchant_id: getExpayMerchantId(),
@@ -59,7 +59,23 @@ export const createPixPayment = async (data: {
 
     const result = await response.json();
     console.log('[EXPAY] Resposta da API:', JSON.stringify(result).substring(0, 200) + '...');
-    return result as ExpayPaymentResponse;
+    
+    // Verificar se a resposta está no formato esperado (com pix_request)
+    if (result.pix_request) {
+      const pixRequest = result.pix_request;
+      // Converter para o formato legado para compatibilidade
+      return {
+        result: pixRequest.result,
+        success_message: pixRequest.success_message,
+        qrcode_base64: pixRequest.pix_code?.qrcode_base64 || '',
+        emv: pixRequest.pix_code?.emv || '',
+        pix_url: pixRequest.pix_code?.pix_url || '',
+        bacen_url: pixRequest.pix_code?.bacen_url || ''
+      };
+    }
+    
+    // Se não estiver no formato esperado, retornar como está
+    return result as LegacyExpayPaymentResponse;
   } catch (error) {
     console.error('[EXPAY] Erro ao criar pagamento PIX:', error);
     throw error;
