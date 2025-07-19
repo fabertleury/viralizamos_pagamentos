@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import axios, { AxiosError } from 'axios';
 import { createClient } from '@supabase/supabase-js';
+import { notifyOrdersService } from '@/lib/orders-service';
 
 // Constante para a URL da API de Orders
 const ORDERS_API_URL = process.env.ORDERS_API_URL || 'https://api.viralizamos.com.br/orders/create';
@@ -160,12 +161,12 @@ export async function POST(request: NextRequest) {
     }
     
     // Retornar o status do pagamento sem tentar buscar informações do serviço de orders
-    return NextResponse.json({
-      success: true,
-      order: {
-        id: orderId,
-        status: paymentRequest.status,
-        metadata: {
+            return NextResponse.json({
+              success: true,
+              order: {
+                id: orderId,
+                status: paymentRequest.status,
+                metadata: {
           payment_status: latestTransaction?.status || 'pending',
           payment_id: latestTransaction?.id,
           transaction_id: latestTransaction?.id,
