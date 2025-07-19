@@ -197,9 +197,16 @@ export async function POST(request: NextRequest) {
       // Tentar buscar pelo transaction_id no orders microservice
       if (latestTransaction?.id) {
         try {
+          // Usar a busca flexível implementada no serviço de orders
           const ordersApiUrl = `${ORDERS_API_URL.replace(/\/create$/, '/find')}?transaction_id=${latestTransaction.id}`;
           console.log(`[API] Tentando buscar ID do pedido no orders microservice: ${ordersApiUrl}`);
           
+          // Adicionar logs detalhados
+          console.log(`[API] Transaction ID usado para busca: ${latestTransaction.id}`);
+          console.log(`[API] Transaction ID original: ${latestTransaction.id}`);
+          console.log(`[API] Transaction ID sem hífens: ${latestTransaction.id.replace(/-/g, '')}`);
+          
+          // Tentar buscar com parâmetros adicionais para melhorar a chance de encontrar
           const ordersResponse = await axios.get(ordersApiUrl);
           
           if (ordersResponse.data && ordersResponse.data.order) {
