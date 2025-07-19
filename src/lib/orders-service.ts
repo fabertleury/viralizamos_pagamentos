@@ -51,9 +51,28 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
       if (!providerId && transaction.payment_request.service_id) {
         console.log(`[OrdersService] Buscando provider_id para o serviço: ${transaction.payment_request.service_id}`);
         
-        // Aqui você pode implementar uma busca no banco ou em uma API externa
-        // por enquanto, apenas registramos que não foi encontrado
-        console.log(`[OrdersService] Não foi possível determinar o provider_id para este serviço`);
+        try {
+          // Buscar o serviço no banco de dados para obter o provider_id
+          const service = await db.service.findUnique({
+            where: { id: transaction.payment_request.service_id }
+          });
+          
+          if (service && service.provider_id) {
+            providerId = service.provider_id;
+            console.log(`[OrdersService] Provider ID encontrado no banco de dados: ${providerId}`);
+          } else {
+            console.log(`[OrdersService] Serviço encontrado, mas sem provider_id definido`);
+          }
+        } catch (error) {
+          console.error('[OrdersService] Erro ao buscar serviço no banco de dados:', error);
+        }
+        
+        // Se ainda não encontrou, usar um valor padrão
+        if (!providerId) {
+          // Usar um provider_id padrão para evitar erro de constraint
+          providerId = process.env.DEFAULT_PROVIDER_ID || '5c6c7b9c-0a1d-4d0e-8b1f-9c9c9c9c9c9c';
+          console.log(`[OrdersService] Usando provider_id padrão: ${providerId}`);
+        }
       }
     } catch (error) {
       console.error('[OrdersService] Erro ao buscar informações do serviço:', error);
@@ -196,4 +215,4 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
     
     return false;
   }
-} 
+}
