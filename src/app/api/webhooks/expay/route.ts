@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/prisma';
 import { checkPaymentStatus } from '@/lib/expay';
+import { notifyOrdersService } from '@/lib/orders-service';
 
 /**
  * Webhook para receber notificações do Expay
@@ -104,6 +105,15 @@ export async function POST(request: NextRequest) {
                   response: JSON.stringify(statusResponse)
                 }
               });
+              
+              // Notificar o serviço de orders sobre o pagamento aprovado
+              console.log(`[WEBHOOK] Notificando serviço de orders sobre pagamento aprovado para transação ${transaction.id}`);
+              try {
+                const notificationResult = await notifyOrdersService(transaction.id);
+                console.log(`[WEBHOOK] Resultado da notificação para orders: ${notificationResult ? 'Sucesso' : 'Falha'}`);
+              } catch (notifyError) {
+                console.error('[WEBHOOK] Erro ao notificar serviço de orders:', notifyError);
+              }
             }
           } else {
             console.log(`[WEBHOOK] Status da transação já está como ${newStatus}, nenhuma atualização necessária`);
