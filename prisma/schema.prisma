@@ -198,11 +198,11 @@ model ProviderResponseLog {
 }
 
 model BlockedEmail {
-  id         String   @id @default(uuid())
-  email      String   @unique
-  reason     String?
-  blocked_at DateTime @default(now())
-  blocked_by String?
+  id            String   @id @default(uuid())
+  email         String   @unique
+  reason        String?
+  blocked_at    DateTime @default(now())
+  blocked_until DateTime?
 
   @@index([email])
   @@map("blocked_emails")

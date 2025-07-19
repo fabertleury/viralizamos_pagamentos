@@ -73,9 +73,9 @@ export async function POST(request: NextRequest) {
           if (transaction.status !== newStatus) {
             console.log(`[WEBHOOK] Atualizando status da transação de ${transaction.status} para ${newStatus}`);
             
-            await db.transaction.update({
-              where: { id: transaction.id },
-              data: { 
+      await db.transaction.update({
+        where: { id: transaction.id },
+        data: {
                 status: newStatus,
                 updated_at: new Date(),
                 processed_at: newStatus === 'approved' ? new Date() : undefined
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
               
               await db.paymentRequest.update({
                 where: { id: paymentRequest.id },
-                data: { 
+        data: {
                   status: 'paid',
                   processed_at: new Date()
                 }
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
               
               // Registrar a notificação de pagamento
               await db.paymentNotificationLog.create({
-                data: {
+          data: {
                   transaction_id: transaction.id,
                   type: 'webhook',
                   status: 'success',
@@ -128,13 +128,13 @@ export async function POST(request: NextRequest) {
       // Registrar o erro, mas não falhar o webhook
       if (paymentRequest.transactions.length > 0) {
         await db.paymentNotificationLog.create({
-          data: {
+        data: {
             transaction_id: paymentRequest.transactions[0].id,
             type: 'webhook',
             status: 'error',
             target_url: 'expay_webhook',
             payload: JSON.stringify(notification),
-            error_message: error instanceof Error ? error.message : 'Erro desconhecido',
+          error_message: error instanceof Error ? error.message : 'Erro desconhecido',
             error_stack: error instanceof Error ? error.stack : undefined
           }
         });

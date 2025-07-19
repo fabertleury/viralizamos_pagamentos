@@ -1,8 +1,17 @@
 // Script para testar a função createPixPayment
 import { createPixPayment } from '../lib/expay';
+import * as dotenv from 'dotenv';
+
+// Carregar variáveis de ambiente
+dotenv.config({ path: '.env.local' });
+
+console.log('Configurações do Expay:');
+console.log('EXPAY_MERCHANT_KEY:', process.env.EXPAY_MERCHANT_KEY ? `Configurado (${process.env.EXPAY_MERCHANT_KEY.substring(0, 10)}...)` : 'Não configurado');
+console.log('EXPAY_BASE_URL:', process.env.EXPAY_BASE_URL || 'Não configurado');
+console.log('EXPAY_MERCHANT_ID:', process.env.EXPAY_MERCHANT_ID || 'Não configurado');
 
 async function testExpayRequest() {
-  console.log('Iniciando teste de requisição para o Expay...');
+  console.log('\nIniciando teste de requisição para o Expay...');
   
   try {
     const result = await createPixPayment({
@@ -22,10 +31,10 @@ async function testExpayRequest() {
       }]
     });
     
-    console.log('Resposta recebida com sucesso:');
+    console.log('\nResposta recebida com sucesso:');
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {
-    console.error('Erro ao fazer requisição:');
+    console.error('\nErro ao fazer requisição:');
     console.error(error);
   }
 }

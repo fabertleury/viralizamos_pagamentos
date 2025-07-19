@@ -22,7 +22,7 @@
     "@types/bull": "^4.10.4",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/pg": "^8.11.14",
-    "axios": "^1.8.4",
+    "axios": "^1.10.0",
     "bcryptjs": "^2.4.3",
     "bull": "^4.16.5",
     "date-fns": "^3.6.0",

@@ -32,6 +32,7 @@ interface PaymentRequest {
     pix_code?: string;
     pix_qrcode?: string;
     amount: number;
+    pix_url?: string; // Added pix_url
   }
 }
 

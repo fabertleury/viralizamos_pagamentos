@@ -81,9 +81,9 @@ export const createPixPayment = async (data: {
       
       // Fazer a requisição usando axios
       const response = await axios({
-        method: 'POST',
+      method: 'POST',
         url: endpointUrl,
-        headers: {
+      headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/x-www-form-urlencoded',
           'User-Agent': 'Viralizamos-Payments/1.0'
@@ -119,8 +119,8 @@ export const createPixPayment = async (data: {
             value: pixRequest.value || data.total.toString(),
             order_id: pixRequest.order_id || data.invoice_id
           };
-        }
-        
+    }
+
         // Se não estiver no formato esperado, retornar como está
         console.log('[EXPAY] Resposta em formato não esperado, retornando como está');
         return response.data as LegacyExpayPaymentResponse;
@@ -200,9 +200,9 @@ export const checkPaymentStatus = async (notification: ExpayWebhookNotification)
     
     try {
       const response = await axios({
-        method: 'POST',
+      method: 'POST',
         url: endpointUrl,
-        headers: {
+      headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json',
           'User-Agent': 'Viralizamos-Payments/1.0'

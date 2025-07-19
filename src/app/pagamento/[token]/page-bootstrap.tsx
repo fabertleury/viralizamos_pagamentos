@@ -15,6 +15,7 @@ interface PaymentRequest {
     method: string;
     pix_code?: string;
     pix_qrcode?: string;
+    pix_url?: string;
   }
 }
 
@@ -130,12 +131,11 @@ export default function PaymentPage() {
                             <img 
                               src={paymentRequest.payment.pix_qrcode.startsWith('data:') 
                   ? paymentRequest.payment.pix_qrcode 
-                  : `data:image/png;base64,${paymentRequest.payment.pix_qrcode}`} 
-                              alt="QR Code PIX" 
-                              className="img-fluid border p-2 rounded"
-                              style={{ maxWidth: '200px' }}
-                            />
-                          ) : (
+                  : paymentRequest.payment.pix_url || `data:image/png;base64,${paymentRequest.payment.pix_qrcode}`} 
+                                alt="QR Code PIX" 
+                                className="img-fluid border p-2 rounded"
+                              />
+                            ) : (
                             <div className="border rounded p-3 bg-light mx-auto" style={{ width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <p className="text-muted mb-0">QR Code não disponível</p>
                             </div>

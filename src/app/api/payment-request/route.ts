@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       
       serviceType = additionalData.service_type || 'instagram_likes';
       isFollowersService = serviceType === 'instagram_followers';
-      externalServiceId = additionalData.external_service_id;
+          externalServiceId = additionalData.external_service_id;
       providerId = additionalData.provider_id || body.provider_id; // Capturar provider_id
       
       if (additionalData.posts) {
