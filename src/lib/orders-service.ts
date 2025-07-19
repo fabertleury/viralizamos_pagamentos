@@ -50,13 +50,19 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
     }
 
     // Determinar tipo de serviço e outras informações
-    // Garantir consistência para serviços de seguidores
     const serviceType = metadata.service_type || 'instagram_likes';
-    const isFollowersService = serviceType === 'seguidores' || !!metadata.is_followers_service;
     
-    // Garantir que total_quantity tenha um valor válido (mínimo 100 para seguidores)
+    // Se o tipo de serviço for "seguidores", garantir que is_followers_service seja true
+    const isFollowersService = serviceType === 'seguidores' ? true : !!metadata.is_followers_service;
+    
+    // Definir quantidade padrão baseada no tipo de serviço
     const defaultQuantity = isFollowersService ? 100 : 10;
     const totalQuantity = metadata.total_quantity > 0 ? metadata.total_quantity : defaultQuantity;
+
+    console.log(`[OrdersService] Tipo de serviço: ${serviceType}`);
+    console.log(`[OrdersService] É serviço de seguidores: ${isFollowersService}`);
+    console.log(`[OrdersService] Quantidade total (original): ${metadata.total_quantity}`);
+    console.log(`[OrdersService] Quantidade total (corrigida): ${totalQuantity}`);
 
     // Construir o payload para o serviço de orders
     const payload = {
