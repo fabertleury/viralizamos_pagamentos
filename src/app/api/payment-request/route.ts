@@ -157,7 +157,6 @@ export async function POST(request: NextRequest) {
           amount: paymentRequest.amount,
           pix_code: expayPayment.emv,
           pix_qrcode: expayPayment.qrcode_base64,
-          pix_url: expayPayment.pix_url,
           metadata: JSON.stringify({
             expay_response: expayPayment,
             idempotency_key: idempotencyKey,
@@ -169,7 +168,7 @@ export async function POST(request: NextRequest) {
             total_quantity: totalQuantity,
             posts: postsWithQuantities,
             posts_count: postsCount,
-            pix_url: expayPayment.pix_url,
+            pix_url: expayPayment.pix_url, // Incluído no metadata como string
             bacen_url: expayPayment.bacen_url,
             provider_id: providerId // Adicionar provider_id ao metadata
           })
