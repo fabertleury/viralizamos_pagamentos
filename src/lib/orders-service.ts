@@ -31,6 +31,34 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
 
     console.log(`[OrdersService] Transação ${transactionId} está aprovada, preparando dados para notificação`);
 
+    // Buscar informações do serviço para obter o provider_id
+    let providerId = '';
+    try {
+      // Tentar obter o provider_id do metadata da transação
+      if (transaction.metadata) {
+        try {
+          const metadataObj = JSON.parse(transaction.metadata);
+          if (metadataObj.provider_id) {
+            providerId = metadataObj.provider_id;
+            console.log(`[OrdersService] Provider ID encontrado no metadata: ${providerId}`);
+          }
+        } catch (parseError) {
+          console.error('[OrdersService] Erro ao parsear metadata da transação:', parseError);
+        }
+      }
+      
+      // Se não encontrou no metadata, tentar buscar de outras fontes
+      if (!providerId && transaction.payment_request.service_id) {
+        console.log(`[OrdersService] Buscando provider_id para o serviço: ${transaction.payment_request.service_id}`);
+        
+        // Aqui você pode implementar uma busca no banco ou em uma API externa
+        // por enquanto, apenas registramos que não foi encontrado
+        console.log(`[OrdersService] Não foi possível determinar o provider_id para este serviço`);
+      }
+    } catch (error) {
+      console.error('[OrdersService] Erro ao buscar informações do serviço:', error);
+    }
+
     // Extrair dados adicionais do payment_request
     let metadata: any = {};
     let posts: any[] = [];
@@ -89,7 +117,8 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
           phone: transaction.payment_request.customer_phone
         },
         total_quantity: totalQuantity,
-        is_followers_service: isFollowersService
+        is_followers_service: isFollowersService,
+        provider_id: providerId // Adicionar provider_id
       }
     };
 
