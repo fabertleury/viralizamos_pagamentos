@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     let postsWithQuantities = [];
     let postsCount = 0;
     let externalServiceId = null;
+    let providerId = null; // Capturar provider_id
 
       if (body.additional_data) {
       additionalDataString = JSON.stringify(body.additional_data);
@@ -61,13 +62,20 @@ export async function POST(request: NextRequest) {
       
       serviceType = additionalData.service_type || 'instagram_likes';
       isFollowersService = serviceType === 'instagram_followers';
-          externalServiceId = additionalData.external_service_id;
+      externalServiceId = additionalData.external_service_id;
+      providerId = additionalData.provider_id || body.provider_id; // Capturar provider_id
       
       if (additionalData.posts) {
         postsWithQuantities = additionalData.posts;
         postsCount = additionalData.posts.length;
         totalQuantity = additionalData.posts.reduce((total: number, post: any) => total + (post.quantity || 0), 0);
       }
+    }
+    
+    // Capturar provider_id diretamente do body se disponível
+    if (!providerId && body.provider_id) {
+      providerId = body.provider_id;
+      console.log(`[SOLUÇÃO INTEGRADA] Provider ID capturado do body: ${providerId}`);
     }
 
     // Data de expiração (24 horas)
@@ -149,6 +157,7 @@ export async function POST(request: NextRequest) {
           amount: paymentRequest.amount,
           pix_code: expayPayment.emv,
           pix_qrcode: expayPayment.qrcode_base64,
+          pix_url: expayPayment.pix_url,
           metadata: JSON.stringify({
             expay_response: expayPayment,
             idempotency_key: idempotencyKey,
@@ -161,7 +170,8 @@ export async function POST(request: NextRequest) {
             posts: postsWithQuantities,
             posts_count: postsCount,
             pix_url: expayPayment.pix_url,
-            bacen_url: expayPayment.bacen_url
+            bacen_url: expayPayment.bacen_url,
+            provider_id: providerId // Adicionar provider_id ao metadata
           })
         }
       });
@@ -221,6 +231,7 @@ export async function POST(request: NextRequest) {
           method: transaction.method,
           pix_code: transaction.pix_code,
           pix_qrcode: transaction.pix_qrcode,
+          pix_url: transaction.metadata ? JSON.parse(transaction.metadata).pix_url : undefined,
           amount: transaction.amount
         }
       });
