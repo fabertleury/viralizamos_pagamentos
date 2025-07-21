@@ -47,8 +47,13 @@ export async function createPix({
         const additionalData = JSON.parse(paymentRequest.additional_data);
         serviceQuantity = additionalData.total_quantity || additionalData.quantity || additionalData.quantidade || 1;
         
-        if (serviceQuantity > 1) {
-          productName = `${serviceQuantity} ${paymentRequest.service_name || 'Serviços Viralizamos'}`;
+        // Para serviços quantificáveis, incluir quantidade no nome
+        if (serviceQuantity && serviceQuantity > 1) {
+          const serviceName = productName.toLowerCase();
+          if (serviceName.includes('seguidores') || serviceName.includes('curtidas') || 
+              serviceName.includes('views') || serviceName.includes('visualizacoes')) {
+            productName = `${serviceQuantity.toLocaleString()} ${paymentRequest.service_name}`;
+          }
         }
       } catch (e) {
         console.error('Erro ao extrair quantidade dos dados adicionais:', e);

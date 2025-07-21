@@ -136,9 +136,17 @@ export async function POST(request: NextRequest) {
     console.log('[SOLUÇÃO INTEGRADA] Chave de idempotência:', idempotencyKey);
     
               // Preparar nome do produto com quantidade para eXPay
-    const productName = totalQuantity > 1 
-      ? `${totalQuantity} ${paymentRequest.service_name || 'Serviços Viralizamos'}`
-      : paymentRequest.service_name || 'Serviço Viralizamos';
+    let productName = paymentRequest.service_name || 'Serviço Viralizamos';
+    
+    // Para serviços quantificáveis (seguidores, curtidas), incluir quantidade no nome
+    if (totalQuantity && totalQuantity > 1) {
+      // Detectar tipo do serviço pelo nome
+      const serviceName = productName.toLowerCase();
+      if (serviceName.includes('seguidores') || serviceName.includes('curtidas') || 
+          serviceName.includes('views') || serviceName.includes('visualizacoes')) {
+        productName = `${totalQuantity.toLocaleString()} ${paymentRequest.service_name}`;
+      }
+    }
     
     console.log(`[SOLUÇÃO INTEGRADA] Produto para eXPay: "${productName}" - R$ ${paymentRequest.amount}`);
     console.log(`[SOLUÇÃO INTEGRADA] Quantidade para controle interno: ${totalQuantity}`);
