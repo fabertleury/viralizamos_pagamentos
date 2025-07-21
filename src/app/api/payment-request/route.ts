@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
   // Obter o body da requisição diretamente sem verificação de token
   const body = await request.json();
   console.log('[SOLUÇÃO INTEGRADA] Dados recebidos:', JSON.stringify(body).substring(0, 200) + '...');
+  console.log('[SOLUÇÃO INTEGRADA] Quantidade no body:', body.quantity || body.quantidade || 'não encontrada');
   
   try {
     // Verificar se o email está bloqueado usando a implementação em memória
@@ -76,6 +77,12 @@ export async function POST(request: NextRequest) {
         totalQuantity = additionalData.total_quantity || additionalData.quantity || additionalData.quantidade || 0;
         console.log(`[SOLUÇÃO INTEGRADA] Quantidade extraída diretamente dos dados adicionais: ${totalQuantity}`);
       }
+    }
+    
+    // Se ainda não temos quantidade, tentar capturar diretamente do body principal
+    if (!totalQuantity) {
+      totalQuantity = body.quantity || body.quantidade || body.total_quantity || 0;
+      console.log(`[SOLUÇÃO INTEGRADA] Quantidade extraída do body principal: ${totalQuantity}`);
     }
     
     // Capturar provider_id diretamente do body se disponível
