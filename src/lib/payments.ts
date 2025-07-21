@@ -38,22 +38,13 @@ export async function createPix({
       return existingTransaction;
     }
 
-    // Preparar os itens para a Expay - extrair quantidade dos dados adicionais
-    let serviceQuantity = 1;
-    if (paymentRequest.additional_data) {
-      try {
-        const additionalData = JSON.parse(paymentRequest.additional_data);
-        serviceQuantity = additionalData.total_quantity || additionalData.quantity || additionalData.quantidade || 1;
-      } catch (e) {
-        console.error('Erro ao extrair quantidade dos dados adicionais:', e);
-      }
-    }
-    
+    // Preparar os itens para a Expay - SEMPRE qty: 1 para validação da API
+    // A quantidade real dos serviços fica no metadata/additional_data para controle interno
     const items = [{
       name: paymentRequest.service_name || 'Serviço Viralizamos',
       price: paymentRequest.amount,
       description: paymentRequest.service_name || 'Pagamento Viralizamos',
-      qty: serviceQuantity
+      qty: 1 // SEMPRE 1 para eXPay (price * qty = total)
     }];
 
     // Criar pagamento na Expay

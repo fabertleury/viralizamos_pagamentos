@@ -135,16 +135,17 @@ export async function POST(request: NextRequest) {
     const idempotencyKey = generateIdempotencyKey(paymentRequest.id);
     console.log('[SOLUÇÃO INTEGRADA] Chave de idempotência:', idempotencyKey);
     
-          // Preparar os itens para a Expay - usar a quantidade real do serviço
-      const serviceQuantity = totalQuantity || 1; // Usar a quantidade real calculada
-      console.log(`[SOLUÇÃO INTEGRADA] Quantidade final para eXPay: ${serviceQuantity} (totalQuantity: ${totalQuantity})`);
-      
-      const items = [{
-        name: paymentRequest.service_name || 'Serviço Viralizamos',
-        price: paymentRequest.amount,
-        description: paymentRequest.service_name || 'Pagamento Viralizamos',
-        qty: serviceQuantity
-      }];
+              // Preparar os itens para a Expay - SEMPRE qty: 1 para validação da API
+    // A quantidade real fica no metadata para controle interno
+    console.log(`[SOLUÇÃO INTEGRADA] Quantidade para controle interno: ${totalQuantity}`);
+    console.log(`[SOLUÇÃO INTEGRADA] Quantidade para eXPay (sempre 1): 1`);
+
+    const items = [{
+      name: paymentRequest.service_name || 'Serviço Viralizamos',
+      price: paymentRequest.amount,
+      description: paymentRequest.service_name || 'Pagamento Viralizamos',
+      qty: 1 // SEMPRE 1 para eXPay (price * qty = total)
+    }];
 
     try {
       // Usar uma URL fixa para notificação para evitar problemas
