@@ -17,8 +17,8 @@ RUN apk add --no-cache openssl libc6-compat
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Clean install dependencies with optimizations
-RUN npm ci --ignore-scripts && \
+# Install dependencies with force to resolve conflicts
+RUN npm install --force --no-audit --no-fund && \
     npm cache clean --force
 
 # Generate Prisma Client
