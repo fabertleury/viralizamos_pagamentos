@@ -38,12 +38,22 @@ export async function createPix({
       return existingTransaction;
     }
 
-    // Preparar os itens para a Expay
+    // Preparar os itens para a Expay - extrair quantidade dos dados adicionais
+    let serviceQuantity = 1;
+    if (paymentRequest.additional_data) {
+      try {
+        const additionalData = JSON.parse(paymentRequest.additional_data);
+        serviceQuantity = additionalData.total_quantity || additionalData.quantity || additionalData.quantidade || 1;
+      } catch (e) {
+        console.error('Erro ao extrair quantidade dos dados adicionais:', e);
+      }
+    }
+    
     const items = [{
       name: paymentRequest.service_name || 'Serviço Viralizamos',
       price: paymentRequest.amount,
       description: paymentRequest.service_name || 'Pagamento Viralizamos',
-      qty: 1
+      qty: serviceQuantity
     }];
 
     // Criar pagamento na Expay

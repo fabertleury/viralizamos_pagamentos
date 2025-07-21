@@ -22,17 +22,15 @@ export function Header() {
     <Box as="header" bg={bgColor} borderBottom="1px" borderColor={borderColor} position="relative" zIndex="999">
       <Container maxW="container.xl" py={4}>
         <Flex justify="space-between" align="center">
-          <Link href="/" passHref>
-            <Box as="a" display="flex" alignItems="center">
-              <Image 
-                src="/images/viralizamos-color.png" 
-                alt="Viralizamos" 
-                width={150} 
-                height={50} 
-                priority
-              />
-            </Box>
-          </Link>
+          <Box as="a" href="https://viralizamos.com" display="flex" alignItems="center">
+            <Image 
+              src="/images/viralizamos-color.png" 
+              alt="Viralizamos" 
+              width={150} 
+              height={50} 
+              priority
+            />
+          </Box>
           
           <Box display={{ base: 'block', md: 'none' }} zIndex={50}>
             <Button

@@ -70,6 +70,12 @@ export async function POST(request: NextRequest) {
         postsCount = additionalData.posts.length;
         totalQuantity = additionalData.posts.reduce((total: number, post: any) => total + (post.quantity || 0), 0);
       }
+      
+      // Se não conseguiu obter a quantidade dos posts, tentar obter diretamente dos dados adicionais
+      if (!totalQuantity) {
+        totalQuantity = additionalData.total_quantity || additionalData.quantity || additionalData.quantidade || 0;
+        console.log(`[SOLUÇÃO INTEGRADA] Quantidade extraída diretamente dos dados adicionais: ${totalQuantity}`);
+      }
     }
     
     // Capturar provider_id diretamente do body se disponível
@@ -114,13 +120,16 @@ export async function POST(request: NextRequest) {
     const idempotencyKey = generateIdempotencyKey(paymentRequest.id);
     console.log('[SOLUÇÃO INTEGRADA] Chave de idempotência:', idempotencyKey);
     
-    // Preparar os itens para a Expay
-    const items = [{
-      name: paymentRequest.service_name || 'Serviço Viralizamos',
-      price: paymentRequest.amount,
-      description: paymentRequest.service_name || 'Pagamento Viralizamos',
-      qty: 1
-    }];
+          // Preparar os itens para a Expay - usar a quantidade real do serviço
+      const serviceQuantity = totalQuantity || 1; // Usar a quantidade real calculada
+      console.log(`[SOLUÇÃO INTEGRADA] Quantidade final para eXPay: ${serviceQuantity} (totalQuantity: ${totalQuantity})`);
+      
+      const items = [{
+        name: paymentRequest.service_name || 'Serviço Viralizamos',
+        price: paymentRequest.amount,
+        description: paymentRequest.service_name || 'Pagamento Viralizamos',
+        qty: serviceQuantity
+      }];
 
     try {
       // Usar uma URL fixa para notificação para evitar problemas
@@ -142,7 +151,7 @@ export async function POST(request: NextRequest) {
           name: paymentRequest.service_name || 'Serviço Viralizamos',
           price: paymentRequest.amount,
           description: paymentRequest.service_name || 'Pagamento Viralizamos',
-          qty: 1
+          qty: serviceQuantity
         }]
       });
       
