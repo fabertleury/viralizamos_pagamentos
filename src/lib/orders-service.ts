@@ -85,7 +85,7 @@ export async function notifyOrdersService(transactionId: string): Promise<boolea
     const isFollowersService = serviceType === 'seguidores' ? true : !!metadata.is_followers_service;
     
     // Definir quantidade padrão baseada no tipo de serviço
-    const defaultQuantity = isFollowersService ? 100 : 10;
+    const defaultQuantity = isFollowersService ? 1 : 1;
     const totalQuantity = metadata.total_quantity > 0 ? metadata.total_quantity : defaultQuantity;
 
     console.log(`[OrdersService] Tipo de serviço: ${serviceType}`);
