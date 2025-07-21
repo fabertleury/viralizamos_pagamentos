@@ -18,7 +18,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Clean install dependencies with optimizations
-RUN npm ci --only=production --ignore-scripts && \
+RUN npm ci --ignore-scripts && \
     npm cache clean --force
 
 # Generate Prisma Client
