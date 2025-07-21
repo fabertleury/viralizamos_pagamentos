@@ -66,16 +66,18 @@ export async function POST(request: NextRequest) {
           externalServiceId = additionalData.external_service_id;
       providerId = additionalData.provider_id || body.provider_id; // Capturar provider_id
       
+      // Primeiro tentar obter quantidade diretamente dos dados adicionais (para seguidores)
+      totalQuantity = additionalData.total_quantity || additionalData.quantity || additionalData.quantidade || 0;
+      console.log(`[SOLUÇÃO INTEGRADA] Quantidade direta dos additional_data: ${totalQuantity}`);
+      
       if (additionalData.posts) {
         postsWithQuantities = additionalData.posts;
         postsCount = additionalData.posts.length;
-        totalQuantity = additionalData.posts.reduce((total: number, post: any) => total + (post.quantity || 0), 0);
-      }
-      
-      // Se não conseguiu obter a quantidade dos posts, tentar obter diretamente dos dados adicionais
-      if (!totalQuantity) {
-        totalQuantity = additionalData.total_quantity || additionalData.quantity || additionalData.quantidade || 0;
-        console.log(`[SOLUÇÃO INTEGRADA] Quantidade extraída diretamente dos dados adicionais: ${totalQuantity}`);
+        // Para curtidas, usar a soma dos posts se não tiver quantidade direta
+        if (!totalQuantity) {
+          totalQuantity = additionalData.posts.reduce((total: number, post: any) => total + (post.quantity || 0), 0);
+          console.log(`[SOLUÇÃO INTEGRADA] Quantidade calculada pela soma dos posts: ${totalQuantity}`);
+        }
       }
     }
     
@@ -84,6 +86,12 @@ export async function POST(request: NextRequest) {
       totalQuantity = body.quantity || body.quantidade || body.total_quantity || 0;
       console.log(`[SOLUÇÃO INTEGRADA] Quantidade extraída do body principal: ${totalQuantity}`);
     }
+    
+    console.log(`[SOLUÇÃO INTEGRADA] === RESUMO QUANTIDADE ===`);
+    console.log(`[SOLUÇÃO INTEGRADA] Service Type: ${serviceType}`);
+    console.log(`[SOLUÇÃO INTEGRADA] É Seguidores: ${isFollowersService}`);
+    console.log(`[SOLUÇÃO INTEGRADA] Posts encontrados: ${postsCount}`);
+    console.log(`[SOLUÇÃO INTEGRADA] Quantidade FINAL: ${totalQuantity}`);
     
     // Capturar provider_id diretamente do body se disponível
     if (!providerId && body.provider_id) {
