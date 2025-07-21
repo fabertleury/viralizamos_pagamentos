@@ -135,16 +135,19 @@ export async function POST(request: NextRequest) {
     const idempotencyKey = generateIdempotencyKey(paymentRequest.id);
     console.log('[SOLUÇÃO INTEGRADA] Chave de idempotência:', idempotencyKey);
     
-              // Preparar os itens para a Expay - SEMPRE qty: 1 para validação da API
-    // A quantidade real fica no metadata para controle interno
+              // Preparar nome do produto com quantidade para eXPay
+    const productName = totalQuantity > 1 
+      ? `${totalQuantity} ${paymentRequest.service_name || 'Serviços Viralizamos'}`
+      : paymentRequest.service_name || 'Serviço Viralizamos';
+    
+    console.log(`[SOLUÇÃO INTEGRADA] Produto para eXPay: "${productName}" - R$ ${paymentRequest.amount}`);
     console.log(`[SOLUÇÃO INTEGRADA] Quantidade para controle interno: ${totalQuantity}`);
-    console.log(`[SOLUÇÃO INTEGRADA] Quantidade para eXPay (sempre 1): 1`);
 
     const items = [{
-      name: paymentRequest.service_name || 'Serviço Viralizamos',
+      name: productName,
       price: paymentRequest.amount,
-      description: paymentRequest.service_name || 'Pagamento Viralizamos',
-      qty: 1 // SEMPRE 1 para eXPay (price * qty = total)
+      description: productName,
+      qty: 1 // 1 produto (que contém a quantidade escolhida pelo cliente)
     }];
 
     try {
@@ -164,10 +167,10 @@ export async function POST(request: NextRequest) {
         notification_url: notificationUrl,
         telefone: paymentRequest.customer_phone || '0000000000',
         items: [{
-          name: paymentRequest.service_name || 'Serviço Viralizamos',
+          name: productName,
           price: paymentRequest.amount,
-          description: paymentRequest.service_name || 'Pagamento Viralizamos',
-          qty: serviceQuantity
+          description: productName,
+          qty: 1 // 1 produto (que contém a quantidade escolhida)
         }]
       });
       
