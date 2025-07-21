@@ -128,7 +128,7 @@ async function testQueueProcessing() {
       service_id: pendingItem.payment_request.service_id,
       external_payment_id: metadata.external_id,
       amount: transaction.amount,
-      quantity: serviceData.quantity || 100,
+      quantity: serviceData.quantity || serviceData.quantidade || 1,
       target_username: pendingItem.payment_request.profile_username,
       customer_email: pendingItem.payment_request.customer_email,
       customer_name: pendingItem.payment_request.customer_name,

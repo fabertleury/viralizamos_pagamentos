@@ -187,14 +187,14 @@ function setupProcessors() {
     // Se não tiver dados do serviço, mas tiver service_id
     if (!serviceData && paymentRequest.service_id) {
       serviceId = paymentRequest.service_id;
-      serviceData = { id: serviceId, quantity: totalQuantity || 100 }; 
+              serviceData = { id: serviceId, quantity: totalQuantity || 1 }; 
       console.log(`ℹ️ [Queue] Usando service_id: ${serviceId}`);
     }
     
     // Valor padrão se nada for encontrado
     if (!serviceData) {
       serviceId = "instagram-followers"; // Identificador genérico
-      serviceData = { id: serviceId, quantity: totalQuantity || 100, name: "Serviço Instagram" };
+              serviceData = { id: serviceId, quantity: totalQuantity || 1, name: "Serviço Instagram" };
       console.log(`⚠️ [Queue] Usando serviceId padrão: ${serviceId}`);
     }
     
@@ -465,7 +465,7 @@ function setupProcessors() {
           external_order_id: external_order_id, // ID externo do pedido (será enviado ao provedor)
           external_payment_id: externalId,
           amount: transaction.amount,
-          quantity: totalQuantity || serviceData.quantity || 100,
+          quantity: totalQuantity || serviceData.quantity || serviceData.quantidade || 1,
           target_username: targetUsername,
           target_url: targetUrl, // URL do perfil para receber o serviço
           customer_email: paymentRequest.customer_email,
@@ -587,7 +587,7 @@ function setupProcessors() {
         [{ 
           order_id: createdOrderIds[0] || null, 
           post_code: null,
-          quantity: totalQuantity || serviceData?.quantity || 100
+          quantity: totalQuantity || serviceData?.quantity || serviceData?.quantidade || 1
         }]
     };
   });

@@ -76,7 +76,7 @@ export async function processQueue() {
           service_id: item.payment_request.service_id,
           external_payment_id: externalId,  // ID externo do pagamento
           amount: transaction.amount,
-          quantity: serviceData.quantity || 100,
+          quantity: serviceData.quantity || serviceData.quantidade || 1,
           target_username: item.payment_request.profile_username,
           customer_email: item.payment_request.customer_email,
           customer_name: item.payment_request.customer_name,
